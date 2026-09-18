@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ArrowUpDown, Building2, Calendar, MapPin, Map as MapIcon, Search, SlidersHorizontal } from "lucide-react";
+import { ArrowUpDown, Building2, Calendar, MapPin, Map as MapIcon, Search, SlidersHorizontal, X } from "lucide-react";
 import { listEvents } from "../lib/db";
 import type { EventCategory, EventRecord } from "../types";
 import { EventCard } from "../components/EventCard";
@@ -49,6 +49,8 @@ export const EventsPage: React.FC = () => {
   const [price, setPrice] = useState<PriceFilter>("all");
   const [team, setTeam] = useState<TeamFilter>("all");
   const [sortBy, setSortBy] = useState<DateSort>("date_asc");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   useEffect(() => {
@@ -113,6 +115,16 @@ export const EventsPage: React.FC = () => {
       if (price === "paid" && e.fee === 0) return false;
       if (team === "solo" && e.team_max > 1) return false;
       if (team === "team" && e.team_max <= 1) return false;
+      if (fromDate) {
+        const fromTime = new Date(fromDate + "T00:00:00").getTime();
+        const eventEnd = e.end_at ? new Date(e.end_at).getTime() : new Date(e.start_at).getTime();
+        if (eventEnd < fromTime) return false;
+      }
+      if (toDate) {
+        const toTime = new Date(toDate + "T23:59:59").getTime();
+        const eventStart = e.start_at ? new Date(e.start_at).getTime() : 0;
+        if (eventStart > toTime) return false;
+      }
       if (query.trim()) {
         const q = query.toLowerCase();
         const haystack = `${e.title} ${e.club_name} ${e.college} ${e.tagline}`.toLowerCase();
@@ -139,9 +151,17 @@ export const EventsPage: React.FC = () => {
       }
       return 0;
     });
-  }, [events, state, city, college, category, price, team, query, sortBy]);
+  }, [events, state, city, college, category, price, team, query, sortBy, fromDate, toDate]);
 
   const scopeLabel = college !== ALL_COLLEGES ? `at ${college}` : city ? `in ${city}, ${state}` : "";
+  const dateLabel =
+    fromDate && toDate
+      ? ` between ${new Date(fromDate + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short" })} and ${new Date(toDate + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short" })}`
+      : fromDate
+      ? ` from ${new Date(fromDate + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short" })} onwards`
+      : toDate
+      ? ` up to ${new Date(toDate + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short" })}`
+      : "";
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
@@ -150,6 +170,7 @@ export const EventsPage: React.FC = () => {
           <h1 className="font-display text-3xl font-bold sm:text-4xl">Events</h1>
           <p className="text-cream/70">
             {filtered.length} {filtered.length === 1 ? "event" : "events"} {scopeLabel}
+            {dateLabel}
           </p>
         </div>
 
@@ -252,7 +273,7 @@ export const EventsPage: React.FC = () => {
               </button>
             ))}
           </div>
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <SegmentedControl
               value={price}
               onChange={setPrice}
@@ -271,6 +292,48 @@ export const EventsPage: React.FC = () => {
                 { value: "team", label: "Team only" },
               ]}
             />
+
+            {/* Calendar Date Range Filter */}
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface px-3 py-1 text-xs text-cream focus-within:border-coral/60 transition-colors">
+              <Calendar className="h-4 w-4 text-coral shrink-0" />
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-medium text-muted">From</span>
+                <input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => {
+                    setFromDate(e.target.value);
+                    if (toDate && e.target.value > toDate) {
+                      setToDate(e.target.value);
+                    }
+                  }}
+                  className="rounded-lg border border-border/60 bg-ink/40 px-2 py-1 text-xs text-cream focus:border-coral focus:outline-none cursor-pointer [color-scheme:dark]"
+                />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[11px] font-medium text-muted">To</span>
+                <input
+                  type="date"
+                  value={toDate}
+                  min={fromDate || undefined}
+                  onChange={(e) => setToDate(e.target.value)}
+                  className="rounded-lg border border-border/60 bg-ink/40 px-2 py-1 text-xs text-cream focus:border-coral focus:outline-none cursor-pointer [color-scheme:dark]"
+                />
+              </div>
+              {(fromDate || toDate) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFromDate("");
+                    setToDate("");
+                  }}
+                  className="flex items-center gap-1 rounded-md bg-coral/15 px-2 py-1 text-[11px] font-medium text-coral hover:bg-coral/25 transition-colors"
+                  title="Clear date filter"
+                >
+                  <X className="h-3 w-3" /> Clear
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
