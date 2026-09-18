@@ -11,6 +11,7 @@ import type {
   RegistrantView,
   RegistrationWithEvent,
   Team,
+  TeammateListing,
 } from "../types";
 
 export interface SeatStats {
@@ -655,6 +656,107 @@ export async function publishEventWinner(
   return item;
 }
 
+export async function listTeammateListings(eventId: string): Promise<TeammateListing[]> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("teammate_listings")
+        .select("*")
+        .eq("event_id", eventId)
+        .order("created_at", { ascending: false });
+      if (!error && data) {
+        return data as TeammateListing[];
+      }
+    } catch {
+      // fallback to demoDb below
+    }
+  }
+  return demoDb
+    .getTeammateListings()
+    .filter((l) => l.event_id === eventId)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
+export async function upsertTeammateListing(
+  eventId: string,
+  userId: string,
+  userName: string,
+  userCollege: string,
+  lookingFor: string,
+  message: string,
+  contact: string,
+): Promise<TeammateListing> {
+  const existing = (await listTeammateListings(eventId)).find((l) => l.user_id === userId);
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("teammate_listings")
+        .upsert(
+          {
+            id: existing?.id ?? newId(),
+            event_id: eventId,
+            user_id: userId,
+            user_name: userName,
+            user_college: userCollege,
+            looking_for: lookingFor,
+            message,
+            contact,
+          },
+          { onConflict: "id" },
+        )
+        .select("*")
+        .single();
+      if (!error && data) {
+        return data as TeammateListing;
+      }
+    } catch {
+      // fallback to demoDb
+    }
+  }
+
+  const all = demoDb.getTeammateListings();
+  if (existing) {
+    const next = all.map((l) =>
+      l.id === existing.id ? { ...l, looking_for: lookingFor, message, contact } : l,
+    );
+    demoDb.saveTeammateListings(next);
+    return next.find((l) => l.id === existing.id)!;
+  }
+
+  const item: TeammateListing = {
+    id: newId(),
+    event_id: eventId,
+    user_id: userId,
+    user_name: userName,
+    user_college: userCollege,
+    looking_for: lookingFor,
+    message,
+    contact,
+    created_at: new Date().toISOString(),
+  };
+  all.unshift(item);
+  demoDb.saveTeammateListings(all);
+  return item;
+}
+
+export async function deleteTeammateListing(id: string, userId: string): Promise<void> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { error } = await supabase
+        .from("teammate_listings")
+        .delete()
+        .eq("id", id)
+        .eq("user_id", userId);
+      if (!error) return;
+    } catch {
+      // fallback to demoDb
+    }
+  }
+  const all = demoDb.getTeammateListings().filter((l) => !(l.id === id && l.user_id === userId));
+  demoDb.saveTeammateListings(all);
+}
+
 export async function getTeamDetails(
   teamId: string
 ): Promise<{ team: Team; members: Profile[]; event: EventRecord } | null> {
@@ -763,9 +865,9 @@ export async function getUserPublicProfile(userId: string): Promise<{
         reg_no: acc.reg_no || "25BCE0703",
         city: acc.city || "Vellore",
         state: acc.state || "Tamil Nadu",
-        bio: "Passionate developer, tech fest participant, and competitive programmer.",
-        github: "https://github.com/raynaagarwal01-rgb",
-        linkedin: "https://linkedin.com/in/rayna-agarwal",
+        bio: acc.bio,
+        github: acc.github,
+        linkedin: acc.linkedin,
       };
     }
   }

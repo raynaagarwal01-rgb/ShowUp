@@ -8,6 +8,7 @@ import {
   FileText,
   GraduationCap,
   MapPin,
+  Pencil,
   Share2,
   ShieldCheck,
   User,
@@ -17,6 +18,7 @@ import type { EventWinner, Profile, RegistrationWithEvent } from "../types";
 import { useAuth } from "../context/AuthContext";
 import { CertificateModal } from "../components/CertificateModal";
 import { ODLetterModal } from "../components/ODLetterModal";
+import { EditProfileModal } from "../components/EditProfileModal";
 import { formatDateRange } from "../lib/format";
 
 const GithubIcon: React.FC<{ className?: string }> = ({ className }) => (
@@ -42,6 +44,8 @@ export const PublicProfilePage: React.FC = () => {
   const [wonEvents, setWonEvents] = useState<EventWinner[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const isOwnProfile = !!currentUser && (!userId || userId === currentUser.id);
 
   // Modals
   const [selectedCertReg, setSelectedCertReg] = useState<RegistrationWithEvent | null>(null);
@@ -158,8 +162,17 @@ export const PublicProfilePage: React.FC = () => {
             </div>
           </div>
 
-          {/* Share / Copy Portfolio Button */}
+          {/* Share / Edit Portfolio Buttons */}
           <div className="flex items-center gap-2">
+            {isOwnProfile && (
+              <button
+                type="button"
+                onClick={() => setEditOpen(true)}
+                className="flex items-center gap-1.5 rounded-xl border border-border bg-surface-2 px-3.5 py-2 text-xs font-semibold text-cream hover:border-coral/50 transition-colors shadow-sm"
+              >
+                <Pencil className="h-4 w-4 text-coral" /> Edit Profile
+              </button>
+            )}
             <button
               type="button"
               onClick={handleCopyLink}
@@ -340,6 +353,14 @@ export const PublicProfilePage: React.FC = () => {
       </div>
 
       {/* Modals */}
+      {isOwnProfile && (
+        <EditProfileModal
+          isOpen={editOpen}
+          onClose={() => setEditOpen(false)}
+          onSaved={(patch) => setProfile((prev) => (prev ? { ...prev, ...patch } : prev))}
+        />
+      )}
+
       {selectedCertReg && (
         <CertificateModal
           isOpen={true}
