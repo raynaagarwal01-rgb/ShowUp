@@ -35,6 +35,35 @@ create policy "Users can update their own profile"
   on public.profiles for update
   using (auth.uid() = id);
 
+-- Auto-create the profile row when someone signs up, via a security-definer
+-- trigger (bypasses RLS). This matters because signUp() doesn't hand the
+-- client a confirmed session immediately when "Confirm email" is on, so a
+-- client-side insert into profiles right after signup fails RLS — there's no
+-- auth.uid() yet to match against. Reads name/role from the signUp() call's
+-- options.data (auth.users.raw_user_meta_data); see src/context/AuthContext.tsx.
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer set search_path = public
+as $$
+begin
+  insert into public.profiles (id, email, name, role)
+  values (
+    new.id,
+    new.email,
+    coalesce(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
+    coalesce(new.raw_user_meta_data->>'role', 'student')
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
 -- 2. Events
 create table if not exists public.events (
   id text primary key,

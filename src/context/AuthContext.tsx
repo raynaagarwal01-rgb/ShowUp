@@ -128,12 +128,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      // The profiles row is created server-side by the on_auth_user_created
+      // trigger (see supabase_schema.sql) — a client-side insert right here
+      // would fail RLS whenever email confirmation is on, since there's no
+      // confirmed session yet to authenticate it. name/role ride along as
+      // signup metadata for the trigger to read back out.
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { name: details.name, role: details.role } },
+      });
       if (error) return { error: error.message, profile: null };
       if (data.user) {
         const profile: Profile = { id: data.user.id, email, ...details };
-        const { error: profileError } = await supabase.from("profiles").insert([profile]);
-        if (profileError) return { error: profileError.message, profile: null };
         setUser(profile);
         return { error: null, profile };
       }
