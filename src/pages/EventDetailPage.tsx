@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Building2, CalendarDays, MapPin, Ticket, Users, CheckCircle2, Clock, Bookmark, Download, Award, Megaphone, MessageSquare } from "lucide-react";
+import { Building2, CalendarDays, MapPin, Ticket, Users, CheckCircle2, Clock, Bookmark, Download, Award, Megaphone, MessageSquare, FileText, Trophy } from "lucide-react";
 import {
   createTeam,
   getEvent,
@@ -23,6 +23,9 @@ import { PaymentModal } from "../components/PaymentModal";
 import { EventAnnouncementsTab } from "../components/EventAnnouncementsTab";
 import { EventQnATab } from "../components/EventQnATab";
 import { CertificateModal } from "../components/CertificateModal";
+import { EventWinnersTab } from "../components/EventWinnersTab";
+import { ODLetterModal } from "../components/ODLetterModal";
+import { TeamHubModal } from "../components/TeamHubModal";
 
 export const EventDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -41,8 +44,10 @@ export const EventDetailPage: React.FC = () => {
   const [notice, setNotice] = useState<NotificationOutcome | null>(null);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<"solo" | "team_create" | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "announcements" | "qna">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "announcements" | "qna" | "winners">("overview");
   const [certModalOpen, setCertModalOpen] = useState(false);
+  const [odModalOpen, setOdModalOpen] = useState(false);
+  const [teamModalOpen, setTeamModalOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!id) return;
@@ -251,6 +256,18 @@ export const EventDetailPage: React.FC = () => {
               <MessageSquare className="h-4 w-4" />
               Q&amp;A Forum
             </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("winners")}
+              className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors ${
+                activeTab === "winners"
+                  ? "border-amber-400 text-amber-400"
+                  : "border-transparent text-muted hover:text-cream"
+              }`}
+            >
+              <Trophy className="h-4 w-4" />
+              Winners &amp; Results
+            </button>
           </div>
 
           {/* Tab Content */}
@@ -285,6 +302,13 @@ export const EventDetailPage: React.FC = () => {
 
           {activeTab === "qna" && (
             <EventQnATab
+              eventId={event.id}
+              isOrganizer={event.created_by === user?.id || user?.role === "organizer"}
+            />
+          )}
+
+          {activeTab === "winners" && (
+            <EventWinnersTab
               eventId={event.id}
               isOrganizer={event.created_by === user?.id || user?.role === "organizer"}
             />
@@ -362,6 +386,22 @@ export const EventDetailPage: React.FC = () => {
                   <Award className="h-4 w-4 text-amber-400" />
                   {myRegistration.checked_in_at ? "Download Certificate (PNG)" : "Preview Certificate (PNG)"}
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setOdModalOpen(true)}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-border bg-surface-2 py-2.5 text-center text-sm font-semibold text-cream hover:border-coral/50 transition-colors"
+                >
+                  <FileText className="h-4 w-4 text-coral" /> Official OD Attendance Slip
+                </button>
+                {myRegistration.team_id && (
+                  <button
+                    type="button"
+                    onClick={() => setTeamModalOpen(true)}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-coral/40 bg-coral/10 py-2.5 text-center text-sm font-bold text-coral hover:bg-coral/20 transition-colors"
+                  >
+                    <Users className="h-4 w-4" /> My Team &amp; WhatsApp Invite
+                  </button>
+                )}
                 <Link
                   to="/dashboard"
                   className="block rounded-xl bg-coral py-2.5 text-center text-sm font-semibold text-ink"
@@ -476,6 +516,31 @@ export const EventDetailPage: React.FC = () => {
           attendeeCollege={user?.college || event.college}
           registrationId={myRegistration?.id}
           checkedIn={!!myRegistration?.checked_in_at}
+        />
+      )}
+
+      {event && (
+        <ODLetterModal
+          isOpen={odModalOpen}
+          onClose={() => setOdModalOpen(false)}
+          event={event}
+          attendeeName={user?.name || "Participant"}
+          registrationNumber={user?.reg_no || "25BCE0703"}
+          department={user?.branch || "Computer Science and Engineering"}
+          academicYear={user?.year || "2nd Year / B.Tech"}
+          collegeName={user?.college || event.college}
+          registrationId={myRegistration?.id}
+          checkedIn={!!myRegistration?.checked_in_at}
+        />
+      )}
+
+      {myRegistration?.team_id && (
+        <TeamHubModal
+          isOpen={teamModalOpen}
+          onClose={() => setTeamModalOpen(false)}
+          teamId={myRegistration.team_id}
+          currentUserId={user?.id}
+          onTeamUpdated={refresh}
         />
       )}
     </div>

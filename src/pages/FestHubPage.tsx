@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import {
   Award,
   Calendar,
@@ -157,6 +158,16 @@ export const FestHubPage: React.FC = () => {
               <span className="flex items-center gap-1.5 text-cream">
                 <Trophy className="h-4 w-4 text-amber-400" /> ₹5,00,000+ Prize Pool
               </span>
+            </div>
+
+            <div className="pt-3">
+              <Link
+                to="/campus-map"
+                className="inline-flex items-center gap-2 rounded-xl bg-cyan-500/15 border border-cyan-500/30 px-4 py-2 text-xs font-bold text-cyan-300 hover:bg-cyan-500/25 transition-colors shadow-sm"
+              >
+                <MapPin className="h-4 w-4 text-cyan-400" />
+                Explore Campus &amp; Indoor Venue Map ↗
+              </Link>
             </div>
           </div>
 

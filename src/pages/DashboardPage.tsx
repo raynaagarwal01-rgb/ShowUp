@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Award, CalendarDays, Download, MapPin, Ticket as TicketIcon, X } from "lucide-react";
+import { Award, CalendarDays, Download, FileText, MapPin, Ticket as TicketIcon, Users, X } from "lucide-react";
 import { cancelRegistration, listMyRegistrations } from "../lib/db";
 import type { RegistrationWithEvent } from "../types";
 import { formatDateRange } from "../lib/format";
@@ -10,6 +10,8 @@ import { useAuth } from "../context/AuthContext";
 import { downloadTicketImage } from "../lib/ticketExport";
 import { AddToCalendarButton } from "../components/AddToCalendarButton";
 import { CertificateModal } from "../components/CertificateModal";
+import { ODLetterModal } from "../components/ODLetterModal";
+import { TeamHubModal } from "../components/TeamHubModal";
 
 export const DashboardPage: React.FC = () => {
   const { user } = useAuth();
@@ -17,6 +19,8 @@ export const DashboardPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [openTicket, setOpenTicket] = useState<string | null>(null);
   const [selectedCertRegistration, setSelectedCertRegistration] = useState<RegistrationWithEvent | null>(null);
+  const [selectedOdRegistration, setSelectedOdRegistration] = useState<RegistrationWithEvent | null>(null);
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
 
   const load = async () => {
     if (!user) return;
@@ -92,6 +96,26 @@ export const DashboardPage: React.FC = () => {
                         Certificate
                       </button>
                       <button
+                        type="button"
+                        onClick={() => setSelectedOdRegistration(r)}
+                        className="flex items-center gap-1 rounded-lg border border-border bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-cream/80 hover:border-coral/50 transition-colors"
+                        title="Download / Print Official Student On-Duty Attendance Slip"
+                      >
+                        <FileText className="h-3.5 w-3.5 text-coral" />
+                        OD Slip
+                      </button>
+                      {r.team_id && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedTeamId(r.team_id!)}
+                          className="flex items-center gap-1 rounded-lg border border-coral/40 bg-coral/10 px-2.5 py-1.5 text-xs font-bold text-coral hover:bg-coral/20 transition-colors"
+                          title="Manage Team Roster & Invite Teammates via WhatsApp"
+                        >
+                          <Users className="h-3.5 w-3.5" />
+                          My Team
+                        </button>
+                      )}
+                      <button
                         onClick={() => setOpenTicket(openTicket === r.id ? null : r.id)}
                         className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-cream/80 hover:border-coral/50"
                       >
@@ -145,6 +169,31 @@ export const DashboardPage: React.FC = () => {
           attendeeCollege={user?.college || selectedCertRegistration.event.college}
           registrationId={selectedCertRegistration.id}
           checkedIn={!!selectedCertRegistration.checked_in_at}
+        />
+      )}
+
+      {selectedOdRegistration && (
+        <ODLetterModal
+          isOpen={true}
+          onClose={() => setSelectedOdRegistration(null)}
+          event={selectedOdRegistration.event}
+          attendeeName={user?.name || "Participant"}
+          registrationNumber={user?.reg_no || "25BCE0703"}
+          department={user?.branch || "Computer Science and Engineering"}
+          academicYear={user?.year || "2nd Year / B.Tech"}
+          collegeName={user?.college || selectedOdRegistration.event.college}
+          registrationId={selectedOdRegistration.id}
+          checkedIn={!!selectedOdRegistration.checked_in_at}
+        />
+      )}
+
+      {selectedTeamId && (
+        <TeamHubModal
+          isOpen={true}
+          onClose={() => setSelectedTeamId(null)}
+          teamId={selectedTeamId}
+          currentUserId={user?.id}
+          onTeamUpdated={load}
         />
       )}
     </div>
