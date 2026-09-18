@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { CalendarDays, MapPin, Ticket as TicketIcon, X } from "lucide-react";
+import { CalendarDays, Download, MapPin, Ticket as TicketIcon, X } from "lucide-react";
 import { cancelRegistration, listMyRegistrations } from "../lib/db";
 import type { RegistrationWithEvent } from "../types";
 import { formatDateRange } from "../lib/format";
 import { StatusPill, registrationTone } from "../components/StatusPill";
 import { QRTicket } from "../components/QRTicket";
 import { useAuth } from "../context/AuthContext";
+import { downloadTicketImage } from "../lib/ticketExport";
+import { AddToCalendarButton } from "../components/AddToCalendarButton";
 
 export const DashboardPage: React.FC = () => {
   const { user } = useAuth();
@@ -74,7 +76,8 @@ export const DashboardPage: React.FC = () => {
                     </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <AddToCalendarButton event={r.event} />
                   {r.status !== "cancelled" && (
                     <button
                       onClick={() => setOpenTicket(openTicket === r.id ? null : r.id)}
@@ -94,9 +97,25 @@ export const DashboardPage: React.FC = () => {
               </div>
 
               {openTicket === r.id && (
-                <div className="mt-4 flex flex-col items-center gap-2 rounded-xl border border-border bg-ink p-5">
+                <div className="mt-4 flex flex-col items-center gap-3 rounded-xl border border-border bg-ink p-5 text-center">
                   <QRTicket value={r.id} />
-                  <p className="text-xs text-muted">Show this at check-in</p>
+                  <p className="text-xs text-muted">Show this QR ticket at check-in</p>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      downloadTicketImage({
+                        event: r.event,
+                        registrationId: r.id,
+                        attendeeName: user?.name || "Participant",
+                        attendeeEmail: user?.email,
+                        attendeePhone: user?.phone,
+                        teamName: r.team?.name,
+                      })
+                    }
+                    className="mt-1 flex items-center gap-1.5 rounded-xl bg-coral px-4 py-2 text-xs font-semibold text-ink shadow-md hover:scale-[1.02] transition-transform"
+                  >
+                    <Download className="h-3.5 w-3.5" /> Download Offline Pass (PNG)
+                  </button>
                 </div>
               )}
             </div>

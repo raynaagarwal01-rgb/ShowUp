@@ -5,28 +5,58 @@ import { getEvent, listEventRegistrants } from "../../lib/db";
 import type { EventRecord, RegistrantView } from "../../types";
 import { StatusPill, registrationTone } from "../../components/StatusPill";
 
-function downloadCsv(filename: string, rows: RegistrantView[]) {
-  const header = ["Name", "Email", "City", "College", "Status", "Team", "Checked in"];
+function downloadCsv(eventTitle: string, rows: RegistrantView[]) {
+  const header = [
+    "Ticket ID",
+    "Full Name",
+    "Email Address",
+    "Phone Number",
+    "College",
+    "State",
+    "City",
+    "Branch / Dept",
+    "Academic Year",
+    "Team Name",
+    "Team Code",
+    "Registration Status",
+    "Registered At",
+    "Attendance / Check-In",
+    "Check-In Time",
+  ];
+
   const lines = rows.map((r) =>
     [
-      r.profile.name,
-      r.profile.email,
-      r.profile.city ?? "",
-      r.profile.college ?? "",
-      r.status,
-      r.team?.name ?? "",
-      r.checked_in_at ? new Date(r.checked_in_at).toLocaleString() : "",
+      r.id,
+      r.profile.name || "N/A",
+      r.profile.email || "N/A",
+      r.profile.phone || "N/A",
+      r.profile.college || "N/A",
+      r.profile.state || "",
+      r.profile.city || "",
+      r.profile.branch || "",
+      r.profile.year || "",
+      r.team?.name || "Solo",
+      r.team?.join_code || "-",
+      r.status.toUpperCase(),
+      r.created_at ? new Date(r.created_at).toLocaleString("en-IN") : "",
+      r.checked_in_at ? "CHECKED IN" : "PENDING",
+      r.checked_in_at ? new Date(r.checked_in_at).toLocaleString("en-IN") : "-",
     ]
       .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
       .join(","),
   );
+
   const csv = [header.join(","), ...lines].join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = filename;
+  const safeTitle = eventTitle.replace(/[^a-zA-Z0-9_-]/g, "_");
+  const dateStr = new Date().toISOString().slice(0, 10);
+  link.download = `${safeTitle}_attendees_${dateStr}.csv`;
+  document.body.appendChild(link);
   link.click();
+  document.body.removeChild(link);
   URL.revokeObjectURL(url);
 }
 
@@ -73,10 +103,10 @@ export const EventRegistrantsPage: React.FC = () => {
             <QrCode className="h-4 w-4" /> Check-in scanner
           </Link>
           <button
-            onClick={() => downloadCsv(`${event.title}-registrants.csv`, registrants)}
-            className="flex items-center gap-1.5 rounded-lg bg-coral px-3.5 py-2 text-sm font-semibold text-ink"
+            onClick={() => downloadCsv(event.title, registrants)}
+            className="flex items-center gap-1.5 rounded-lg bg-coral px-3.5 py-2 text-sm font-semibold text-ink hover:scale-[1.02] transition-transform"
           >
-            <Download className="h-4 w-4" /> Export CSV
+            <Download className="h-4 w-4" /> Export OD & Attendance (CSV)
           </button>
         </div>
       </div>

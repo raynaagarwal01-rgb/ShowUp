@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Building2, CalendarDays, MapPin, Ticket, Users, CheckCircle2, Clock } from "lucide-react";
+import { Building2, CalendarDays, MapPin, Ticket, Users, CheckCircle2, Clock, Bookmark, Download } from "lucide-react";
 import {
   createTeam,
   getEvent,
@@ -16,6 +16,10 @@ import { StatusPill, registrationTone } from "../components/StatusPill";
 import { useAuth } from "../context/AuthContext";
 import { isOnboardingComplete } from "../lib/profile";
 import { notifyRegistrationConfirmed, type NotificationOutcome } from "../lib/notifications";
+import { useBookmarks } from "../lib/bookmarks";
+import { AddToCalendarButton } from "../components/AddToCalendarButton";
+import { downloadTicketImage } from "../lib/ticketExport";
+import { PaymentModal } from "../components/PaymentModal";
 
 export const EventDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -32,6 +36,8 @@ export const EventDetailPage: React.FC = () => {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<NotificationOutcome | null>(null);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"solo" | "team_create" | null>(null);
 
   const refresh = useCallback(async () => {
     if (!id) return;
@@ -78,9 +84,8 @@ export const EventDetailPage: React.FC = () => {
     return user;
   };
 
-  const handleSoloRegister = async () => {
-    const currentUser = requireOnboardedUser();
-    if (!currentUser) return;
+  const executeSoloRegister = async (currentUser: typeof user) => {
+    if (!currentUser || !event) return;
     setBusy(true);
     setError(null);
     try {
@@ -94,10 +99,8 @@ export const EventDetailPage: React.FC = () => {
     }
   };
 
-  const handleCreateTeam = async () => {
-    const currentUser = requireOnboardedUser();
-    if (!currentUser) return;
-    if (!teamName.trim()) return setError("Give your team a name.");
+  const executeCreateTeam = async (currentUser: typeof user) => {
+    if (!currentUser || !event) return;
     setBusy(true);
     setError(null);
     try {
@@ -109,6 +112,41 @@ export const EventDetailPage: React.FC = () => {
     } finally {
       setBusy(false);
     }
+  };
+
+  const handleSoloRegister = async () => {
+    const currentUser = requireOnboardedUser();
+    if (!currentUser || !event) return;
+    if (event.fee > 0) {
+      setPendingAction("solo");
+      setPaymentModalOpen(true);
+      return;
+    }
+    await executeSoloRegister(currentUser);
+  };
+
+  const handleCreateTeam = async () => {
+    const currentUser = requireOnboardedUser();
+    if (!currentUser || !event) return;
+    if (!teamName.trim()) return setError("Give your team a name.");
+    if (event.fee > 0) {
+      setPendingAction("team_create");
+      setPaymentModalOpen(true);
+      return;
+    }
+    await executeCreateTeam(currentUser);
+  };
+
+  const handlePaymentSuccess = async () => {
+    setPaymentModalOpen(false);
+    const currentUser = user;
+    if (!currentUser) return;
+    if (pendingAction === "solo") {
+      await executeSoloRegister(currentUser);
+    } else if (pendingAction === "team_create") {
+      await executeCreateTeam(currentUser);
+    }
+    setPendingAction(null);
   };
 
   const handleJoinTeam = async () => {
@@ -128,15 +166,33 @@ export const EventDetailPage: React.FC = () => {
     }
   };
 
+  const { isBookmarked, toggleBookmark } = useBookmarks();
+  const saved = event ? isBookmarked(event.id) : false;
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       <div
-        className="rounded-2xl p-6 sm:p-8"
+        className="relative rounded-2xl p-6 sm:p-8"
         style={{
           background: `linear-gradient(135deg, hsl(${event.banner_hue} 70% 20%), hsl(${event.banner_hue} 70% 10%))`,
         }}
       >
-        <StatusPill label={event.category} tone="coral" />
+        <div className="flex items-center justify-between">
+          <StatusPill label={event.category} tone="coral" />
+          <button
+            type="button"
+            onClick={() => toggleBookmark(event.id)}
+            className={`flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-medium backdrop-blur-md transition-all ${
+              saved
+                ? "bg-coral text-ink font-semibold shadow-md"
+                : "bg-ink/60 text-cream/80 hover:bg-ink/90 hover:text-cream border border-white/10"
+            }`}
+            title={saved ? "Remove from saved" : "Save event"}
+          >
+            <Bookmark className={`h-3.5 w-3.5 ${saved ? "fill-current" : ""}`} />
+            {saved ? "Saved" : "Save event"}
+          </button>
+        </div>
         <h1 className="mt-3 font-display text-3xl font-extrabold sm:text-4xl">{event.title}</h1>
         <p className="mt-2 text-cream/80">{event.tagline}</p>
         <p className="mt-1 text-sm text-muted">
@@ -220,6 +276,21 @@ export const EventDetailPage: React.FC = () => {
                     </p>
                   </div>
                 )}
+                <button
+                  type="button"
+                  onClick={() =>
+                    downloadTicketImage({
+                      event,
+                      registrationId: myRegistration.id,
+                      attendeeName: user?.name || "Participant",
+                      attendeeEmail: user?.email,
+                      attendeePhone: user?.phone,
+                    })
+                  }
+                  className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-border bg-surface-2 py-2.5 text-center text-sm font-semibold text-cream hover:border-coral/50 transition-colors"
+                >
+                  <Download className="h-4 w-4 text-coral" /> Download Pass (PNG)
+                </button>
                 <Link
                   to="/dashboard"
                   className="block rounded-xl bg-coral py-2.5 text-center text-sm font-semibold text-ink"
@@ -289,9 +360,28 @@ export const EventDetailPage: React.FC = () => {
               </div>
             )}
             {error && <p className="mt-3 text-xs text-danger">{error}</p>}
+            <div className="mt-4 border-t border-border pt-4">
+              <AddToCalendarButton event={event} className="w-full flex justify-center" />
+            </div>
           </div>
         </aside>
       </div>
+
+      {event && user && (
+        <PaymentModal
+          isOpen={paymentModalOpen}
+          onClose={() => {
+            setPaymentModalOpen(false);
+            setPendingAction(null);
+          }}
+          onSuccess={handlePaymentSuccess}
+          event={event}
+          attendeeName={user.name}
+          attendeeEmail={user.email}
+          attendeePhone={user.phone}
+          isTeam={pendingAction === "team_create"}
+        />
+      )}
     </div>
   );
 };
