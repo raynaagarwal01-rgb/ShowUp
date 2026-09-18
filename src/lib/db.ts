@@ -5,6 +5,7 @@ import type {
   Announcement,
   EventQuestion,
   EventRecord,
+  EventWinner,
   Profile,
   Registration,
   RegistrantView,
@@ -545,4 +546,255 @@ export async function answerEventQuestion(
     demoDb.saveQuestions(all);
   }
 }
+
+export async function listEventWinners(eventId: string): Promise<EventWinner[]> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("event_winners")
+        .select("*")
+        .eq("event_id", eventId)
+        .order("position", { ascending: true });
+      if (!error && data && data.length > 0) {
+        return data as EventWinner[];
+      }
+    } catch {
+      // fallback to demoDb
+    }
+  }
+
+  const winners = demoDb.getWinners().filter((w) => w.event_id === eventId);
+  if (winners.length > 0) {
+    return winners.sort((a, b) => a.position - b.position);
+  }
+
+  // Seed sample winners for demonstration on flagship events
+  const defaultWinners: EventWinner[] = [
+    {
+      id: "win-1-" + eventId.slice(0, 8),
+      event_id: eventId,
+      position: 1,
+      winner_title: "1st Place · Grand Champion",
+      team_or_participant_name: "Team CyberVellore (Rayna Agarwal & Team)",
+      college: "Vellore Institute of Technology, Vellore",
+      prize_amount: "₹25,000 + Gold Trophy",
+      project_title: "Feastify: Automated Campus Fest Operating System",
+      project_link: "https://github.com/raynaagarwal01-rgb/feastify",
+      announced_by: "graVITas '26 Executive Jury",
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: "win-2-" + eventId.slice(0, 8),
+      event_id: eventId,
+      position: 2,
+      winner_title: "2nd Place · 1st Runner Up",
+      team_or_participant_name: "Team ByteCraft",
+      college: "IIT Madras",
+      prize_amount: "₹15,000 + Silver Trophy",
+      project_title: "NeuroQueue: Real-time Crowd Flow Optimizer",
+      project_link: "https://github.com",
+      announced_by: "graVITas '26 Executive Jury",
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: "win-3-" + eventId.slice(0, 8),
+      event_id: eventId,
+      position: 3,
+      winner_title: "3rd Place · 2nd Runner Up",
+      team_or_participant_name: "Team QuantumForge",
+      college: "BITS Pilani",
+      prize_amount: "₹10,000 + Bronze Trophy",
+      project_title: "AeroTelemetry IoT Rig",
+      project_link: "https://github.com",
+      announced_by: "graVITas '26 Executive Jury",
+      created_at: new Date().toISOString(),
+    },
+  ];
+
+  return defaultWinners;
+}
+
+export async function publishEventWinner(
+  winner: Omit<EventWinner, "id" | "created_at">
+): Promise<EventWinner> {
+  const item: EventWinner = {
+    ...winner,
+    id: newId(),
+    created_at: new Date().toISOString(),
+  };
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("event_winners")
+        .insert({
+          id: item.id,
+          event_id: item.event_id,
+          position: item.position,
+          winner_title: item.winner_title,
+          team_or_participant_name: item.team_or_participant_name,
+          college: item.college,
+          prize_amount: item.prize_amount,
+          project_title: item.project_title,
+          project_link: item.project_link,
+          announced_by: item.announced_by,
+        })
+        .select("*")
+        .single();
+      if (!error && data) {
+        return data as EventWinner;
+      }
+    } catch {
+      // fallback to demoDb
+    }
+  }
+
+  const all = demoDb.getWinners();
+  all.push(item);
+  demoDb.saveWinners(all);
+  return item;
+}
+
+export async function getTeamDetails(
+  teamId: string
+): Promise<{ team: Team; members: Profile[]; event: EventRecord } | null> {
+  let team: Team | null = null;
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data } = await supabase.from("teams").select("*").eq("id", teamId).maybeSingle();
+      if (data) team = data as Team;
+    } catch {
+      // fallback
+    }
+  }
+  if (!team) {
+    team = demoDb.getTeams().find((t) => t.id === teamId) ?? null;
+  }
+  if (!team) return null;
+
+  const event = await getEvent(team.event_id);
+  if (!event) return null;
+
+  // Retrieve profiles for member_ids
+  const members: Profile[] = [];
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data } = await supabase.from("profiles").select("*").in("id", team.member_ids);
+      if (data) members.push(...(data as Profile[]));
+    } catch {
+      // fallback
+    }
+  }
+  if (members.length === 0) {
+    const accounts = demoDb.getAccounts();
+    for (const mid of team.member_ids) {
+      const acc = accounts.find((a) => a.id === mid);
+      if (acc) {
+        members.push({
+          id: acc.id,
+          email: acc.email,
+          name: acc.name,
+          role: acc.role,
+          college: acc.college || "VIT Vellore",
+          reg_no: acc.reg_no || "25BCE0703",
+        });
+      } else {
+        members.push({
+          id: mid,
+          email: "student@vit.ac.in",
+          name: mid === team.leader_id ? "Team Leader" : "Team Member",
+          role: "student",
+          college: "VIT Vellore",
+          reg_no: "25BCE0703",
+        });
+      }
+    }
+  }
+
+  return { team, members, event };
+}
+
+export async function removeTeamMember(teamId: string, memberId: string): Promise<void> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data: team } = await supabase.from("teams").select("*").eq("id", teamId).single();
+      if (team) {
+        const nextMembers = (team.member_ids as string[]).filter((id) => id !== memberId);
+        await supabase.from("teams").update({ member_ids: nextMembers }).eq("id", teamId);
+      }
+    } catch {
+      // fallback
+    }
+  }
+  const teams = demoDb.getTeams();
+  const index = teams.findIndex((t) => t.id === teamId);
+  if (index !== -1) {
+    teams[index].member_ids = teams[index].member_ids.filter((id) => id !== memberId);
+    demoDb.saveTeams(teams);
+  }
+}
+
+export async function getUserPublicProfile(userId: string): Promise<{
+  profile: Profile;
+  registrations: RegistrationWithEvent[];
+  wonEvents: EventWinner[];
+} | null> {
+  let profile: Profile | null = null;
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
+      if (data) profile = data as Profile;
+    } catch {
+      // fallback
+    }
+  }
+
+  if (!profile) {
+    const acc = demoDb.getAccounts().find((a) => a.id === userId);
+    if (acc) {
+      profile = {
+        id: acc.id,
+        name: acc.name,
+        email: acc.email,
+        role: acc.role,
+        college: acc.college || "Vellore Institute of Technology (VIT), Vellore",
+        branch: acc.branch || "Computer Science and Engineering",
+        year: acc.year || "2nd Year",
+        reg_no: acc.reg_no || "25BCE0703",
+        city: acc.city || "Vellore",
+        state: acc.state || "Tamil Nadu",
+        bio: "Passionate developer, tech fest participant, and competitive programmer.",
+        github: "https://github.com/raynaagarwal01-rgb",
+        linkedin: "https://linkedin.com/in/rayna-agarwal",
+      };
+    }
+  }
+
+  // Fallback for Rayna Agarwal or default demo user
+  if (!profile) {
+    profile = {
+      id: userId || "rayna-25bce0703",
+      name: "Rayna Agarwal",
+      email: "rayna.agarwal2025@vitstudent.ac.in",
+      role: "student",
+      college: "Vellore Institute of Technology (VIT), Vellore",
+      branch: "Computer Science and Engineering (CSE)",
+      year: "2nd Year / B.Tech",
+      reg_no: "25BCE0703",
+      city: "Vellore",
+      state: "Tamil Nadu",
+      bio: "Tech innovator, hackathon builder, and active participant at VIT Vellore graVITas '26.",
+      github: "https://github.com/raynaagarwal01-rgb",
+      linkedin: "https://linkedin.com/in/rayna-agarwal",
+    };
+  }
+
+  const registrations = await listMyRegistrations(profile.id);
+  const wonEvents = demoDb.getWinners().filter((w) =>
+    w.team_or_participant_name.toLowerCase().includes(profile?.name.toLowerCase() || "")
+  );
+
+  return { profile, registrations, wonEvents };
+}
+
 

@@ -11,6 +11,10 @@ export interface Profile {
   branch?: string;
   year?: string;
   phone?: string;
+  reg_no?: string;
+  bio?: string;
+  github?: string;
+  linkedin?: string;
 }
 
 export type EventCategory =
@@ -66,6 +70,7 @@ export interface Team {
   name: string;
   join_code: string;
   created_by: string;
+  leader_id?: string;
   member_ids: string[];
 }
 
@@ -98,5 +103,19 @@ export interface EventQuestion {
   answer: string | null;
   answered_by: string | null;
   answered_at: string | null;
+  created_at: string;
+}
+
+export interface EventWinner {
+  id: string;
+  event_id: string;
+  position: number;
+  winner_title: string;
+  team_or_participant_name: string;
+  college: string;
+  prize_amount: string;
+  project_title: string;
+  project_link: string;
+  announced_by: string;
   created_at: string;
 }

@@ -1,4 +1,4 @@
-import type { Announcement, EventQuestion, EventRecord, Profile, Registration, Team } from "../types";
+import type { Announcement, EventQuestion, EventRecord, EventWinner, Profile, Registration, Team } from "../types";
 import { seedEvents } from "./demoSeed";
 
 const KEYS = {
@@ -9,6 +9,7 @@ const KEYS = {
   session: "feastify_demo_session",
   announcements: "feastify_demo_announcements",
   questions: "feastify_demo_questions",
+  winners: "feastify_demo_winners",
 } as const;
 
 interface Account extends Profile {
@@ -83,6 +84,12 @@ export const demoDb = {
   },
   saveQuestions(questions: EventQuestion[]): void {
     write(KEYS.questions, questions);
+  },
+  getWinners(): EventWinner[] {
+    return read<EventWinner[]>(KEYS.winners, []);
+  },
+  saveWinners(winners: EventWinner[]): void {
+    write(KEYS.winners, winners);
   },
 };
 

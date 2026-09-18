@@ -44,15 +44,23 @@ export const Navbar: React.FC = () => {
               Fest
             </span>
           </NavLink>
+          <NavLink to="/campus-map" className={navLinkClass}>
+            Campus Map
+          </NavLink>
           {user?.role === "organizer" || user?.role === "admin" ? (
             <NavLink to="/organizer" className={navLinkClass}>
               Organizer Studio
             </NavLink>
           ) : null}
           {user ? (
-            <NavLink to="/dashboard" className={navLinkClass}>
-              My Events
-            </NavLink>
+            <>
+              <NavLink to="/dashboard" className={navLinkClass}>
+                My Events
+              </NavLink>
+              <NavLink to="/profile" className={navLinkClass}>
+                Portfolio
+              </NavLink>
+            </>
           ) : null}
         </nav>
 
@@ -112,17 +120,29 @@ export const Navbar: React.FC = () => {
                 </span>
               </span>
             </NavLink>
+            <NavLink
+              to="/campus-map"
+              className={navLinkClass}
+              onClick={() => setOpen(false)}
+            >
+              Campus Map
+            </NavLink>
             {user?.role === "organizer" || user?.role === "admin" ? (
               <NavLink to="/organizer" className={navLinkClass} onClick={() => setOpen(false)}>
                 Organizer Studio
               </NavLink>
             ) : null}
             {user ? (
-              <NavLink to="/dashboard" className={navLinkClass} onClick={() => setOpen(false)}>
-                <span className="flex items-center gap-1.5">
-                  <LayoutDashboard className="h-4 w-4" /> My Events
-                </span>
-              </NavLink>
+              <>
+                <NavLink to="/dashboard" className={navLinkClass} onClick={() => setOpen(false)}>
+                  <span className="flex items-center gap-1.5">
+                    <LayoutDashboard className="h-4 w-4" /> My Events
+                  </span>
+                </NavLink>
+                <NavLink to="/profile" className={navLinkClass} onClick={() => setOpen(false)}>
+                  My Portfolio
+                </NavLink>
+              </>
             ) : null}
             <div className="mt-2 flex gap-3 border-t border-border pt-3">
               {user ? (

@@ -13,6 +13,8 @@ import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { OnboardingPage } from "./pages/OnboardingPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { FestHubPage } from "./pages/FestHubPage";
+import { CampusMapPage } from "./pages/CampusMapPage";
+import { PublicProfilePage } from "./pages/PublicProfilePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { OrganizerDashboardPage } from "./pages/organizer/OrganizerDashboardPage";
 import { CreateEventPage } from "./pages/organizer/CreateEventPage";
@@ -28,6 +30,9 @@ function App() {
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/fests/gravitas26" element={<FestHubPage />} />
+            <Route path="/campus-map" element={<CampusMapPage />} />
+            <Route path="/u/:userId" element={<PublicProfilePage />} />
+            <Route path="/profile" element={<PublicProfilePage />} />
             <Route
               path="/events"
               element={
