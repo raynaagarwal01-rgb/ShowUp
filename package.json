@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "sync:unstop": "node scripts/syncUnstop.js",
+    "sync:gravitas": "node scripts/syncGravitas.js",
     "preview": "vite preview"
   },
   "dependencies": {
