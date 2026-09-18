@@ -1,6 +1,7 @@
 import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { isOnboardingComplete } from "../lib/profile";
 import { Loader2 } from "lucide-react";
 
 const Spinner: React.FC = () => (
@@ -17,7 +18,7 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
   if (!user) {
     return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />;
   }
-  if (!user.state) {
+  if (!isOnboardingComplete(user)) {
     return <Navigate to={`/onboarding?next=${encodeURIComponent(location.pathname)}`} replace />;
   }
   return <>{children}</>;
@@ -31,7 +32,7 @@ export const OrganizerRoute: React.FC<{ children: React.ReactNode }> = ({ childr
   if (!user) {
     return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />;
   }
-  if (!user.state) {
+  if (!isOnboardingComplete(user)) {
     return <Navigate to={`/onboarding?next=${encodeURIComponent(location.pathname)}`} replace />;
   }
   if (user.role !== "organizer" && user.role !== "admin") {

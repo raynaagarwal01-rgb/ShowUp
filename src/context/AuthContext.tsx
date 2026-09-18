@@ -25,6 +25,13 @@ interface AuthContextType {
   ) => Promise<{ error: string | null; profile: Profile | null }>;
   signOut: () => Promise<void>;
   updateProfile: (patch: Partial<Profile>) => Promise<{ error: string | null }>;
+  /** Supabase: emails a real reset link. Demo mode: just confirms the account
+   * exists — there's no email transport, so the caller collects a new
+   * password directly and calls updatePassword with demoEmail set. */
+  requestPasswordReset: (email: string) => Promise<{ error: string | null }>;
+  /** Supabase: requires an active recovery session (from the emailed link).
+   * Demo mode: pass demoEmail to look the account up directly. */
+  updatePassword: (newPassword: string, demoEmail?: string) => Promise<{ error: string | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -175,8 +182,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error: null };
   };
 
+  const requestPasswordReset = async (email: string): Promise<{ error: string | null }> => {
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      return { error: error ? error.message : null };
+    }
+
+    const exists = demoDb
+      .getAccounts()
+      .some((a) => a.email.toLowerCase() === email.toLowerCase());
+    if (!exists) return { error: "No account found with that email." };
+    return { error: null };
+  };
+
+  const updatePassword = async (
+    newPassword: string,
+    demoEmail?: string,
+  ): Promise<{ error: string | null }> => {
+    if (newPassword.length < 6) {
+      return { error: "Password must be at least 6 characters." };
+    }
+
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      return { error: error ? error.message : null };
+    }
+
+    if (!demoEmail) return { error: "Missing email." };
+    const accounts = demoDb.getAccounts();
+    const idx = accounts.findIndex((a) => a.email.toLowerCase() === demoEmail.toLowerCase());
+    if (idx === -1) return { error: "No account found with that email." };
+    const updated = [...accounts];
+    updated[idx] = { ...updated[idx], password: newPassword };
+    demoDb.saveAccounts(updated);
+    return { error: null };
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, isDemoMode, signIn, signUp, signOut, updateProfile }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        isDemoMode,
+        signIn,
+        signUp,
+        signOut,
+        updateProfile,
+        requestPasswordReset,
+        updatePassword,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

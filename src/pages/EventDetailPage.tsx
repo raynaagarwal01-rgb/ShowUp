@@ -14,6 +14,8 @@ import type { EventRecord, Registration } from "../types";
 import { formatDateRange, formatFee, formatTeamSize, timeUntil } from "../lib/format";
 import { StatusPill, registrationTone } from "../components/StatusPill";
 import { useAuth } from "../context/AuthContext";
+import { isOnboardingComplete } from "../lib/profile";
+import { notifyRegistrationConfirmed, type NotificationOutcome } from "../lib/notifications";
 
 export const EventDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -29,6 +31,7 @@ export const EventDetailPage: React.FC = () => {
   const [joinCodeInput, setJoinCodeInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<NotificationOutcome | null>(null);
 
   const refresh = useCallback(async () => {
     if (!id) return;
@@ -68,7 +71,7 @@ export const EventDetailPage: React.FC = () => {
       navigate(`/login?redirect=${encodeURIComponent(`/events/${event.id}`)}`);
       return null;
     }
-    if (!user.state) {
+    if (!isOnboardingComplete(user)) {
       navigate(`/onboarding?next=${encodeURIComponent(`/events/${event.id}`)}`);
       return null;
     }
@@ -81,8 +84,9 @@ export const EventDetailPage: React.FC = () => {
     setBusy(true);
     setError(null);
     try {
-      await registerSolo(event.id, currentUser.id);
+      const registration = await registerSolo(event.id, currentUser.id);
       await refresh();
+      notifyRegistrationConfirmed(event, currentUser, registration).then(setNotice);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not register.");
     } finally {
@@ -97,8 +101,9 @@ export const EventDetailPage: React.FC = () => {
     setBusy(true);
     setError(null);
     try {
-      await createTeam(event.id, currentUser.id, teamName.trim());
+      const { registration } = await createTeam(event.id, currentUser.id, teamName.trim());
       await refresh();
+      notifyRegistrationConfirmed(event, currentUser, registration).then(setNotice);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not create team.");
     } finally {
@@ -113,8 +118,9 @@ export const EventDetailPage: React.FC = () => {
     setBusy(true);
     setError(null);
     try {
-      await joinTeam(event.id, currentUser.id, joinCodeInput.trim());
+      const { registration } = await joinTeam(event.id, currentUser.id, joinCodeInput.trim());
       await refresh();
+      notifyRegistrationConfirmed(event, currentUser, registration).then(setNotice);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not join that team.");
     } finally {
@@ -196,6 +202,15 @@ export const EventDetailPage: React.FC = () => {
                   label={myRegistration.status}
                   tone={registrationTone(myRegistration.status)}
                 />
+                {notice && (
+                  <p className="text-xs text-muted">
+                    {notice.attempted
+                      ? notice.error
+                        ? `Confirmation notification failed to send: ${notice.error}`
+                        : `Confirmation sent via ${notice.channels.join(", ")}.`
+                      : `Confirmation would be sent via ${notice.channels.join(", ")} once notifications are configured (see README).`}
+                  </p>
+                )}
                 <Link
                   to="/dashboard"
                   className="block rounded-xl bg-coral py-2.5 text-center text-sm font-semibold text-ink"
