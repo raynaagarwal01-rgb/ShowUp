@@ -1,8 +1,8 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Users, MapPin } from "lucide-react";
+import { Users, MapPin, Clock } from "lucide-react";
 import type { EventRecord } from "../types";
-import { formatDateRange, formatFee, formatTeamSize } from "../lib/format";
+import { formatDateRange, formatFee, formatTeamSize, timeUntil } from "../lib/format";
 import { StatusPill } from "./StatusPill";
 
 export const EventCard: React.FC<{ event: EventRecord }> = ({ event }) => (
@@ -38,7 +38,14 @@ export const EventCard: React.FC<{ event: EventRecord }> = ({ event }) => (
         </span>
       </div>
       <div className="flex items-center justify-between border-t border-border pt-3 text-sm">
-        <span className="font-medium text-cream/80">{formatDateRange(event.start_at, event.end_at)}</span>
+        <div className="flex flex-col">
+          <span className="font-medium text-cream/80">{formatDateRange(event.start_at, event.end_at)}</span>
+          {event.registration_deadline && (
+            <span className="flex items-center gap-1 text-[11px] text-muted">
+              <Clock className="h-3 w-3 text-coral" /> Reg: {timeUntil(event.registration_deadline)}
+            </span>
+          )}
+        </div>
         <span className={event.fee === 0 ? "font-semibold text-success" : "font-semibold text-cream"}>
           {formatFee(event.fee)}
         </span>

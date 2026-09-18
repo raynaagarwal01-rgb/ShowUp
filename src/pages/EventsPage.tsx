@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Building2, MapPin, Map as MapIcon, Search, SlidersHorizontal } from "lucide-react";
+import { ArrowUpDown, Building2, Calendar, MapPin, Map as MapIcon, Search, SlidersHorizontal } from "lucide-react";
 import { listEvents } from "../lib/db";
 import type { EventCategory, EventRecord } from "../types";
 import { EventCard } from "../components/EventCard";
@@ -17,6 +17,8 @@ const CATEGORIES: Array<EventCategory | "All"> = [
 ];
 
 const ALL_COLLEGES = "All Colleges";
+
+export type DateSort = "date_asc" | "date_desc" | "deadline_asc";
 
 function distinctSorted(values: string[]): string[] {
   return Array.from(new Set(values)).sort();
@@ -46,6 +48,7 @@ export const EventsPage: React.FC = () => {
   const [category, setCategory] = useState<EventCategory | "All">("All");
   const [price, setPrice] = useState<PriceFilter>("all");
   const [team, setTeam] = useState<TeamFilter>("all");
+  const [sortBy, setSortBy] = useState<DateSort>("date_asc");
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   useEffect(() => {
@@ -98,7 +101,7 @@ export const EventsPage: React.FC = () => {
   };
 
   const filtered = useMemo(() => {
-    return events.filter((e) => {
+    const list = events.filter((e) => {
       if (college !== ALL_COLLEGES) {
         if (e.college !== college) return false;
       } else {
@@ -117,17 +120,56 @@ export const EventsPage: React.FC = () => {
       }
       return true;
     });
-  }, [events, state, city, college, category, price, team, query]);
+
+    return list.sort((a, b) => {
+      if (sortBy === "date_asc") {
+        const timeA = a.start_at ? new Date(a.start_at).getTime() : 0;
+        const timeB = b.start_at ? new Date(b.start_at).getTime() : 0;
+        return timeA - timeB;
+      }
+      if (sortBy === "date_desc") {
+        const timeA = a.start_at ? new Date(a.start_at).getTime() : 0;
+        const timeB = b.start_at ? new Date(b.start_at).getTime() : 0;
+        return timeB - timeA;
+      }
+      if (sortBy === "deadline_asc") {
+        const ddlA = a.registration_deadline ? new Date(a.registration_deadline).getTime() : 0;
+        const ddlB = b.registration_deadline ? new Date(b.registration_deadline).getTime() : 0;
+        return ddlA - ddlB;
+      }
+      return 0;
+    });
+  }, [events, state, city, college, category, price, team, query, sortBy]);
 
   const scopeLabel = college !== ALL_COLLEGES ? `at ${college}` : city ? `in ${city}, ${state}` : "";
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="font-display text-3xl font-bold sm:text-4xl">Events</h1>
-        <p className="text-cream/70">
-          {filtered.length} {filtered.length === 1 ? "event" : "events"} {scopeLabel}
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-1">
+          <h1 className="font-display text-3xl font-bold sm:text-4xl">Events</h1>
+          <p className="text-cream/70">
+            {filtered.length} {filtered.length === 1 ? "event" : "events"} {scopeLabel}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <span className="flex items-center gap-1.5 text-xs font-medium text-muted">
+            <ArrowUpDown className="h-3.5 w-3.5 text-coral" /> Sort by:
+          </span>
+          <div className="relative">
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as DateSort)}
+              className="appearance-none rounded-xl border border-border bg-surface py-2 pl-3 pr-8 text-xs font-medium text-cream focus:border-coral focus:outline-none cursor-pointer hover:border-coral/40"
+            >
+              <option value="date_asc">Event Date: Soonest First</option>
+              <option value="date_desc">Event Date: Latest First</option>
+              <option value="deadline_asc">Deadline: Closing Soonest</option>
+            </select>
+            <Calendar className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
+          </div>
+        </div>
       </div>
 
       <div className="mt-6 flex flex-col gap-3">
