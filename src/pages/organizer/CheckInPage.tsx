@@ -48,7 +48,7 @@ export const CheckInPage: React.FC = () => {
   };
 
   useEffect(() => {
-    const containerId = "feastify-qr-reader";
+    const containerId = "showup-qr-reader";
     const scanner = new Html5Qrcode(containerId);
     scannerRef.current = scanner;
 
@@ -109,7 +109,7 @@ export const CheckInPage: React.FC = () => {
       <p className="mt-1 text-sm text-muted">Point the camera at a participant's QR ticket.</p>
 
       <div className="mt-6 overflow-hidden rounded-2xl border border-border bg-surface">
-        <div id="feastify-qr-reader" className="w-full" />
+        <div id="showup-qr-reader" className="w-full" />
         {!scannerReady && !cameraError && (
           <p className="p-4 text-center text-xs text-muted">Starting camera...</p>
         )}

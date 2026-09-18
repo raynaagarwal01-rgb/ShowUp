@@ -81,7 +81,7 @@ export async function drawCertificateCanvas(
   ctx.textAlign = "center";
   ctx.fillStyle = "#f59e0b";
   ctx.font = "bold 16px sans-serif";
-  ctx.fillText("★   FEASTIFY OFFICIAL CREDENTIAL SYSTEM   ★", width / 2, 130);
+  ctx.fillText("★   SHOWUP OFFICIAL CREDENTIAL SYSTEM   ★", width / 2, 130);
 
   ctx.fillStyle = "#ffffff";
   ctx.font = "bold 52px serif";
@@ -208,7 +208,7 @@ export async function drawCertificateCanvas(
   });
   ctx.fillText(`Issued: ${dateIssued} · Immutable Record`, innerPad + 60, 935);
 
-  // 6B. Center: Gold Foil Feastify Seal
+  // 6B. Center: Gold Foil ShowUp Seal
   const sealX = width / 2;
   const sealY = 880;
 
@@ -241,7 +241,7 @@ export async function drawCertificateCanvas(
   ctx.textAlign = "center";
   ctx.fillStyle = "#f59e0b";
   ctx.font = "bold 13px sans-serif";
-  ctx.fillText("FEASTIFY", sealX, sealY - 14);
+  ctx.fillText("SHOWUP", sealX, sealY - 14);
   ctx.font = "bold 10px sans-serif";
   ctx.fillText("★ OFFICIAL ★", sealX, sealY + 2);
   ctx.fillText("SEAL OF MERIT", sealX, sealY + 18);
@@ -318,7 +318,7 @@ export async function drawCertificateCanvas(
   // Faux elegant handwritten signature
   ctx.fillStyle = "#fde68a";
   ctx.font = "italic 26px serif";
-  ctx.fillText("Feastify Committee", sigX, sigY - 12);
+  ctx.fillText("ShowUp Committee", sigX, sigY - 12);
 
   ctx.fillStyle = "#64748b";
   ctx.font = "12px sans-serif";
@@ -358,7 +358,7 @@ export async function downloadCertificateImage(
   const cleanName = (params.attendeeName || "participant")
     .replace(/[^a-z0-9]/gi, "-")
     .toLowerCase();
-  link.download = `feastify-certificate-${cleanTitle}-${cleanName}.png`;
+  link.download = `showup-certificate-${cleanTitle}-${cleanName}.png`;
   link.href = dataUrl;
   document.body.appendChild(link);
   link.click();

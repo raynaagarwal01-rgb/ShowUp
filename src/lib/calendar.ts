@@ -1,4 +1,4 @@
-﻿import type { EventRecord } from "../types";
+import type { EventRecord } from "../types";
 
 function formatUtcDate(isoString: string): string {
   const d = new Date(isoString);
@@ -9,7 +9,7 @@ export function getGoogleCalendarUrl(event: EventRecord): string {
   const startUtc = formatUtcDate(event.start_at);
   const endUtc = formatUtcDate(event.end_at);
   const location = `${event.venue}, ${event.college}, ${event.city}`;
-  const details = `${event.tagline}\n\n${event.description}\n\nVenue: ${location}\nRegistration via Feastify: https://feastify-gamma.vercel.app/events/${event.id}`;
+  const details = `${event.tagline}\n\n${event.description}\n\nVenue: ${location}\nRegistration via ShowUp: ${window.location.origin}/events/${event.id}`;
 
   const params = new URLSearchParams({
     action: "TEMPLATE",
@@ -33,11 +33,11 @@ export function downloadIcs(event: EventRecord): void {
   const icsContent = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Feastify//College Events Platform//EN",
+    "PRODID:-//ShowUp//College Events Platform//EN",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",
-    `UID:feastify-${event.id}@feastify.app`,
+    `UID:showup-${event.id}@showup.app`,
     `DTSTAMP:${nowUtc}`,
     `DTSTART:${startUtc}`,
     `DTEND:${endUtc}`,

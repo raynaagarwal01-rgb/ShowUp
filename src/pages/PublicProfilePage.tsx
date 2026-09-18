@@ -80,7 +80,7 @@ export const PublicProfilePage: React.FC = () => {
     const certUrl = `${window.location.origin}/u/${profile?.id || targetId}`;
     return `https://www.linkedin.com/profile/add?startTask=CERTIFICATION_NAME&name=${encodeURIComponent(
       eventName
-    )}&organizationName=${encodeURIComponent("Feastify Credentials")}&issueYear=2026&issueMonth=9&certUrl=${encodeURIComponent(
+    )}&organizationName=${encodeURIComponent("ShowUp Credentials")}&issueYear=2026&issueMonth=9&certUrl=${encodeURIComponent(
       certUrl
     )}&certId=${encodeURIComponent(certId)}`;
   };
@@ -100,7 +100,7 @@ export const PublicProfilePage: React.FC = () => {
         <h2 className="text-base font-bold text-cream">Student Portfolio Not Found</h2>
         <p className="text-xs text-muted">The requested profile link is unavailable.</p>
         <Link to="/events" className="inline-block text-xs font-semibold text-coral">
-          Explore Feastify Events
+          Explore ShowUp Events
         </Link>
       </div>
     );
@@ -259,7 +259,7 @@ export const PublicProfilePage: React.FC = () => {
           <div className="flex items-center gap-2">
             <Award className="h-5 w-5 text-coral" />
             <h2 className="font-display text-xl font-bold text-cream">
-              Verified Feastify Credentials ({registrations.length})
+              Verified ShowUp Credentials ({registrations.length})
             </h2>
           </div>
           <span className="text-xs text-muted">Official Cryptographic Records</span>
@@ -270,13 +270,13 @@ export const PublicProfilePage: React.FC = () => {
             <Award className="mx-auto h-10 w-10 text-muted/40" />
             <p className="text-sm font-semibold text-cream">No events registered yet</p>
             <p className="text-xs text-muted">
-              Attend official campus hackathons and fests to earn verifiable Feastify credentials!
+              Attend official campus events to earn verifiable ShowUp credentials!
             </p>
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
             {registrations.map((reg) => {
-              const certId = `FST-${reg.id.slice(0, 8).toUpperCase()}`;
+              const certId = `SUP-${reg.id.slice(0, 8).toUpperCase()}`;
 
               return (
                 <div

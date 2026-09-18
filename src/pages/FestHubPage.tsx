@@ -203,7 +203,7 @@ export const FestHubPage: React.FC = () => {
               </div>
             </div>
             <div className="pt-2 text-[11px] text-muted">
-              Live registrations open on Feastify
+              Live registrations open on ShowUp
             </div>
           </div>
         </div>
@@ -225,7 +225,7 @@ export const FestHubPage: React.FC = () => {
               <Award className="h-4 w-4" />
             </div>
             <div>
-              <div className="text-xs font-bold text-cream">Feastify Verified Cert</div>
+              <div className="text-xs font-bold text-cream">ShowUp Verified Cert</div>
               <div className="text-[11px] text-muted">Instant QR-verified credentials</div>
             </div>
           </div>
@@ -428,7 +428,7 @@ export const FestHubPage: React.FC = () => {
             </h3>
             <p>
               External &amp; internal attendees receive official verified OD slips downloadable
-              directly from the Feastify student dashboard post-check-in.
+              directly from the ShowUp student dashboard post-check-in.
             </p>
           </div>
 
@@ -448,7 +448,7 @@ export const FestHubPage: React.FC = () => {
             </h3>
             <p>
               Check-in desks are set up at Anna Auditorium and Technology Tower (TT). Carry your
-              college ID card and the Feastify Digital Ticket QR code.
+              college ID card and the ShowUp Digital Ticket QR code.
             </p>
           </div>
         </div>

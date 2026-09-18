@@ -1,5 +1,5 @@
 ================================================================================
-FEASTIFY - CAMPUS EVENT DISCOVERY & FEST MANAGEMENT ECOSYSTEM
+SHOWUP - CAMPUS EVENT DISCOVERY & REGISTRATION ECOSYSTEM
 PROJECT SUBMISSION FOR GOOGLE DRIVE (CLAUDE CODE EVALUATION)
 ================================================================================
 
@@ -12,13 +12,13 @@ STUDENT INFORMATION:
 
 PRIMARY LINKS:
 1. Live Production Website:
-   https://feastify-gamma.vercel.app
+   https://showup.vercel.app (or current deployment: https://feastify-gamma.vercel.app)
 
-2. graVITas '26 Official Fest Hub (VIT Vellore 56+ Events):
-   https://feastify-gamma.vercel.app/fests/gravitas26
+2. graVITas '26 Official Events Hub (VIT Vellore 56+ Events):
+   https://showup.vercel.app/fests/gravitas26
 
 3. GitHub Repository:
-   https://github.com/raynaagarwal01-rgb/feastify
+   https://github.com/raynaagarwal01-rgb/showup (or https://github.com/raynaagarwal01-rgb/feastify)
 
 4. Google Drive Submission Folder:
    https://drive.google.com/drive/folders/1NqCytuNS5DiaBu40F68yNv-zc6RESz7v
@@ -26,9 +26,9 @@ PRIMARY LINKS:
 ================================================================================
 GENERATED SUBMISSION DOCUMENTS (IN C:\feastify):
 ================================================================================
-1. FEASTIFY_PROJECT_SUBMISSION_RAYNA_AGARWAL.pdf (Print-ready PDF report, 224 KB)
-2. FEASTIFY_PROJECT_SUBMISSION_RAYNA_AGARWAL.html (Interactive web document)
-3. FEASTIFY_PROJECT_SUBMISSION_RAYNA_AGARWAL.md (GitHub-flavored Markdown)
+1. SHOWUP_PROJECT_SUBMISSION_RAYNA_AGARWAL.pdf (Print-ready PDF report, 191 KB)
+2. SHOWUP_PROJECT_SUBMISSION_RAYNA_AGARWAL.html (Interactive web document)
+3. SHOWUP_PROJECT_SUBMISSION_RAYNA_AGARWAL.md (GitHub-flavored Markdown)
 
 ================================================================================
 KEY PLATFORM CAPABILITIES IMPLEMENTED:
@@ -40,7 +40,7 @@ KEY PLATFORM CAPABILITIES IMPLEMENTED:
 
 2. Automated 1080p Participation Certificate Generator:
    - High-resolution (1920x1080) client-side canvas synthesis with zero backend dependencies.
-   - Feastify Seal of Merit, gold filigree borders, and embedded cryptographic verification QR codes.
+   - ShowUp Seal of Merit, gold filigree borders, and embedded cryptographic verification QR codes.
    - Pre-check-in watermark preview with automated post-check-in unlock.
 
 3. Live Event Announcements & Urgent Alerts:
@@ -61,4 +61,7 @@ KEY PLATFORM CAPABILITIES IMPLEMENTED:
 
 8. Calendar Integration:
    - 1-click sync to Google Calendar and standard Apple/Outlook (.ics).
+
+9. Distance & Map Directions:
+   - Direct Google Maps routing modal for every event location with live campus distance calculation.
 ================================================================================

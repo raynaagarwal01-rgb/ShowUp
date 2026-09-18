@@ -211,7 +211,7 @@ export const EventWinnersTab: React.FC<EventWinnersTabProps> = ({
                 type="text"
                 value={projectTitle}
                 onChange={(e) => setProjectTitle(e.target.value)}
-                placeholder="e.g. Feastify: Campus Fest Operating System"
+                placeholder="e.g. ShowUp: Campus Events Operating Platform"
                 className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-xs text-cream focus:border-amber-400 focus:outline-none"
               />
             </div>
@@ -225,7 +225,7 @@ export const EventWinnersTab: React.FC<EventWinnersTabProps> = ({
               type="url"
               value={projectLink}
               onChange={(e) => setProjectLink(e.target.value)}
-              placeholder="https://github.com/raynaagarwal01-rgb/feastify"
+              placeholder="https://github.com/raynaagarwal01-rgb/showup"
               className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-xs text-cream focus:border-amber-400 focus:outline-none"
             />
           </div>
@@ -436,7 +436,7 @@ export const EventWinnersTab: React.FC<EventWinnersTabProps> = ({
           )}
 
           <div className="rounded-xl border border-border/80 bg-surface-2/60 p-3 text-[11px] text-muted flex items-center justify-between">
-            <span>Verified Results Authenticated by Festival Jury &amp; Feastify Board.</span>
+            <span>Verified Results Authenticated by Festival Jury &amp; ShowUp Board.</span>
             <span className="font-mono text-cream/70">IMMUTABLE RECORD</span>
           </div>
         </div>
