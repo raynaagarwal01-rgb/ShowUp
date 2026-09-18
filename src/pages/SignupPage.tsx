@@ -23,7 +23,9 @@ export const SignupPage: React.FC = () => {
     const { error } = await signUp(email, password, { name, role });
     setBusy(false);
     if (error) return setError(error);
-    navigate(params.get("redirect") || (role === "organizer" ? "/organizer" : "/dashboard"));
+
+    const redirect = params.get("redirect") || (role === "organizer" ? "/organizer" : "/dashboard");
+    navigate(`/onboarding?next=${encodeURIComponent(redirect)}`);
   };
 
   return (
@@ -33,7 +35,7 @@ export const SignupPage: React.FC = () => {
       </Link>
       <div className="rounded-2xl border border-border bg-surface p-6 sm:p-8">
         <h1 className="font-display text-2xl font-bold">Create your account</h1>
-        <p className="mt-1 text-sm text-muted">One profile for every event on campus.</p>
+        <p className="mt-1 text-sm text-muted">One profile for every college event across India.</p>
 
         {isDemoMode && (
           <p className="mt-4 rounded-lg border border-plum/30 bg-plum/10 px-3 py-2 text-xs text-cream/80">

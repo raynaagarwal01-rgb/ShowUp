@@ -17,6 +17,9 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
   if (!user) {
     return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />;
   }
+  if (!user.state) {
+    return <Navigate to={`/onboarding?next=${encodeURIComponent(location.pathname)}`} replace />;
+  }
   return <>{children}</>;
 };
 
@@ -27,6 +30,9 @@ export const OrganizerRoute: React.FC<{ children: React.ReactNode }> = ({ childr
   if (loading) return <Spinner />;
   if (!user) {
     return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />;
+  }
+  if (!user.state) {
+    return <Navigate to={`/onboarding?next=${encodeURIComponent(location.pathname)}`} replace />;
   }
   if (user.role !== "organizer" && user.role !== "admin") {
     return <Navigate to="/dashboard" replace />;

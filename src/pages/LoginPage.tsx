@@ -16,10 +16,16 @@ export const LoginPage: React.FC = () => {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const { error } = await signIn(email, password);
+    const { error, profile } = await signIn(email, password);
     setBusy(false);
     if (error) return setError(error);
-    navigate(params.get("redirect") || "/dashboard");
+
+    const redirect = params.get("redirect") || "/dashboard";
+    if (profile && !profile.state) {
+      navigate(`/onboarding?next=${encodeURIComponent(redirect)}`);
+    } else {
+      navigate(redirect);
+    }
   };
 
   return (

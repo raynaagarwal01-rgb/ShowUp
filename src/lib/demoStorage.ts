@@ -34,7 +34,10 @@ function write<T>(key: string, value: T): void {
 export const demoDb = {
   getEvents(): EventRecord[] {
     let events = read<EventRecord[] | null>(KEYS.events, null);
-    if (!events) {
+    // Cached seed data from before events carried a city/state (schema change) —
+    // demo events are disposable, so just reseed rather than trying to backfill.
+    const stale = events !== null && events.some((e) => !e.city);
+    if (!events || stale) {
       events = seedEvents();
       write(KEYS.events, events);
     }

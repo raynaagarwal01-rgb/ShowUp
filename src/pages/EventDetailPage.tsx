@@ -63,12 +63,25 @@ export const EventDetailPage: React.FC = () => {
   const isTeamEvent = event.team_max > 1;
   const deadlinePassed = new Date(event.registration_deadline).getTime() < Date.now();
 
+  const requireOnboardedUser = (): typeof user => {
+    if (!user) {
+      navigate(`/login?redirect=${encodeURIComponent(`/events/${event.id}`)}`);
+      return null;
+    }
+    if (!user.state) {
+      navigate(`/onboarding?next=${encodeURIComponent(`/events/${event.id}`)}`);
+      return null;
+    }
+    return user;
+  };
+
   const handleSoloRegister = async () => {
-    if (!user) return navigate(`/login?redirect=/events/${event.id}`);
+    const currentUser = requireOnboardedUser();
+    if (!currentUser) return;
     setBusy(true);
     setError(null);
     try {
-      await registerSolo(event.id, user.id);
+      await registerSolo(event.id, currentUser.id);
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not register.");
@@ -78,12 +91,13 @@ export const EventDetailPage: React.FC = () => {
   };
 
   const handleCreateTeam = async () => {
-    if (!user) return navigate(`/login?redirect=/events/${event.id}`);
+    const currentUser = requireOnboardedUser();
+    if (!currentUser) return;
     if (!teamName.trim()) return setError("Give your team a name.");
     setBusy(true);
     setError(null);
     try {
-      await createTeam(event.id, user.id, teamName.trim());
+      await createTeam(event.id, currentUser.id, teamName.trim());
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not create team.");
@@ -93,12 +107,13 @@ export const EventDetailPage: React.FC = () => {
   };
 
   const handleJoinTeam = async () => {
-    if (!user) return navigate(`/login?redirect=/events/${event.id}`);
+    const currentUser = requireOnboardedUser();
+    if (!currentUser) return;
     if (!joinCodeInput.trim()) return setError("Enter a join code.");
     setBusy(true);
     setError(null);
     try {
-      await joinTeam(event.id, user.id, joinCodeInput.trim());
+      await joinTeam(event.id, currentUser.id, joinCodeInput.trim());
       await refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not join that team.");
@@ -122,7 +137,7 @@ export const EventDetailPage: React.FC = () => {
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        <InfoTile icon={MapPin} label="Venue" value={event.venue} />
+        <InfoTile icon={MapPin} label="Venue" value={`${event.venue}, ${event.city}`} />
         <InfoTile icon={CalendarDays} label="When" value={formatDateRange(event.start_at, event.end_at)} />
         <InfoTile icon={Users} label="Participation" value={formatTeamSize(event.team_min, event.team_max)} />
       </div>

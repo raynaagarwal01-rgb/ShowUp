@@ -4,6 +4,7 @@ import { createEvent, getEvent, updateEvent } from "../../lib/db";
 import type { EventCategory, EventScope } from "../../types";
 import { Field } from "../LoginPage";
 import { useAuth } from "../../context/AuthContext";
+import { INDIA_STATES } from "../../lib/indiaStates";
 
 const CATEGORIES: EventCategory[] = ["Hackathon", "Workshop", "Competition", "Cultural", "Talk"];
 
@@ -20,6 +21,8 @@ const emptyForm = {
   rules: "",
   category: "Workshop" as EventCategory,
   scope: "both" as EventScope,
+  state: "",
+  city: "",
   venue: "",
   start_at: "",
   end_at: "",
@@ -35,7 +38,11 @@ export const CreateEventPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const isEditing = Boolean(id);
   const navigate = useNavigate();
-  const [form, setForm] = useState(emptyForm);
+  const [form, setForm] = useState(() => ({
+    ...emptyForm,
+    state: user?.state ?? "",
+    city: user?.city ?? "",
+  }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -50,6 +57,8 @@ export const CreateEventPage: React.FC = () => {
         rules: event.rules.join("\n"),
         category: event.category,
         scope: event.scope,
+        state: event.state,
+        city: event.city,
         venue: event.venue,
         start_at: toLocalInputValue(event.start_at),
         end_at: toLocalInputValue(event.end_at),
@@ -71,6 +80,8 @@ export const CreateEventPage: React.FC = () => {
     if (form.team_max < form.team_min) {
       return setError("Max team size can't be smaller than min team size.");
     }
+    if (!form.state) return setError("Select which state this event is in.");
+    if (!form.city.trim()) return setError("Enter which city this event is in.");
     setSaving(true);
     setError(null);
     try {
@@ -83,6 +94,8 @@ export const CreateEventPage: React.FC = () => {
         rules: form.rules.split("\n").map((r) => r.trim()).filter(Boolean),
         category: form.category,
         scope: form.scope,
+        state: form.state,
+        city: form.city,
         venue: form.venue,
         start_at: new Date(form.start_at).toISOString(),
         end_at: new Date(form.end_at).toISOString(),
@@ -177,11 +190,41 @@ export const CreateEventPage: React.FC = () => {
           </Field>
         </div>
 
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="State">
+            <select
+              required
+              value={form.state}
+              onChange={(e) => set("state", e.target.value)}
+              className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none"
+            >
+              <option value="" disabled>
+                Select state
+              </option>
+              {INDIA_STATES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="City">
+            <input
+              required
+              value={form.city}
+              onChange={(e) => set("city", e.target.value)}
+              placeholder="e.g. Chennai"
+              className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none"
+            />
+          </Field>
+        </div>
+
         <Field label="Venue">
           <input
             required
             value={form.venue}
             onChange={(e) => set("venue", e.target.value)}
+            placeholder="e.g. Innovation Lab, Block C"
             className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none"
           />
         </Field>
