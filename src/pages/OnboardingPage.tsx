@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { INDIA_STATES } from "../lib/indiaStates";
 import { listEvents } from "../lib/db";
 import { Logo } from "../components/Logo";
+import { CitySelect } from "../components/CitySelect";
 import { Field } from "./LoginPage";
 
 export const OnboardingPage: React.FC = () => {
@@ -68,7 +69,10 @@ export const OnboardingPage: React.FC = () => {
             <select
               required
               value={state}
-              onChange={(e) => setState(e.target.value)}
+              onChange={(e) => {
+                setState(e.target.value);
+                setCity("");
+              }}
               className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none"
             >
               <option value="" disabled>
@@ -82,13 +86,7 @@ export const OnboardingPage: React.FC = () => {
             </select>
           </Field>
           <Field label="City">
-            <input
-              required
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none"
-              placeholder="e.g. Chennai"
-            />
+            <CitySelect state={state} value={city} onChange={setCity} />
           </Field>
           <Field label="College (optional)">
             <input

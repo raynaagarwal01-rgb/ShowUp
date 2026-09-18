@@ -5,6 +5,7 @@ import type { EventCategory, EventScope } from "../../types";
 import { Field } from "../LoginPage";
 import { useAuth } from "../../context/AuthContext";
 import { INDIA_STATES } from "../../lib/indiaStates";
+import { CitySelect } from "../../components/CitySelect";
 
 const CATEGORIES: EventCategory[] = ["Hackathon", "Workshop", "Competition", "Cultural", "Talk"];
 
@@ -207,7 +208,10 @@ export const CreateEventPage: React.FC = () => {
             <select
               required
               value={form.state}
-              onChange={(e) => set("state", e.target.value)}
+              onChange={(e) => {
+                set("state", e.target.value);
+                set("city", "");
+              }}
               className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none"
             >
               <option value="" disabled>
@@ -221,13 +225,7 @@ export const CreateEventPage: React.FC = () => {
             </select>
           </Field>
           <Field label="City">
-            <input
-              required
-              value={form.city}
-              onChange={(e) => set("city", e.target.value)}
-              placeholder="e.g. Chennai"
-              className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none"
-            />
+            <CitySelect state={form.state} value={form.city} onChange={(c) => set("city", c)} />
           </Field>
         </div>
 
