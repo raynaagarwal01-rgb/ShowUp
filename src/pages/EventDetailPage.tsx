@@ -82,7 +82,9 @@ export const EventDetailPage: React.FC = () => {
   }
 
   const isTeamEvent = event.team_max > 1;
-  const deadlinePassed = new Date(event.registration_deadline).getTime() < Date.now();
+  const deadlinePassed = event.registration_deadline
+    ? new Date(event.registration_deadline).getTime() < Date.now()
+    : false;
 
   const requireOnboardedUser = (): typeof user => {
     if (!user) {

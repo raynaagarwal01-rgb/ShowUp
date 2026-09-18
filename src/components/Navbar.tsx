@@ -31,9 +31,6 @@ export const Navbar: React.FC = () => {
           <NavLink to="/events" className={navLinkClass}>
             Events
           </NavLink>
-          <NavLink to="/campus-map" className={navLinkClass}>
-            Campus Map
-          </NavLink>
           {user?.role === "organizer" || user?.role === "admin" ? (
             <NavLink to="/organizer" className={navLinkClass}>
               Organizer Studio
@@ -94,13 +91,6 @@ export const Navbar: React.FC = () => {
           <div className="flex flex-col gap-3 pt-3">
             <NavLink to="/events" className={navLinkClass} onClick={() => setOpen(false)}>
               Events
-            </NavLink>
-            <NavLink
-              to="/campus-map"
-              className={navLinkClass}
-              onClick={() => setOpen(false)}
-            >
-              Campus Map
             </NavLink>
             {user?.role === "organizer" || user?.role === "admin" ? (
               <NavLink to="/organizer" className={navLinkClass} onClick={() => setOpen(false)}>
