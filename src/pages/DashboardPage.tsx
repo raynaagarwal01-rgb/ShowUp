@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { CalendarDays, Download, MapPin, Ticket as TicketIcon, X } from "lucide-react";
+import { Award, CalendarDays, Download, MapPin, Ticket as TicketIcon, X } from "lucide-react";
 import { cancelRegistration, listMyRegistrations } from "../lib/db";
 import type { RegistrationWithEvent } from "../types";
 import { formatDateRange } from "../lib/format";
@@ -9,12 +9,14 @@ import { QRTicket } from "../components/QRTicket";
 import { useAuth } from "../context/AuthContext";
 import { downloadTicketImage } from "../lib/ticketExport";
 import { AddToCalendarButton } from "../components/AddToCalendarButton";
+import { CertificateModal } from "../components/CertificateModal";
 
 export const DashboardPage: React.FC = () => {
   const { user } = useAuth();
   const [regs, setRegs] = useState<RegistrationWithEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [openTicket, setOpenTicket] = useState<string | null>(null);
+  const [selectedCertRegistration, setSelectedCertRegistration] = useState<RegistrationWithEvent | null>(null);
 
   const load = async () => {
     if (!user) return;
@@ -79,12 +81,23 @@ export const DashboardPage: React.FC = () => {
                 <div className="flex flex-wrap items-center gap-2">
                   <AddToCalendarButton event={r.event} />
                   {r.status !== "cancelled" && (
-                    <button
-                      onClick={() => setOpenTicket(openTicket === r.id ? null : r.id)}
-                      className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-cream/80 hover:border-coral/50"
-                    >
-                      {openTicket === r.id ? "Hide ticket" : "Show ticket"}
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedCertRegistration(r)}
+                        className="flex items-center gap-1 rounded-lg border border-amber-500/30 bg-amber-950/20 px-2.5 py-1.5 text-xs font-medium text-amber-300 hover:border-amber-400 transition-colors"
+                        title="Download / Preview Participation Certificate"
+                      >
+                        <Award className="h-3.5 w-3.5 text-amber-400" />
+                        Certificate
+                      </button>
+                      <button
+                        onClick={() => setOpenTicket(openTicket === r.id ? null : r.id)}
+                        className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-cream/80 hover:border-coral/50"
+                      >
+                        {openTicket === r.id ? "Hide ticket" : "Show ticket"}
+                      </button>
+                    </>
                   )}
                   <button
                     onClick={() => handleCancel(r.id)}
@@ -122,6 +135,18 @@ export const DashboardPage: React.FC = () => {
           ))
         )}
       </div>
+
+      {selectedCertRegistration && (
+        <CertificateModal
+          isOpen={true}
+          onClose={() => setSelectedCertRegistration(null)}
+          event={selectedCertRegistration.event}
+          attendeeName={user?.name || "Participant"}
+          attendeeCollege={user?.college || selectedCertRegistration.event.college}
+          registrationId={selectedCertRegistration.id}
+          checkedIn={!!selectedCertRegistration.checked_in_at}
+        />
+      )}
     </div>
   );
 };

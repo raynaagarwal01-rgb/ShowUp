@@ -78,3 +78,25 @@ export interface RegistrantView extends Registration {
   profile: Profile;
   team?: Team;
 }
+
+export interface Announcement {
+  id: string;
+  event_id: string;
+  title: string;
+  content: string;
+  author_name: string;
+  is_urgent: boolean;
+  created_at: string;
+}
+
+export interface EventQuestion {
+  id: string;
+  event_id: string;
+  user_id: string | null;
+  user_name: string;
+  question: string;
+  answer: string | null;
+  answered_by: string | null;
+  answered_at: string | null;
+  created_at: string;
+}

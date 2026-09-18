@@ -2,6 +2,8 @@ import { supabase, isSupabaseConfigured } from "./supabase";
 import { demoDb } from "./demoStorage";
 import { newId, joinCode } from "./id";
 import type {
+  Announcement,
+  EventQuestion,
   EventRecord,
   Profile,
   Registration,
@@ -375,3 +377,172 @@ export async function listEventRegistrants(eventId: string): Promise<RegistrantV
       return { ...r, profile, team } as RegistrantView;
     });
 }
+
+export async function listEventAnnouncements(eventId: string): Promise<Announcement[]> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("announcements")
+        .select("*")
+        .eq("event_id", eventId)
+        .order("created_at", { ascending: false });
+      if (!error && data) {
+        return data as Announcement[];
+      }
+    } catch {
+      // fallback to demoDb below
+    }
+  }
+  return demoDb
+    .getAnnouncements()
+    .filter((a) => a.event_id === eventId)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
+export async function createAnnouncement(
+  eventId: string,
+  title: string,
+  content: string,
+  authorName: string,
+  isUrgent: boolean = false
+): Promise<Announcement> {
+  const item: Announcement = {
+    id: newId(),
+    event_id: eventId,
+    title,
+    content,
+    author_name: authorName,
+    is_urgent: isUrgent,
+    created_at: new Date().toISOString(),
+  };
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("announcements")
+        .insert({
+          id: item.id,
+          event_id: eventId,
+          title,
+          content,
+          author_name: authorName,
+          is_urgent: isUrgent,
+        })
+        .select("*")
+        .single();
+      if (!error && data) {
+        return data as Announcement;
+      }
+    } catch {
+      // fallback to demoDb
+    }
+  }
+
+  const all = demoDb.getAnnouncements();
+  all.unshift(item);
+  demoDb.saveAnnouncements(all);
+  return item;
+}
+
+export async function listEventQuestions(eventId: string): Promise<EventQuestion[]> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("event_questions")
+        .select("*")
+        .eq("event_id", eventId)
+        .order("created_at", { ascending: false });
+      if (!error && data) {
+        return data as EventQuestion[];
+      }
+    } catch {
+      // fallback to demoDb below
+    }
+  }
+  return demoDb
+    .getQuestions()
+    .filter((q) => q.event_id === eventId)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
+export async function askEventQuestion(
+  eventId: string,
+  userId: string | null,
+  userName: string,
+  question: string
+): Promise<EventQuestion> {
+  const item: EventQuestion = {
+    id: newId(),
+    event_id: eventId,
+    user_id: userId,
+    user_name: userName,
+    question,
+    answer: null,
+    answered_by: null,
+    answered_at: null,
+    created_at: new Date().toISOString(),
+  };
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from("event_questions")
+        .insert({
+          id: item.id,
+          event_id: eventId,
+          user_id: userId,
+          user_name: userName,
+          question,
+        })
+        .select("*")
+        .single();
+      if (!error && data) {
+        return data as EventQuestion;
+      }
+    } catch {
+      // fallback to demoDb
+    }
+  }
+
+  const all = demoDb.getQuestions();
+  all.unshift(item);
+  demoDb.saveQuestions(all);
+  return item;
+}
+
+export async function answerEventQuestion(
+  questionId: string,
+  answer: string,
+  answeredBy: string
+): Promise<void> {
+  const answeredAt = new Date().toISOString();
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { error } = await supabase
+        .from("event_questions")
+        .update({
+          answer,
+          answered_by: answeredBy,
+          answered_at: answeredAt,
+        })
+        .eq("id", questionId);
+      if (!error) return;
+    } catch {
+      // fallback to demoDb
+    }
+  }
+
+  const all = demoDb.getQuestions();
+  const index = all.findIndex((q) => q.id === questionId);
+  if (index !== -1) {
+    all[index] = {
+      ...all[index],
+      answer,
+      answered_by: answeredBy,
+      answered_at: answeredAt,
+    };
+    demoDb.saveQuestions(all);
+  }
+}
+

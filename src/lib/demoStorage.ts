@@ -1,4 +1,4 @@
-import type { EventRecord, Profile, Registration, Team } from "../types";
+import type { Announcement, EventQuestion, EventRecord, Profile, Registration, Team } from "../types";
 import { seedEvents } from "./demoSeed";
 
 const KEYS = {
@@ -7,6 +7,8 @@ const KEYS = {
   teams: "feastify_demo_teams",
   accounts: "feastify_demo_accounts",
   session: "feastify_demo_session",
+  announcements: "feastify_demo_announcements",
+  questions: "feastify_demo_questions",
 } as const;
 
 interface Account extends Profile {
@@ -69,6 +71,18 @@ export const demoDb = {
   },
   setSession(userId: string | null): void {
     write(KEYS.session, userId);
+  },
+  getAnnouncements(): Announcement[] {
+    return read<Announcement[]>(KEYS.announcements, []);
+  },
+  saveAnnouncements(announcements: Announcement[]): void {
+    write(KEYS.announcements, announcements);
+  },
+  getQuestions(): EventQuestion[] {
+    return read<EventQuestion[]>(KEYS.questions, []);
+  },
+  saveQuestions(questions: EventQuestion[]): void {
+    write(KEYS.questions, questions);
   },
 };
 
