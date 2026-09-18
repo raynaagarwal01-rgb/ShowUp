@@ -1,20 +1,23 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Users, MapPin, Clock, Bookmark } from "lucide-react";
+import { Users, MapPin, Clock, Bookmark, Navigation } from "lucide-react";
 import type { EventRecord } from "../types";
 import { formatDateRange, formatFee, formatTeamSize, timeUntil } from "../lib/format";
 import { StatusPill } from "./StatusPill";
 import { useBookmarks } from "../lib/bookmarks";
+import { EventLocationModal } from "./EventLocationModal";
 
 export const EventCard: React.FC<{ event: EventRecord }> = ({ event }) => {
   const { isBookmarked, toggleBookmark } = useBookmarks();
+  const [mapOpen, setMapOpen] = useState(false);
   const saved = isBookmarked(event.id);
 
   return (
-    <Link
-      to={`/events/${event.id}`}
-      className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-surface transition-colors hover:border-coral/50"
-    >
+    <>
+      <Link
+        to={`/events/${event.id}`}
+        className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-surface transition-colors hover:border-coral/50"
+      >
       <div
         className="relative flex h-28 items-end justify-between p-4"
         style={{
@@ -52,10 +55,25 @@ export const EventCard: React.FC<{ event: EventRecord }> = ({ event }) => {
         </p>
       </div>
       <p className="line-clamp-2 text-sm text-cream/70">{event.tagline}</p>
-      <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1.5 pt-2 text-xs text-muted">
-        <span className="flex items-center gap-1">
-          <MapPin className="h-3.5 w-3.5" /> {event.venue}
-        </span>
+      <div className="mt-auto flex flex-wrap items-center justify-between gap-y-1.5 pt-2 text-xs text-muted">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="flex items-center gap-1 font-medium text-cream/90">
+            <MapPin className="h-3.5 w-3.5 text-coral shrink-0" />
+            <span className="truncate max-w-[130px] sm:max-w-[150px]">{event.venue}</span>
+          </span>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              setMapOpen(true);
+            }}
+            className="inline-flex items-center gap-1 rounded-md bg-coral/15 hover:bg-coral/25 border border-coral/35 px-1.5 py-0.5 text-[10px] font-semibold text-coral transition-colors"
+            title="Open map & check distance from your place"
+          >
+            <Navigation className="h-2.5 w-2.5" /> Map &amp; Distance
+          </button>
+        </div>
         <span className="flex items-center gap-1">
           <Users className="h-3.5 w-3.5" /> {formatTeamSize(event.team_min, event.team_max)}
         </span>
@@ -75,5 +93,13 @@ export const EventCard: React.FC<{ event: EventRecord }> = ({ event }) => {
       </div>
     </div>
   </Link>
+  {mapOpen && (
+    <EventLocationModal
+      isOpen={mapOpen}
+      onClose={() => setMapOpen(false)}
+      event={event}
+    />
+  )}
+  </>
   );
 };

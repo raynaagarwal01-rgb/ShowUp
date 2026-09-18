@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Award, CalendarDays, Download, FileText, MapPin, Ticket as TicketIcon, Users, X } from "lucide-react";
+import { Award, CalendarDays, Download, FileText, MapPin, Navigation, Ticket as TicketIcon, Users, X } from "lucide-react";
 import { cancelRegistration, listMyRegistrations } from "../lib/db";
-import type { RegistrationWithEvent } from "../types";
+import type { EventRecord, RegistrationWithEvent } from "../types";
 import { formatDateRange } from "../lib/format";
 import { StatusPill, registrationTone } from "../components/StatusPill";
 import { QRTicket } from "../components/QRTicket";
@@ -12,6 +12,7 @@ import { AddToCalendarButton } from "../components/AddToCalendarButton";
 import { CertificateModal } from "../components/CertificateModal";
 import { ODLetterModal } from "../components/ODLetterModal";
 import { TeamHubModal } from "../components/TeamHubModal";
+import { EventLocationModal } from "../components/EventLocationModal";
 
 export const DashboardPage: React.FC = () => {
   const { user } = useAuth();
@@ -21,6 +22,7 @@ export const DashboardPage: React.FC = () => {
   const [selectedCertRegistration, setSelectedCertRegistration] = useState<RegistrationWithEvent | null>(null);
   const [selectedOdRegistration, setSelectedOdRegistration] = useState<RegistrationWithEvent | null>(null);
   const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+  const [selectedMapEvent, setSelectedMapEvent] = useState<EventRecord | null>(null);
 
   const load = async () => {
     if (!user) return;
@@ -77,8 +79,16 @@ export const DashboardPage: React.FC = () => {
                     <span className="flex items-center gap-1">
                       <CalendarDays className="h-3.5 w-3.5" /> {formatDateRange(r.event.start_at, r.event.end_at)}
                     </span>
-                    <span className="flex items-center gap-1">
-                      <MapPin className="h-3.5 w-3.5" /> {r.event.venue}
+                    <span className="flex items-center gap-1.5 flex-wrap">
+                      <MapPin className="h-3.5 w-3.5 text-coral" /> {r.event.venue}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedMapEvent(r.event)}
+                        className="inline-flex items-center gap-1 rounded bg-coral/15 hover:bg-coral/25 border border-coral/35 px-1.5 py-0.5 text-[10px] font-semibold text-coral transition-colors"
+                        title="Open map & check distance from your place"
+                      >
+                        <Navigation className="h-2.5 w-2.5" /> Map &amp; Distance
+                      </button>
                     </span>
                   </div>
                 </div>
@@ -194,6 +204,14 @@ export const DashboardPage: React.FC = () => {
           teamId={selectedTeamId}
           currentUserId={user?.id}
           onTeamUpdated={load}
+        />
+      )}
+
+      {selectedMapEvent && (
+        <EventLocationModal
+          isOpen={true}
+          onClose={() => setSelectedMapEvent(null)}
+          event={selectedMapEvent}
         />
       )}
     </div>
