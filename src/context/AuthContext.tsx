@@ -1,0 +1,165 @@
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { supabase, isSupabaseConfigured } from "../lib/supabase";
+import { demoDb, type DemoAccount } from "../lib/demoStorage";
+import { newId } from "../lib/id";
+import type { Profile, Role } from "../types";
+
+interface SignUpDetails {
+  name: string;
+  role: Role;
+  college?: string;
+  branch?: string;
+  year?: string;
+  phone?: string;
+}
+
+interface AuthContextType {
+  user: Profile | null;
+  loading: boolean;
+  isDemoMode: boolean;
+  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signUp: (
+    email: string,
+    password: string,
+    details: SignUpDetails,
+  ) => Promise<{ error: string | null }>;
+  signOut: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+function profileFromAccount(account: DemoAccount): Profile {
+  const { password: _password, ...profile } = account;
+  return profile;
+}
+
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const isDemoMode = !isSupabaseConfigured;
+
+  useEffect(() => {
+    if (isSupabaseConfigured && supabase) {
+      const client = supabase;
+      client.auth.getSession().then(async ({ data: { session } }) => {
+        if (session?.user) {
+          const { data: profile } = await client
+            .from("profiles")
+            .select("*")
+            .eq("id", session.user.id)
+            .maybeSingle();
+          setUser(profile as Profile | null);
+        }
+        setLoading(false);
+      });
+
+      const { data: { subscription } } = client.auth.onAuthStateChange(
+        async (_event, session) => {
+          if (session?.user) {
+            const { data: profile } = await client
+              .from("profiles")
+              .select("*")
+              .eq("id", session.user.id)
+              .maybeSingle();
+            setUser(profile as Profile | null);
+          } else {
+            setUser(null);
+          }
+        },
+      );
+
+      return () => subscription.unsubscribe();
+    } else {
+      const sessionId = demoDb.getSession();
+      if (sessionId) {
+        const account = demoDb.getAccounts().find((a) => a.id === sessionId);
+        if (account) setUser(profileFromAccount(account));
+      }
+      setLoading(false);
+    }
+  }, []);
+
+  const signIn = async (email: string, password: string): Promise<{ error: string | null }> => {
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) return { error: error.message };
+      if (data.user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", data.user.id)
+          .maybeSingle();
+        setUser(profile as Profile | null);
+      }
+      return { error: null };
+    }
+
+    const account = demoDb
+      .getAccounts()
+      .find((a) => a.email.toLowerCase() === email.toLowerCase());
+    if (!account || account.password !== password) {
+      return { error: "Invalid email or password." };
+    }
+    demoDb.setSession(account.id);
+    setUser(profileFromAccount(account));
+    return { error: null };
+  };
+
+  const signUp = async (
+    email: string,
+    password: string,
+    details: SignUpDetails,
+  ): Promise<{ error: string | null }> => {
+    if (password.length < 6) {
+      return { error: "Password must be at least 6 characters." };
+    }
+
+    if (isSupabaseConfigured && supabase) {
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) return { error: error.message };
+      if (data.user) {
+        const profile: Profile = { id: data.user.id, email, ...details };
+        const { error: profileError } = await supabase.from("profiles").insert([profile]);
+        if (profileError) return { error: profileError.message };
+        setUser(profile);
+      }
+      return { error: null };
+    }
+
+    const accounts = demoDb.getAccounts();
+    if (accounts.some((a) => a.email.toLowerCase() === email.toLowerCase())) {
+      return { error: "An account with this email already exists." };
+    }
+    const account: DemoAccount = {
+      id: newId("user"),
+      email,
+      password,
+      ...details,
+    };
+    demoDb.saveAccounts([...accounts, account]);
+    demoDb.setSession(account.id);
+    setUser(profileFromAccount(account));
+    return { error: null };
+  };
+
+  const signOut = async (): Promise<void> => {
+    if (isSupabaseConfigured && supabase) {
+      await supabase.auth.signOut();
+    } else {
+      demoDb.setSession(null);
+    }
+    setUser(null);
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, loading, isDemoMode, signIn, signUp, signOut }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within an AuthProvider");
+  return ctx;
+};
