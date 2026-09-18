@@ -5,6 +5,8 @@ export interface NotificationOutcome {
   attempted: boolean;
   channels: Array<"email" | "sms" | "whatsapp">;
   error?: string;
+  recipientEmail?: string;
+  recipientPhone?: string;
 }
 
 /**
@@ -13,9 +15,8 @@ export interface NotificationOutcome {
  * should not undo an otherwise-successful registration.
  *
  * - Supabase mode: invokes the `send-registration-notification` Edge
- *   Function (see supabase/functions/). That function only actually
- *   delivers a channel once its provider secret is configured (RESEND_API_KEY
- *   for email, TWILIO_* for SMS/WhatsApp) — see the function's own comments.
+ *   Function (see supabase/functions/). That function delivers via Resend
+ *   for email, Fast2SMS/Twilio for SMS, and Twilio for WhatsApp once configured.
  * - Demo mode: there's no backend to deliver anything for real, so this
  *   logs what *would* be sent instead of silently pretending to send it.
  */
@@ -26,6 +27,12 @@ export async function notifyRegistrationConfirmed(
 ): Promise<NotificationOutcome> {
   const channels: Array<"email" | "sms" | "whatsapp"> = ["email"];
   if (profile.phone) channels.push("sms", "whatsapp");
+
+  const baseOutcome = {
+    channels,
+    recipientEmail: profile.email,
+    recipientPhone: profile.phone ?? undefined,
+  };
 
   if (isSupabaseConfigured && supabase) {
     try {
@@ -42,10 +49,10 @@ export async function notifyRegistrationConfirmed(
           registration: { id: registration.id, status: registration.status },
         },
       });
-      if (error) return { attempted: true, channels, error: error.message };
-      return { attempted: true, channels };
+      if (error) return { attempted: true, error: error.message, ...baseOutcome };
+      return { attempted: true, ...baseOutcome };
     } catch (e) {
-      return { attempted: true, channels, error: e instanceof Error ? e.message : "Unknown error" };
+      return { attempted: true, error: e instanceof Error ? e.message : "Unknown error", ...baseOutcome };
     }
   }
 
@@ -55,5 +62,5 @@ export async function notifyRegistrationConfirmed(
         ? `— email, SMS, and WhatsApp to ${profile.phone}.`
         : `— email only (no phone on file for SMS/WhatsApp).`),
   );
-  return { attempted: false, channels };
+  return { attempted: false, ...baseOutcome };
 }

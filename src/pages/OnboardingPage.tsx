@@ -47,6 +47,10 @@ export const OnboardingPage: React.FC = () => {
     if (!state) return setError("Select your state.");
     if (!city.trim()) return setError("Enter your city.");
     if (!phone.trim()) return setError("Enter your phone number.");
+    const digitsOnly = phone.replace(/\D/g, "");
+    if (digitsOnly.length < 10) {
+      return setError("Please enter a valid 10-digit mobile number for SMS notifications.");
+    }
 
     setBusy(true);
     setError(null);
@@ -102,7 +106,7 @@ export const OnboardingPage: React.FC = () => {
           <Field label="City">
             <CitySelect state={state} value={city} onChange={setCity} />
           </Field>
-          <Field label="Phone number">
+          <Field label="Phone number (for SMS & WhatsApp)">
             <input
               type="tel"
               required
@@ -111,6 +115,7 @@ export const OnboardingPage: React.FC = () => {
               className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none"
               placeholder="+91 98765 43210"
             />
+            <p className="mt-1 text-xs text-muted">Used to send your ticket confirmation and event updates via SMS.</p>
           </Field>
           <Field label="College (optional)">
             <input
