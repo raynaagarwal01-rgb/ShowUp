@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { MapPin } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { INDIA_STATES } from "../lib/indiaStates";
+import { listEvents } from "../lib/db";
 import { Logo } from "../components/Logo";
 import { Field } from "./LoginPage";
 
@@ -15,12 +16,19 @@ export const OnboardingPage: React.FC = () => {
   const [college, setCollege] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [knownColleges, setKnownColleges] = useState<string[]>([]);
 
   useEffect(() => {
     if (!loading && !user) {
       navigate(`/login?redirect=${encodeURIComponent("/onboarding")}`);
     }
   }, [loading, user, navigate]);
+
+  useEffect(() => {
+    listEvents().then((events) => {
+      setKnownColleges(Array.from(new Set(events.map((e) => e.college))).sort());
+    });
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,11 +92,17 @@ export const OnboardingPage: React.FC = () => {
           </Field>
           <Field label="College (optional)">
             <input
+              list="known-colleges"
               value={college}
               onChange={(e) => setCollege(e.target.value)}
               className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none"
               placeholder="e.g. VIT Vellore"
             />
+            <datalist id="known-colleges">
+              {knownColleges.map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
           </Field>
 
           {error && <p className="text-sm text-danger">{error}</p>}

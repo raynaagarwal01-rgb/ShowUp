@@ -24,7 +24,9 @@ export const EventCard: React.FC<{ event: EventRecord }> = ({ event }) => (
         <h3 className="font-display text-lg font-semibold leading-snug text-cream group-hover:text-coral-light">
           {event.title}
         </h3>
-        <p className="text-xs text-muted">{event.club_name}</p>
+        <p className="text-xs text-muted">
+          {event.club_name} · {event.college}
+        </p>
       </div>
       <p className="line-clamp-2 text-sm text-cream/70">{event.tagline}</p>
       <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1.5 pt-2 text-xs text-muted">
