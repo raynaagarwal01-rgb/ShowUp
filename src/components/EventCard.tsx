@@ -1,24 +1,47 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Users, MapPin, Clock } from "lucide-react";
+import { Users, MapPin, Clock, Bookmark } from "lucide-react";
 import type { EventRecord } from "../types";
 import { formatDateRange, formatFee, formatTeamSize, timeUntil } from "../lib/format";
 import { StatusPill } from "./StatusPill";
+import { useBookmarks } from "../lib/bookmarks";
 
-export const EventCard: React.FC<{ event: EventRecord }> = ({ event }) => (
-  <Link
-    to={`/events/${event.id}`}
-    className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-surface transition-colors hover:border-coral/50"
-  >
-    <div
-      className="flex h-28 items-end justify-between p-4"
-      style={{
-        background: `linear-gradient(135deg, hsl(${event.banner_hue} 70% 22%), hsl(${event.banner_hue} 70% 12%))`,
-      }}
+export const EventCard: React.FC<{ event: EventRecord }> = ({ event }) => {
+  const { isBookmarked, toggleBookmark } = useBookmarks();
+  const saved = isBookmarked(event.id);
+
+  return (
+    <Link
+      to={`/events/${event.id}`}
+      className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-surface transition-colors hover:border-coral/50"
     >
-      <StatusPill label={event.category} tone="coral" />
-      <StatusPill label={event.city} tone="muted" />
-    </div>
+      <div
+        className="relative flex h-28 items-end justify-between p-4"
+        style={{
+          background: `linear-gradient(135deg, hsl(${event.banner_hue} 70% 22%), hsl(${event.banner_hue} 70% 12%))`,
+        }}
+      >
+        <StatusPill label={event.category} tone="coral" />
+        <div className="flex items-center gap-2">
+          <StatusPill label={event.city} tone="muted" />
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              toggleBookmark(event.id);
+            }}
+            className={`rounded-full p-1.5 backdrop-blur-md transition-all ${
+              saved
+                ? "bg-coral text-ink shadow-md"
+                : "bg-ink/60 text-cream/70 hover:bg-ink/90 hover:text-cream"
+            }`}
+            title={saved ? "Remove from saved" : "Save event"}
+          >
+            <Bookmark className={`h-3.5 w-3.5 ${saved ? "fill-current" : ""}`} />
+          </button>
+        </div>
+      </div>
     <div className="flex flex-1 flex-col gap-3 p-4">
       <div>
         <h3 className="font-display text-lg font-semibold leading-snug text-cream group-hover:text-coral-light">
@@ -52,4 +75,5 @@ export const EventCard: React.FC<{ event: EventRecord }> = ({ event }) => (
       </div>
     </div>
   </Link>
-);
+  );
+};

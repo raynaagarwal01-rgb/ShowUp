@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ArrowUpDown, Building2, Calendar, MapPin, Map as MapIcon, Search, SlidersHorizontal, X } from "lucide-react";
+import { ArrowUpDown, Bookmark, Building2, Calendar, MapPin, Map as MapIcon, Search, SlidersHorizontal, X } from "lucide-react";
 import { listEvents } from "../lib/db";
 import type { EventCategory, EventRecord } from "../types";
 import { EventCard } from "../components/EventCard";
 import { useAuth } from "../context/AuthContext";
 import { INDIA_STATES } from "../lib/indiaStates";
 import { citiesForState } from "../lib/indiaCities";
+import { useBookmarks } from "../lib/bookmarks";
 
 const CATEGORIES: Array<EventCategory | "All"> = [
   "All",
@@ -46,11 +47,13 @@ export const EventsPage: React.FC = () => {
   const [city, setCity] = useState("");
   const [college, setCollege] = useState(ALL_COLLEGES);
   const [category, setCategory] = useState<EventCategory | "All">("All");
+  const { bookmarkedIds } = useBookmarks();
   const [price, setPrice] = useState<PriceFilter>("all");
   const [team, setTeam] = useState<TeamFilter>("all");
   const [sortBy, setSortBy] = useState<DateSort>("date_asc");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [showSavedOnly, setShowSavedOnly] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   useEffect(() => {
@@ -125,6 +128,7 @@ export const EventsPage: React.FC = () => {
         const eventStart = e.start_at ? new Date(e.start_at).getTime() : 0;
         if (eventStart > toTime) return false;
       }
+      if (showSavedOnly && !bookmarkedIds.includes(e.id)) return false;
       if (query.trim()) {
         const q = query.toLowerCase();
         const haystack = `${e.title} ${e.club_name} ${e.college} ${e.tagline}`.toLowerCase();
@@ -151,7 +155,7 @@ export const EventsPage: React.FC = () => {
       }
       return 0;
     });
-  }, [events, state, city, college, category, price, team, query, sortBy, fromDate, toDate]);
+  }, [events, state, city, college, category, price, team, query, sortBy, fromDate, toDate, showSavedOnly, bookmarkedIds]);
 
   const scopeLabel = college !== ALL_COLLEGES ? `at ${college}` : city ? `in ${city}, ${state}` : "";
   const dateLabel =
@@ -264,7 +268,7 @@ export const EventsPage: React.FC = () => {
                 key={c}
                 onClick={() => setCategory(c)}
                 className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                  category === c
+                  category === c && !showSavedOnly
                     ? "border-coral bg-coral/15 text-coral-light"
                     : "border-border text-cream/70 hover:border-coral/40"
                 }`}
@@ -272,6 +276,17 @@ export const EventsPage: React.FC = () => {
                 {c}
               </button>
             ))}
+            <button
+              onClick={() => setShowSavedOnly((s) => !s)}
+              className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${
+                showSavedOnly
+                  ? "border-coral bg-coral text-ink font-semibold shadow-sm"
+                  : "border-border text-cream/70 hover:border-coral/40"
+              }`}
+            >
+              <Bookmark className={`h-3 w-3 ${showSavedOnly ? "fill-current" : ""}`} />
+              Saved {bookmarkedIds.length > 0 ? `(${bookmarkedIds.length})` : ""}
+            </button>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <SegmentedControl
