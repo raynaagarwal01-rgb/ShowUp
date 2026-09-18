@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Building2, CalendarDays, MapPin, Ticket, Users, CheckCircle2, Clock, Bookmark, Download } from "lucide-react";
+import { Building2, CalendarDays, MapPin, Ticket, Users, CheckCircle2, Clock, Bookmark, Download, Award, Megaphone, MessageSquare } from "lucide-react";
 import {
   createTeam,
   getEvent,
@@ -20,6 +20,9 @@ import { useBookmarks } from "../lib/bookmarks";
 import { AddToCalendarButton } from "../components/AddToCalendarButton";
 import { downloadTicketImage } from "../lib/ticketExport";
 import { PaymentModal } from "../components/PaymentModal";
+import { EventAnnouncementsTab } from "../components/EventAnnouncementsTab";
+import { EventQnATab } from "../components/EventQnATab";
+import { CertificateModal } from "../components/CertificateModal";
 
 export const EventDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -38,6 +41,8 @@ export const EventDetailPage: React.FC = () => {
   const [notice, setNotice] = useState<NotificationOutcome | null>(null);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<"solo" | "team_create" | null>(null);
+  const [activeTab, setActiveTab] = useState<"overview" | "announcements" | "qna">("overview");
+  const [certModalOpen, setCertModalOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!id) return;
@@ -208,23 +213,81 @@ export const EventDetailPage: React.FC = () => {
       </div>
 
       <div className="mt-8 grid gap-8 lg:grid-cols-3">
-        <div className="space-y-8 lg:col-span-2">
-          <section>
-            <h2 className="font-display text-xl font-semibold">About this event</h2>
-            <p className="mt-3 whitespace-pre-line text-cream/80">{event.description}</p>
-          </section>
-          {event.rules.length > 0 && (
-            <section>
-              <h2 className="font-display text-xl font-semibold">Rules &amp; regulations</h2>
-              <ul className="mt-3 space-y-2">
-                {event.rules.map((rule, i) => (
-                  <li key={i} className="flex gap-2 text-sm text-cream/75">
-                    <span className="text-coral">{i + 1}.</span>
-                    {rule}
-                  </li>
-                ))}
-              </ul>
-            </section>
+        <div className="space-y-6 lg:col-span-2">
+          {/* Tab navigation */}
+          <div className="flex items-center gap-2 border-b border-border pb-1">
+            <button
+              type="button"
+              onClick={() => setActiveTab("overview")}
+              className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors ${
+                activeTab === "overview"
+                  ? "border-coral text-coral"
+                  : "border-transparent text-muted hover:text-cream"
+              }`}
+            >
+              Overview &amp; Rules
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("announcements")}
+              className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors ${
+                activeTab === "announcements"
+                  ? "border-coral text-coral"
+                  : "border-transparent text-muted hover:text-cream"
+              }`}
+            >
+              <Megaphone className="h-4 w-4" />
+              Announcements
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("qna")}
+              className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors ${
+                activeTab === "qna"
+                  ? "border-coral text-coral"
+                  : "border-transparent text-muted hover:text-cream"
+              }`}
+            >
+              <MessageSquare className="h-4 w-4" />
+              Q&amp;A Forum
+            </button>
+          </div>
+
+          {/* Tab Content */}
+          {activeTab === "overview" && (
+            <div className="space-y-8">
+              <section>
+                <h2 className="font-display text-xl font-semibold">About this event</h2>
+                <p className="mt-3 whitespace-pre-line text-cream/80 leading-relaxed">{event.description}</p>
+              </section>
+              {event.rules.length > 0 && (
+                <section>
+                  <h2 className="font-display text-xl font-semibold">Rules &amp; regulations</h2>
+                  <ul className="mt-3 space-y-2">
+                    {event.rules.map((rule, i) => (
+                      <li key={i} className="flex gap-2 text-sm text-cream/75">
+                        <span className="text-coral font-bold">{i + 1}.</span>
+                        {rule}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+            </div>
+          )}
+
+          {activeTab === "announcements" && (
+            <EventAnnouncementsTab
+              eventId={event.id}
+              isOrganizer={event.created_by === user?.id || user?.role === "organizer"}
+            />
+          )}
+
+          {activeTab === "qna" && (
+            <EventQnATab
+              eventId={event.id}
+              isOrganizer={event.created_by === user?.id || user?.role === "organizer"}
+            />
           )}
         </div>
 
@@ -291,6 +354,14 @@ export const EventDetailPage: React.FC = () => {
                 >
                   <Download className="h-4 w-4 text-coral" /> Download Pass (PNG)
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setCertModalOpen(true)}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-950/20 py-2.5 text-center text-sm font-semibold text-amber-300 hover:bg-amber-950/40 transition-colors"
+                >
+                  <Award className="h-4 w-4 text-amber-400" />
+                  {myRegistration.checked_in_at ? "Download Certificate (PNG)" : "Preview Certificate (PNG)"}
+                </button>
                 <Link
                   to="/dashboard"
                   className="block rounded-xl bg-coral py-2.5 text-center text-sm font-semibold text-ink"
@@ -298,64 +369,77 @@ export const EventDetailPage: React.FC = () => {
                   View my ticket
                 </Link>
               </div>
-            ) : deadlinePassed ? (
-              <p className="text-sm text-muted">Registration for this event has closed.</p>
-            ) : !isTeamEvent ? (
-              <button
-                onClick={handleSoloRegister}
-                disabled={busy}
-                className="w-full rounded-xl bg-coral py-2.5 text-sm font-semibold text-ink transition-transform hover:scale-[1.02] disabled:opacity-60"
-              >
-                {busy ? "Registering..." : "Register"}
-              </button>
             ) : (
-              <div className="space-y-3">
-                <div className="flex rounded-xl border border-border p-1 text-xs">
+              <div className="space-y-4">
+                <button
+                  type="button"
+                  onClick={() => setCertModalOpen(true)}
+                  className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-950/15 py-2 text-xs font-semibold text-amber-300 hover:bg-amber-950/30 transition-colors"
+                >
+                  <Award className="h-3.5 w-3.5 text-amber-400" />
+                  Preview Participation Certificate
+                </button>
+
+                {deadlinePassed ? (
+                  <p className="text-sm text-muted">Registration for this event has closed.</p>
+                ) : !isTeamEvent ? (
                   <button
-                    onClick={() => setMode("create")}
-                    className={`flex-1 rounded-lg py-1.5 font-medium ${mode === "create" ? "bg-coral text-ink" : "text-cream/70"}`}
+                    onClick={handleSoloRegister}
+                    disabled={busy}
+                    className="w-full rounded-xl bg-coral py-2.5 text-sm font-semibold text-ink transition-transform hover:scale-[1.02] disabled:opacity-60"
                   >
-                    Create team
+                    {busy ? "Registering..." : "Register"}
                   </button>
-                  <button
-                    onClick={() => setMode("join")}
-                    className={`flex-1 rounded-lg py-1.5 font-medium ${mode === "join" ? "bg-coral text-ink" : "text-cream/70"}`}
-                  >
-                    Join with code
-                  </button>
-                </div>
-                {mode === "create" ? (
-                  <>
-                    <input
-                      value={teamName}
-                      onChange={(e) => setTeamName(e.target.value)}
-                      placeholder="Team name"
-                      className="w-full rounded-lg border border-border bg-ink px-3 py-2 text-sm focus:border-coral focus:outline-none"
-                    />
-                    <button
-                      onClick={handleCreateTeam}
-                      disabled={busy}
-                      className="w-full rounded-xl bg-coral py-2.5 text-sm font-semibold text-ink disabled:opacity-60"
-                    >
-                      {busy ? "Creating..." : "Create team & register"}
-                    </button>
-                  </>
                 ) : (
-                  <>
-                    <input
-                      value={joinCodeInput}
-                      onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
-                      placeholder="e.g. 7QX2KP"
-                      className="w-full rounded-lg border border-border bg-ink px-3 py-2 text-sm uppercase tracking-widest focus:border-coral focus:outline-none"
-                    />
-                    <button
-                      onClick={handleJoinTeam}
-                      disabled={busy}
-                      className="w-full rounded-xl bg-coral py-2.5 text-sm font-semibold text-ink disabled:opacity-60"
-                    >
-                      {busy ? "Joining..." : "Join team"}
-                    </button>
-                  </>
+                  <div className="space-y-3">
+                    <div className="flex rounded-xl border border-border p-1 text-xs">
+                      <button
+                        onClick={() => setMode("create")}
+                        className={`flex-1 rounded-lg py-1.5 font-medium ${mode === "create" ? "bg-coral text-ink" : "text-cream/70"}`}
+                      >
+                        Create team
+                      </button>
+                      <button
+                        onClick={() => setMode("join")}
+                        className={`flex-1 rounded-lg py-1.5 font-medium ${mode === "join" ? "bg-coral text-ink" : "text-cream/70"}`}
+                      >
+                        Join with code
+                      </button>
+                    </div>
+                    {mode === "create" ? (
+                      <>
+                        <input
+                          value={teamName}
+                          onChange={(e) => setTeamName(e.target.value)}
+                          placeholder="Team name"
+                          className="w-full rounded-lg border border-border bg-ink px-3 py-2 text-sm focus:border-coral focus:outline-none"
+                        />
+                        <button
+                          onClick={handleCreateTeam}
+                          disabled={busy}
+                          className="w-full rounded-xl bg-coral py-2.5 text-sm font-semibold text-ink disabled:opacity-60"
+                        >
+                          {busy ? "Creating..." : "Create team & register"}
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <input
+                          value={joinCodeInput}
+                          onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
+                          placeholder="e.g. 7QX2KP"
+                          className="w-full rounded-lg border border-border bg-ink px-3 py-2 text-sm uppercase tracking-widest focus:border-coral focus:outline-none"
+                        />
+                        <button
+                          onClick={handleJoinTeam}
+                          disabled={busy}
+                          className="w-full rounded-xl bg-coral py-2.5 text-sm font-semibold text-ink disabled:opacity-60"
+                        >
+                          {busy ? "Joining..." : "Join team"}
+                        </button>
+                      </>
+                    )}
+                  </div>
                 )}
               </div>
             )}
@@ -380,6 +464,18 @@ export const EventDetailPage: React.FC = () => {
           attendeeEmail={user.email}
           attendeePhone={user.phone}
           isTeam={pendingAction === "team_create"}
+        />
+      )}
+
+      {event && (
+        <CertificateModal
+          isOpen={certModalOpen}
+          onClose={() => setCertModalOpen(false)}
+          event={event}
+          attendeeName={user?.name || "Participant"}
+          attendeeCollege={user?.college || event.college}
+          registrationId={myRegistration?.id}
+          checkedIn={!!myRegistration?.checked_in_at}
         />
       )}
     </div>

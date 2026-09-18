@@ -12,6 +12,7 @@ import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { OnboardingPage } from "./pages/OnboardingPage";
 import { DashboardPage } from "./pages/DashboardPage";
+import { FestHubPage } from "./pages/FestHubPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { OrganizerDashboardPage } from "./pages/organizer/OrganizerDashboardPage";
 import { CreateEventPage } from "./pages/organizer/CreateEventPage";
@@ -26,6 +27,7 @@ function App() {
         <main className="flex-1">
           <Routes>
             <Route path="/" element={<LandingPage />} />
+            <Route path="/fests/gravitas26" element={<FestHubPage />} />
             <Route
               path="/events"
               element={
