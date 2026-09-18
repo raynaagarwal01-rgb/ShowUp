@@ -33,11 +33,12 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   const [processing, setProcessing] = useState(false);
   const [paid, setPaid] = useState(false);
 
-  // Generate dynamic UPI QR string
+  // Demo-only QR: intentionally NOT a upi://pay deep link, so scanning it can
+  // never trigger a real transfer — Feastify has no connected payment gateway.
   useEffect(() => {
     if (!isOpen) return;
-    const upiString = `upi://pay?pa=feastify.events@oksbi&pn=Feastify%20Campus%20Events&am=${event.fee}&cu=INR&tn=${encodeURIComponent(event.title.slice(0, 30))}`;
-    QRCode.toDataURL(upiString, { width: 220, margin: 1, color: { dark: "#120d18", light: "#ffffff" } })
+    const demoString = `FEASTIFY DEMO CHECKOUT — no real payment · ${event.title.slice(0, 40)} · Rs.${event.fee}`;
+    QRCode.toDataURL(demoString, { width: 220, margin: 1, color: { dark: "#120d18", light: "#ffffff" } })
       .then(setQrDataUrl)
       .catch(() => {});
   }, [isOpen, event]);
@@ -46,7 +47,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
   const handlePay = () => {
     setProcessing(true);
-    // Simulate authentic payment processing delay
+    // Simulated demo delay — no real payment gateway is connected
     setTimeout(() => {
       const generatedTxnId = `pay_fst_${Math.random().toString(36).slice(2, 11)}_${Date.now().toString().slice(-4)}`;
       setProcessing(false);
@@ -65,8 +66,8 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           <div className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-success" />
             <div>
-              <p className="text-xs font-semibold text-cream">Feastify Secure Checkout</p>
-              <p className="text-[10px] text-muted">256-bit Encrypted UPI Gateway</p>
+              <p className="text-xs font-semibold text-cream">Feastify Demo Checkout</p>
+              <p className="text-[10px] text-muted">Simulated payment — no real money moves</p>
             </div>
           </div>
           <button
@@ -83,13 +84,16 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-success/20 text-success">
               <CheckCircle2 className="h-10 w-10" />
             </div>
-            <h3 className="mt-4 font-display text-xl font-bold text-cream">Payment Successful!</h3>
+            <h3 className="mt-4 font-display text-xl font-bold text-cream">Registration Confirmed!</h3>
             <p className="mt-1 text-sm text-muted">
-              ₹{event.fee} received. Generating your official ticket...
+              Demo checkout complete — no real payment was made. Generating your ticket...
             </p>
           </div>
         ) : (
           <div className="p-5">
+            <div className="mb-3.5 rounded-lg border border-amber-500/30 bg-amber-950/20 px-3 py-2 text-center text-[11px] font-medium text-amber-300">
+              Demo mode: no payment gateway is connected. This won't charge you or move any real money.
+            </div>
             {/* Event Summary Card */}
             <div className="rounded-xl border border-border/70 bg-ink/50 p-3.5">
               <div className="flex items-start justify-between gap-2">
@@ -181,14 +185,14 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               {method === "upi_qr" && (
                 <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-ink/70 p-4 text-center">
                   {qrDataUrl ? (
-                    <img src={qrDataUrl} alt="UPI Payment QR" className="h-44 w-44 rounded-lg shadow-md" />
+                    <img src={qrDataUrl} alt="Demo QR code" className="h-44 w-44 rounded-lg shadow-md opacity-90" />
                   ) : (
                     <div className="h-44 w-44 flex items-center justify-center text-xs text-muted">
                       Generating QR...
                     </div>
                   )}
-                  <p className="mt-2 text-xs font-semibold text-cream">Scan with GPay, PhonePe, Paytm, or BHIM</p>
-                  <p className="text-[10px] text-muted mt-0.5">Payment verifies automatically upon scan & transfer</p>
+                  <p className="mt-2 text-xs font-semibold text-cream">Demo QR — not a real payment link</p>
+                  <p className="text-[10px] text-muted mt-0.5">Scanning this will not charge you or transfer any money</p>
                 </div>
               )}
 
@@ -214,6 +218,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                       className="w-full rounded-xl border border-border bg-ink px-3 py-2 text-xs text-cream placeholder:text-muted focus:border-coral focus:outline-none"
                     />
                   </div>
+                  <p className="text-[10px] text-muted text-center">Demo card fields — nothing is submitted or charged</p>
                 </div>
               )}
             </div>
@@ -228,16 +233,16 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               >
                 {processing ? (
                   <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Verifying UPI Payment...
+                    <Loader2 className="h-4 w-4 animate-spin" /> Processing (Demo)...
                   </>
                 ) : (
                   <>
-                    Pay ₹{event.fee} &amp; Confirm Ticket <ArrowRight className="h-4 w-4" />
+                    Simulate Payment of ₹{event.fee} <ArrowRight className="h-4 w-4" />
                   </>
                 )}
               </button>
               <p className="text-center text-[10px] text-muted">
-                100% Refundable per event cancellation policy · Powered by Feastify Pay
+                Demo checkout only — no real charge is made
               </p>
             </div>
           </div>
