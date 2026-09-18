@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Building2, CalendarDays, MapPin, Ticket, Users, CheckCircle2, Clock, Bookmark, Download, Award, Megaphone, MessageSquare, FileText, Trophy } from "lucide-react";
+import { Building2, CalendarDays, MapPin, Ticket, Users, CheckCircle2, Clock, Bookmark, Download, Award, Megaphone, MessageSquare, FileText, Trophy, Navigation } from "lucide-react";
 import {
   createTeam,
   getEvent,
@@ -26,6 +26,7 @@ import { CertificateModal } from "../components/CertificateModal";
 import { EventWinnersTab } from "../components/EventWinnersTab";
 import { ODLetterModal } from "../components/ODLetterModal";
 import { TeamHubModal } from "../components/TeamHubModal";
+import { EventLocationModal } from "../components/EventLocationModal";
 
 export const EventDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -48,6 +49,7 @@ export const EventDetailPage: React.FC = () => {
   const [certModalOpen, setCertModalOpen] = useState(false);
   const [odModalOpen, setOdModalOpen] = useState(false);
   const [teamModalOpen, setTeamModalOpen] = useState(false);
+  const [locationModalOpen, setLocationModalOpen] = useState(false);
   const { isBookmarked, toggleBookmark } = useBookmarks();
 
   const refresh = useCallback(async () => {
@@ -81,7 +83,9 @@ export const EventDetailPage: React.FC = () => {
   }
 
   const isTeamEvent = event.team_max > 1;
-  const deadlinePassed = new Date(event.registration_deadline).getTime() < Date.now();
+  const deadlinePassed = event.registration_deadline
+    ? new Date(event.registration_deadline).getTime() < Date.now()
+    : false;
 
   const requireOnboardedUser = (): typeof user => {
     if (!user) {
@@ -212,7 +216,20 @@ export const EventDetailPage: React.FC = () => {
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <InfoTile icon={Building2} label="College" value={`${event.college}, ${event.city}`} />
-        <InfoTile icon={MapPin} label="Venue" value={event.venue} />
+        <InfoTile
+          icon={MapPin}
+          label="Venue"
+          value={event.venue}
+          action={
+            <button
+              type="button"
+              onClick={() => setLocationModalOpen(true)}
+              className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg border border-coral/40 bg-coral/10 px-2.5 py-1 text-xs font-semibold text-coral hover:bg-coral/20 transition-colors w-fit"
+            >
+              <Navigation className="h-3 w-3" /> Map &amp; How Far
+            </button>
+          }
+        />
         <InfoTile icon={CalendarDays} label="When" value={formatDateRange(event.start_at, event.end_at)} />
         <InfoTile icon={Users} label="Participation" value={formatTeamSize(event.team_min, event.team_max)} />
       </div>
@@ -543,19 +560,31 @@ export const EventDetailPage: React.FC = () => {
           onTeamUpdated={refresh}
         />
       )}
+
+      {event && (
+        <EventLocationModal
+          isOpen={locationModalOpen}
+          onClose={() => setLocationModalOpen(false)}
+          event={event}
+        />
+      )}
     </div>
   );
 };
 
-const InfoTile: React.FC<{ icon: React.ElementType; label: string; value: string }> = ({
-  icon: Icon,
-  label,
-  value,
-}) => (
-  <div className="rounded-xl border border-border bg-surface p-4">
-    <div className="flex items-center gap-1.5 text-xs text-muted">
-      <Icon className="h-3.5 w-3.5" /> {label}
+const InfoTile: React.FC<{
+  icon: React.ElementType;
+  label: string;
+  value: string;
+  action?: React.ReactNode;
+}> = ({ icon: Icon, label, value, action }) => (
+  <div className="rounded-xl border border-border bg-surface p-4 flex flex-col justify-between">
+    <div>
+      <div className="flex items-center gap-1.5 text-xs text-muted">
+        <Icon className="h-3.5 w-3.5 text-coral" /> {label}
+      </div>
+      <p className="mt-1 text-sm font-medium text-cream">{value}</p>
     </div>
-    <p className="mt-1 text-sm font-medium text-cream">{value}</p>
+    {action}
   </div>
 );

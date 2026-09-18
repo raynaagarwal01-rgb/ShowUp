@@ -31,22 +31,6 @@ export const Navbar: React.FC = () => {
           <NavLink to="/events" className={navLinkClass}>
             Events
           </NavLink>
-          <NavLink
-            to="/fests/gravitas26"
-            className={({ isActive }) =>
-              `flex items-center gap-1.5 text-sm font-semibold transition-colors ${
-                isActive ? "text-coral" : "text-cream/80 hover:text-coral"
-              }`
-            }
-          >
-            <span>graVITas '26</span>
-            <span className="rounded-full bg-coral/20 border border-coral/40 px-1.5 py-0.5 text-[10px] font-bold text-coral uppercase tracking-wide">
-              Fest
-            </span>
-          </NavLink>
-          <NavLink to="/campus-map" className={navLinkClass}>
-            Campus Map
-          </NavLink>
           {user?.role === "organizer" || user?.role === "admin" ? (
             <NavLink to="/organizer" className={navLinkClass}>
               Organizer Studio
@@ -107,25 +91,6 @@ export const Navbar: React.FC = () => {
           <div className="flex flex-col gap-3 pt-3">
             <NavLink to="/events" className={navLinkClass} onClick={() => setOpen(false)}>
               Events
-            </NavLink>
-            <NavLink
-              to="/fests/gravitas26"
-              className={navLinkClass}
-              onClick={() => setOpen(false)}
-            >
-              <span className="flex items-center gap-2">
-                <span>graVITas '26 Fest Hub</span>
-                <span className="rounded-full bg-coral/20 border border-coral/40 px-1.5 py-0.2 text-[10px] font-bold text-coral">
-                  HOT
-                </span>
-              </span>
-            </NavLink>
-            <NavLink
-              to="/campus-map"
-              className={navLinkClass}
-              onClick={() => setOpen(false)}
-            >
-              Campus Map
             </NavLink>
             {user?.role === "organizer" || user?.role === "admin" ? (
               <NavLink to="/organizer" className={navLinkClass} onClick={() => setOpen(false)}>
