@@ -72,20 +72,14 @@ provider** — nothing is faked or partially wired:
    it to your project (`supabase link`).
 2. Deploy the function: `supabase functions deploy send-registration-notification`.
 3. Turn on whichever channels you want:
-   - **Email (Resend)** — `supabase secrets set RESEND_API_KEY=... RESEND_FROM="Feastify <noreply@yourdomain.com>"`.
-     Closest to turnkey: sign up at [resend.com](https://resend.com), verify a
-     sending domain, done.
-   - **SMS (Twilio)** — `supabase secrets set TWILIO_ACCOUNT_SID=... TWILIO_AUTH_TOKEN=... TWILIO_SMS_FROM=+1xxxxxxxxxx`.
-     Needs a Twilio account and a number capable of sending SMS. **For Indian
-     numbers specifically**, international SMS gateways are routinely
-     filtered by carriers unless the sender is registered with India's DLT
-     (telecom) framework — an India-first provider (MSG91, Gupshup) that
-     handles DLT for you may be more reliable in practice than Twilio here.
-     `sendSms` in the Edge Function is the one place to swap providers.
+   - **Email (Resend)** — `supabase secrets set RESEND_API_KEY=re_... RESEND_FROM="Feastify <onboarding@resend.dev>"`.
+     Sign up at [resend.com](https://resend.com) (free 3,000 emails/month). You can test immediately using `onboarding@resend.dev` or add your custom verified domain.
+   - **SMS (India-First: Fast2SMS - Recommended)** — `supabase secrets set FAST2SMS_API_KEY=your_key`.
+     Sign up at [fast2sms.com](https://www.fast2sms.com) (get instant SMS credits). Delivers SMS directly to Indian (+91) phone numbers without requiring telecom DLT registration.
+   - **SMS (Twilio - International)** — `supabase secrets set TWILIO_ACCOUNT_SID=... TWILIO_AUTH_TOKEN=... TWILIO_SMS_FROM=+1xxxxxxxxxx`.
+     Used as fallback or for international numbers outside India.
    - **WhatsApp (Twilio)** — `supabase secrets set TWILIO_WHATSAPP_FROM=whatsapp:+14155238886`.
-     Needs a WhatsApp Business sender approved via Meta business
-     verification (not instant); Twilio's sandbox number works for testing
-     but only reaches numbers that have opted into the sandbox first.
+     Needs a WhatsApp Business sender approved via Meta business verification, or Twilio's sandbox number for testing.
 
 Until any of these secrets are set, that channel is silently skipped (the
 function reports `skipped_not_configured` per channel) — registrations still

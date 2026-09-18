@@ -203,13 +203,22 @@ export const EventDetailPage: React.FC = () => {
                   tone={registrationTone(myRegistration.status)}
                 />
                 {notice && (
-                  <p className="text-xs text-muted">
-                    {notice.attempted
-                      ? notice.error
-                        ? `Confirmation notification failed to send: ${notice.error}`
-                        : `Confirmation sent via ${notice.channels.join(", ")}.`
-                      : `Confirmation would be sent via ${notice.channels.join(", ")} once notifications are configured (see README).`}
-                  </p>
+                  <div className="rounded-xl border border-border bg-surface-2 p-3 text-xs">
+                    <p className="font-semibold text-cream">
+                      {notice.attempted
+                        ? notice.error
+                          ? "Notification alert"
+                          : "✓ Confirmation notification dispatched!"
+                        : "Notification prepared (Demo Mode)"}
+                    </p>
+                    <p className="mt-1 text-muted">
+                      {notice.attempted
+                        ? notice.error
+                          ? `Delivery issue: ${notice.error}`
+                          : `Sent to ${[notice.recipientEmail, notice.recipientPhone].filter(Boolean).join(" & ")} (${notice.channels.join(", ")}).`
+                        : `Ready for ${[notice.recipientEmail, notice.recipientPhone].filter(Boolean).join(" & ")} via ${notice.channels.join(", ")}. Logged to console in Demo Mode.`}
+                    </p>
+                  </div>
                 )}
                 <Link
                   to="/dashboard"
