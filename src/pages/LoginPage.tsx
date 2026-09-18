@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { Logo } from "../components/Logo";
+import { isOnboardingComplete } from "../lib/profile";
 
 export const LoginPage: React.FC = () => {
   const { signIn, isDemoMode } = useAuth();
@@ -21,7 +22,7 @@ export const LoginPage: React.FC = () => {
     if (error) return setError(error);
 
     const redirect = params.get("redirect") || "/dashboard";
-    if (profile && !profile.state) {
+    if (profile && !isOnboardingComplete(profile)) {
       navigate(`/onboarding?next=${encodeURIComponent(redirect)}`);
     } else {
       navigate(redirect);
@@ -64,6 +65,11 @@ export const LoginPage: React.FC = () => {
               placeholder="••••••••"
             />
           </Field>
+          <div className="text-right">
+            <Link to="/forgot-password" className="text-xs font-medium text-coral">
+              Forgot password?
+            </Link>
+          </div>
 
           {error && <p className="text-sm text-danger">{error}</p>}
 

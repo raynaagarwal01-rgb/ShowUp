@@ -15,6 +15,7 @@ export const OnboardingPage: React.FC = () => {
   const [state, setState] = useState("");
   const [city, setCity] = useState("");
   const [college, setCollege] = useState("");
+  const [phone, setPhone] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [knownColleges, setKnownColleges] = useState<string[]>([]);
@@ -24,6 +25,16 @@ export const OnboardingPage: React.FC = () => {
       navigate(`/login?redirect=${encodeURIComponent("/onboarding")}`);
     }
   }, [loading, user, navigate]);
+
+  // Pre-fill from whatever's already on the profile — e.g. someone who set
+  // state/city before phone became required shouldn't have to redo those.
+  useEffect(() => {
+    if (!user) return;
+    setState((s) => s || user.state || "");
+    setCity((c) => c || user.city || "");
+    setCollege((c) => c || user.college || "");
+    setPhone((p) => p || user.phone || "");
+  }, [user]);
 
   useEffect(() => {
     listEvents().then((events) => {
@@ -35,6 +46,7 @@ export const OnboardingPage: React.FC = () => {
     e.preventDefault();
     if (!state) return setError("Select your state.");
     if (!city.trim()) return setError("Enter your city.");
+    if (!phone.trim()) return setError("Enter your phone number.");
 
     setBusy(true);
     setError(null);
@@ -42,6 +54,7 @@ export const OnboardingPage: React.FC = () => {
       state,
       city: city.trim(),
       college: college.trim() || undefined,
+      phone: phone.trim(),
     });
     setBusy(false);
     if (error) return setError(error);
@@ -61,7 +74,8 @@ export const OnboardingPage: React.FC = () => {
         <MapPin className="h-6 w-6 text-coral" />
         <h1 className="mt-3 font-display text-2xl font-bold">Where are you joining from?</h1>
         <p className="mt-1 text-sm text-muted">
-          Feastify covers events across India — this helps us show you what's happening near you.
+          Feastify covers events across India — this helps us show you what's happening near you,
+          and where to send your registration confirmations.
         </p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
@@ -87,6 +101,16 @@ export const OnboardingPage: React.FC = () => {
           </Field>
           <Field label="City">
             <CitySelect state={state} value={city} onChange={setCity} />
+          </Field>
+          <Field label="Phone number">
+            <input
+              type="tel"
+              required
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none"
+              placeholder="+91 98765 43210"
+            />
           </Field>
           <Field label="College (optional)">
             <input
