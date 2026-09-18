@@ -1,9 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 import { QrCode, Users2, Ticket, LayoutDashboard, ArrowRight, Sparkles } from "lucide-react";
-import { listEvents } from "../lib/db";
-import type { EventRecord } from "../types";
-import { EventCard } from "../components/EventCard";
 import { useAuth } from "../context/AuthContext";
 
 const FEATURES = [
@@ -31,11 +28,6 @@ const FEATURES = [
 
 export const LandingPage: React.FC = () => {
   const { user } = useAuth();
-  const [events, setEvents] = useState<EventRecord[]>([]);
-
-  useEffect(() => {
-    listEvents().then((all) => setEvents(all.slice(0, 3)));
-  }, []);
 
   return (
     <div>
@@ -92,22 +84,6 @@ export const LandingPage: React.FC = () => {
           ))}
         </div>
       </section>
-
-      {events.length > 0 && (
-        <section className="mx-auto max-w-6xl px-4 pb-20 sm:px-6">
-          <div className="flex items-center justify-between">
-            <h2 className="font-display text-2xl font-bold sm:text-3xl">Happening soon</h2>
-            <Link to="/events" className="flex items-center gap-1 text-sm font-medium text-coral">
-              View all <ArrowRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {events.map((e) => (
-              <EventCard key={e.id} event={e} />
-            ))}
-          </div>
-        </section>
-      )}
     </div>
   );
 };
