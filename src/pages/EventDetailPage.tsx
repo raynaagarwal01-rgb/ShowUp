@@ -48,6 +48,7 @@ export const EventDetailPage: React.FC = () => {
   const [certModalOpen, setCertModalOpen] = useState(false);
   const [odModalOpen, setOdModalOpen] = useState(false);
   const [teamModalOpen, setTeamModalOpen] = useState(false);
+  const { isBookmarked, toggleBookmark } = useBookmarks();
 
   const refresh = useCallback(async () => {
     if (!id) return;
@@ -176,7 +177,6 @@ export const EventDetailPage: React.FC = () => {
     }
   };
 
-  const { isBookmarked, toggleBookmark } = useBookmarks();
   const saved = event ? isBookmarked(event.id) : false;
 
   return (
