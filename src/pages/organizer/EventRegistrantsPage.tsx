@@ -6,11 +6,13 @@ import type { EventRecord, RegistrantView } from "../../types";
 import { StatusPill, registrationTone } from "../../components/StatusPill";
 
 function downloadCsv(filename: string, rows: RegistrantView[]) {
-  const header = ["Name", "Email", "Status", "Team", "Checked in"];
+  const header = ["Name", "Email", "City", "College", "Status", "Team", "Checked in"];
   const lines = rows.map((r) =>
     [
       r.profile.name,
       r.profile.email,
+      r.profile.city ?? "",
+      r.profile.college ?? "",
       r.status,
       r.team?.name ?? "",
       r.checked_in_at ? new Date(r.checked_in_at).toLocaleString() : "",
@@ -85,6 +87,7 @@ export const EventRegistrantsPage: React.FC = () => {
             <tr>
               <th className="px-4 py-3">Name</th>
               <th className="px-4 py-3">Email</th>
+              <th className="px-4 py-3">From</th>
               <th className="px-4 py-3">Team</th>
               <th className="px-4 py-3">Status</th>
               <th className="px-4 py-3">Check-in</th>
@@ -93,7 +96,7 @@ export const EventRegistrantsPage: React.FC = () => {
           <tbody>
             {registrants.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-10 text-center text-muted">
+                <td colSpan={6} className="px-4 py-10 text-center text-muted">
                   No one has registered yet.
                 </td>
               </tr>
@@ -102,6 +105,12 @@ export const EventRegistrantsPage: React.FC = () => {
                 <tr key={r.id} className="border-t border-border">
                   <td className="px-4 py-3">{r.profile.name}</td>
                   <td className="px-4 py-3 text-muted">{r.profile.email}</td>
+                  <td className="px-4 py-3 text-muted">
+                    {r.profile.city ?? "—"}
+                    {r.profile.college && (
+                      <span className="block text-xs text-muted/70">{r.profile.college}</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-muted">{r.team?.name ?? "—"}</td>
                   <td className="px-4 py-3">
                     <StatusPill label={r.status} tone={registrationTone(r.status)} />

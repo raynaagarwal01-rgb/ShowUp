@@ -46,7 +46,10 @@ export const Navbar: React.FC = () => {
         <div className="hidden items-center gap-3 md:flex">
           {user ? (
             <>
-              <span className="text-sm text-muted">Hi, {user.name.split(" ")[0]}</span>
+              <span className="text-sm text-muted">
+                Hi, {user.name.split(" ")[0]}
+                {user.city && <span className="text-cream/40"> · {user.city}</span>}
+              </span>
               <button
                 onClick={handleSignOut}
                 className="flex items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-sm text-cream/80 transition-colors hover:border-coral/60 hover:text-coral"

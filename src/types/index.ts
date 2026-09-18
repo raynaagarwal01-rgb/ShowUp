@@ -5,6 +5,8 @@ export interface Profile {
   email: string;
   name: string;
   role: Role;
+  state?: string;
+  city?: string;
   college?: string;
   branch?: string;
   year?: string;
@@ -30,6 +32,8 @@ export interface EventRecord {
   rules: string[];
   category: EventCategory;
   scope: EventScope;
+  state: string;
+  city: string;
   venue: string;
   start_at: string;
   end_at: string;

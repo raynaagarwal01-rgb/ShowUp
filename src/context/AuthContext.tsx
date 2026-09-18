@@ -17,13 +17,14 @@ interface AuthContextType {
   user: Profile | null;
   loading: boolean;
   isDemoMode: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: string | null; profile: Profile | null }>;
   signUp: (
     email: string,
     password: string,
     details: SignUpDetails,
-  ) => Promise<{ error: string | null }>;
+  ) => Promise<{ error: string | null; profile: Profile | null }>;
   signOut: () => Promise<void>;
+  updateProfile: (patch: Partial<Profile>) => Promise<{ error: string | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -79,10 +80,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  const signIn = async (email: string, password: string): Promise<{ error: string | null }> => {
+  const signIn = async (
+    email: string,
+    password: string,
+  ): Promise<{ error: string | null; profile: Profile | null }> => {
     if (isSupabaseConfigured && supabase) {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) return { error: error.message };
+      if (error) return { error: error.message, profile: null };
       if (data.user) {
         const { data: profile } = await supabase
           .from("profiles")
@@ -90,45 +94,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .eq("id", data.user.id)
           .maybeSingle();
         setUser(profile as Profile | null);
+        return { error: null, profile: profile as Profile | null };
       }
-      return { error: null };
+      return { error: null, profile: null };
     }
 
     const account = demoDb
       .getAccounts()
       .find((a) => a.email.toLowerCase() === email.toLowerCase());
     if (!account || account.password !== password) {
-      return { error: "Invalid email or password." };
+      return { error: "Invalid email or password.", profile: null };
     }
     demoDb.setSession(account.id);
-    setUser(profileFromAccount(account));
-    return { error: null };
+    const profile = profileFromAccount(account);
+    setUser(profile);
+    return { error: null, profile };
   };
 
   const signUp = async (
     email: string,
     password: string,
     details: SignUpDetails,
-  ): Promise<{ error: string | null }> => {
+  ): Promise<{ error: string | null; profile: Profile | null }> => {
     if (password.length < 6) {
-      return { error: "Password must be at least 6 characters." };
+      return { error: "Password must be at least 6 characters.", profile: null };
     }
 
     if (isSupabaseConfigured && supabase) {
       const { data, error } = await supabase.auth.signUp({ email, password });
-      if (error) return { error: error.message };
+      if (error) return { error: error.message, profile: null };
       if (data.user) {
         const profile: Profile = { id: data.user.id, email, ...details };
         const { error: profileError } = await supabase.from("profiles").insert([profile]);
-        if (profileError) return { error: profileError.message };
+        if (profileError) return { error: profileError.message, profile: null };
         setUser(profile);
+        return { error: null, profile };
       }
-      return { error: null };
+      return { error: null, profile: null };
     }
 
     const accounts = demoDb.getAccounts();
     if (accounts.some((a) => a.email.toLowerCase() === email.toLowerCase())) {
-      return { error: "An account with this email already exists." };
+      return { error: "An account with this email already exists.", profile: null };
     }
     const account: DemoAccount = {
       id: newId("user"),
@@ -138,8 +145,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
     demoDb.saveAccounts([...accounts, account]);
     demoDb.setSession(account.id);
-    setUser(profileFromAccount(account));
-    return { error: null };
+    const profile = profileFromAccount(account);
+    setUser(profile);
+    return { error: null, profile };
   };
 
   const signOut = async (): Promise<void> => {
@@ -151,8 +159,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   };
 
+  const updateProfile = async (patch: Partial<Profile>): Promise<{ error: string | null }> => {
+    if (!user) return { error: "Not signed in." };
+
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase.from("profiles").update(patch).eq("id", user.id);
+      if (error) return { error: error.message };
+      setUser({ ...user, ...patch });
+      return { error: null };
+    }
+
+    const accounts = demoDb.getAccounts();
+    demoDb.saveAccounts(accounts.map((a) => (a.id === user.id ? { ...a, ...patch } : a)));
+    setUser({ ...user, ...patch });
+    return { error: null };
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, isDemoMode, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, loading, isDemoMode, signIn, signUp, signOut, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );

@@ -11,12 +11,13 @@ export const EventCard: React.FC<{ event: EventRecord }> = ({ event }) => (
     className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-surface transition-colors hover:border-coral/50"
   >
     <div
-      className="flex h-28 items-end p-4"
+      className="flex h-28 items-end justify-between p-4"
       style={{
         background: `linear-gradient(135deg, hsl(${event.banner_hue} 70% 22%), hsl(${event.banner_hue} 70% 12%))`,
       }}
     >
       <StatusPill label={event.category} tone="coral" />
+      <StatusPill label={event.city} tone="muted" />
     </div>
     <div className="flex flex-1 flex-col gap-3 p-4">
       <div>

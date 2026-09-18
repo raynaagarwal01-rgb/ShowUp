@@ -49,10 +49,10 @@ export const LandingPage: React.FC = () => {
         />
         <div className="relative mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28">
           <span className="inline-flex items-center gap-1.5 rounded-full border border-coral/30 bg-coral/10 px-3 py-1 text-xs font-medium text-coral-light">
-            <Sparkles className="h-3.5 w-3.5" /> Built for every club on campus
+            <Sparkles className="h-3.5 w-3.5" /> Built for every college across India
           </span>
           <h1 className="mt-5 max-w-2xl font-display text-4xl font-extrabold leading-[1.1] sm:text-6xl">
-            Every campus event, <span className="text-coral">one place</span> to register.
+            Every college event in India, <span className="text-coral">one place</span> to register.
           </h1>
           <p className="mt-5 max-w-xl text-lg text-cream/70">
             Feastify replaces the pile of Google Forms and WhatsApp links your clubs use today

@@ -6,7 +6,7 @@ export const Footer: React.FC = () => (
     <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 text-center sm:flex-row sm:text-left">
       <Logo />
       <p className="text-xs text-muted">
-        One login, one dashboard, every club's events — built for campus, not for a single fest.
+        One login, one dashboard, every college's events across India — not just a single fest.
       </p>
     </div>
   </footer>
