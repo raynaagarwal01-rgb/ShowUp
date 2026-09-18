@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { CalendarDays, MapPin, Ticket, Users, CheckCircle2, Clock } from "lucide-react";
+import { Building2, CalendarDays, MapPin, Ticket, Users, CheckCircle2, Clock } from "lucide-react";
 import {
   createTeam,
   getEvent,
@@ -133,11 +133,14 @@ export const EventDetailPage: React.FC = () => {
         <StatusPill label={event.category} tone="coral" />
         <h1 className="mt-3 font-display text-3xl font-extrabold sm:text-4xl">{event.title}</h1>
         <p className="mt-2 text-cream/80">{event.tagline}</p>
-        <p className="mt-1 text-sm text-muted">Hosted by {event.club_name}</p>
+        <p className="mt-1 text-sm text-muted">
+          Hosted by {event.club_name} · {event.college}
+        </p>
       </div>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        <InfoTile icon={MapPin} label="Venue" value={`${event.venue}, ${event.city}`} />
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <InfoTile icon={Building2} label="College" value={`${event.college}, ${event.city}`} />
+        <InfoTile icon={MapPin} label="Venue" value={event.venue} />
         <InfoTile icon={CalendarDays} label="When" value={formatDateRange(event.start_at, event.end_at)} />
         <InfoTile icon={Users} label="Participation" value={formatTeamSize(event.team_min, event.team_max)} />
       </div>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { createEvent, getEvent, updateEvent } from "../../lib/db";
+import { createEvent, getEvent, listEvents, updateEvent } from "../../lib/db";
 import type { EventCategory, EventScope } from "../../types";
 import { Field } from "../LoginPage";
 import { useAuth } from "../../context/AuthContext";
@@ -23,6 +23,7 @@ const emptyForm = {
   scope: "both" as EventScope,
   state: "",
   city: "",
+  college: "",
   venue: "",
   start_at: "",
   end_at: "",
@@ -42,9 +43,17 @@ export const CreateEventPage: React.FC = () => {
     ...emptyForm,
     state: user?.state ?? "",
     city: user?.city ?? "",
+    college: user?.college ?? "",
   }));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [knownColleges, setKnownColleges] = useState<string[]>([]);
+
+  useEffect(() => {
+    listEvents().then((events) => {
+      setKnownColleges(Array.from(new Set(events.map((e) => e.college))).sort());
+    });
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -59,6 +68,7 @@ export const CreateEventPage: React.FC = () => {
         scope: event.scope,
         state: event.state,
         city: event.city,
+        college: event.college,
         venue: event.venue,
         start_at: toLocalInputValue(event.start_at),
         end_at: toLocalInputValue(event.end_at),
@@ -82,6 +92,7 @@ export const CreateEventPage: React.FC = () => {
     }
     if (!form.state) return setError("Select which state this event is in.");
     if (!form.city.trim()) return setError("Enter which city this event is in.");
+    if (!form.college.trim()) return setError("Enter which college this event is hosted at.");
     setSaving(true);
     setError(null);
     try {
@@ -96,6 +107,7 @@ export const CreateEventPage: React.FC = () => {
         scope: form.scope,
         state: form.state,
         city: form.city,
+        college: form.college.trim(),
         venue: form.venue,
         start_at: new Date(form.start_at).toISOString(),
         end_at: new Date(form.end_at).toISOString(),
@@ -218,6 +230,22 @@ export const CreateEventPage: React.FC = () => {
             />
           </Field>
         </div>
+
+        <Field label="College">
+          <input
+            required
+            list="known-colleges"
+            value={form.college}
+            onChange={(e) => set("college", e.target.value)}
+            placeholder="e.g. VIT Vellore"
+            className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none"
+          />
+          <datalist id="known-colleges">
+            {knownColleges.map((c) => (
+              <option key={c} value={c} />
+            ))}
+          </datalist>
+        </Field>
 
         <Field label="Venue">
           <input

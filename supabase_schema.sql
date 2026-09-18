@@ -48,6 +48,7 @@ create table if not exists public.events (
   scope text not null check (scope in ('internal', 'external', 'both')),
   state text not null,
   city text not null,
+  college text not null,
   venue text not null,
   start_at timestamptz not null,
   end_at timestamptz not null,
@@ -145,7 +146,8 @@ create policy "Users cancel their own registration; organizers check in"
 
 -- 5. Helpful indexes
 create index if not exists idx_events_status_start on public.events (status, start_at);
-create index if not exists idx_events_city on public.events (city);
+create index if not exists idx_events_city on public.events (state, city);
+create index if not exists idx_events_college on public.events (college);
 create index if not exists idx_registrations_event on public.registrations (event_id, status);
 create index if not exists idx_registrations_user on public.registrations (user_id);
 create index if not exists idx_teams_event_code on public.teams (event_id, join_code);

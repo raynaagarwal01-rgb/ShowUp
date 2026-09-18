@@ -34,6 +34,7 @@ export interface EventRecord {
   scope: EventScope;
   state: string;
   city: string;
+  college: string;
   venue: string;
   start_at: string;
   end_at: string;
