@@ -1,0 +1,64 @@
+================================================================================
+FEASTIFY - CAMPUS EVENT DISCOVERY & FEST MANAGEMENT ECOSYSTEM
+PROJECT SUBMISSION FOR GOOGLE DRIVE (CLAUDE CODE EVALUATION)
+================================================================================
+
+STUDENT INFORMATION:
+- Student Name: Rayna Agarwal
+- Registration Number: 25BCE0703
+- Institution: Vellore Institute of Technology (VIT), Vellore
+- Department: Computer Science and Engineering (CSE)
+- Academic Year: 2025-2026
+
+PRIMARY LINKS:
+1. Live Production Website:
+   https://feastify-gamma.vercel.app
+
+2. graVITas '26 Official Fest Hub (VIT Vellore 56+ Events):
+   https://feastify-gamma.vercel.app/fests/gravitas26
+
+3. GitHub Repository:
+   https://github.com/raynaagarwal01-rgb/feastify
+
+4. Google Drive Submission Folder:
+   https://drive.google.com/drive/folders/1NqCytuNS5DiaBu40F68yNv-zc6RESz7v
+
+================================================================================
+GENERATED SUBMISSION DOCUMENTS (IN C:\feastify):
+================================================================================
+1. FEASTIFY_PROJECT_SUBMISSION_RAYNA_AGARWAL.pdf (Print-ready PDF report, 224 KB)
+2. FEASTIFY_PROJECT_SUBMISSION_RAYNA_AGARWAL.html (Interactive web document)
+3. FEASTIFY_PROJECT_SUBMISSION_RAYNA_AGARWAL.md (GitHub-flavored Markdown)
+
+================================================================================
+KEY PLATFORM CAPABILITIES IMPLEMENTED:
+================================================================================
+1. Dedicated graVITas '26 Hub (/fests/gravitas26):
+   - Real-time countdown timer to Day 1 (Sep 26, 2026).
+   - 3-Day timeline breakdown (Day 1, Day 2, Day 3) with category filters across 56 official VIT events.
+   - Guidelines for On-Duty (OD) approval, verified certificates, and hostel stays.
+
+2. Automated 1080p Participation Certificate Generator:
+   - High-resolution (1920x1080) client-side canvas synthesis with zero backend dependencies.
+   - Feastify Seal of Merit, gold filigree borders, and embedded cryptographic verification QR codes.
+   - Pre-check-in watermark preview with automated post-check-in unlock.
+
+3. Live Event Announcements & Urgent Alerts:
+   - Organizer broadcast composer with priority "URGENT ALERT" badge styling.
+   - Cloud database synchronization with local offline persistence fallback.
+
+4. Per-Event Student Discussion & Q&A Forum:
+   - Live question asking thread with verified "Answered by Organizer" badges.
+
+5. Online UPI & Card Payment Gateway:
+   - Seamless checkout modal supporting Google Pay, PhonePe, Paytm, and dynamic QR Scan.
+
+6. Offline Photo Passes (PNG):
+   - High-contrast 800x1080 entry pass saved directly to smartphone gallery with door QR code.
+
+7. Organizer OD CSV Export:
+   - 13-column academic spreadsheet for university On-Duty authorization.
+
+8. Calendar Integration:
+   - 1-click sync to Google Calendar and standard Apple/Outlook (.ics).
+================================================================================
