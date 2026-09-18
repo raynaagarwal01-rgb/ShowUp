@@ -3,9 +3,8 @@ import { ArrowUpDown, Bookmark, Building2, Calendar, MapPin, Map as MapIcon, Sea
 import { listEvents } from "../lib/db";
 import type { EventCategory, EventRecord } from "../types";
 import { EventCard } from "../components/EventCard";
-import { useAuth } from "../context/AuthContext";
 import { INDIA_STATES } from "../lib/indiaStates";
-import { citiesForState } from "../lib/indiaCities";
+import { citiesForState, INDIA_CITIES_BY_STATE } from "../lib/indiaCities";
 import { useBookmarks } from "../lib/bookmarks";
 
 const CATEGORIES: Array<EventCategory | "All"> = [
@@ -25,21 +24,10 @@ function distinctSorted(values: string[]): string[] {
   return Array.from(new Set(values)).sort();
 }
 
-/** Best city to land on within a state: the given preferred city if it's a
- * real option there, otherwise just the first one alphabetically. */
-function bestCityForState(state: string, preferredCity?: string): string {
-  const options = citiesForState(state);
-  const match = preferredCity
-    ? options.find((c) => c.toLowerCase() === preferredCity.toLowerCase())
-    : undefined;
-  return match ?? options[0] ?? "";
-}
-
 type PriceFilter = "all" | "free" | "paid";
 type TeamFilter = "all" | "solo" | "team";
 
 export const EventsPage: React.FC = () => {
-  const { user } = useAuth();
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -67,41 +55,47 @@ export const EventsPage: React.FC = () => {
   // The current city is folded in too, so a custom ("Other") city an
   // organizer typed in still has a matching <option> to render against.
   const citiesInState = useMemo(() => {
-    const curated = citiesForState(state);
-    const fromEvents = events.filter((e) => e.state === state).map((e) => e.city);
-    const extra = city && !curated.includes(city) && !fromEvents.includes(city) ? [city] : [];
-    return distinctSorted([...curated, ...fromEvents, ...extra]);
+    if (state) {
+      const curated = citiesForState(state);
+      const fromEvents = events.filter((e) => e.state === state).map((e) => e.city);
+      const extra = city && !curated.includes(city) && !fromEvents.includes(city) ? [city] : [];
+      return distinctSorted([...curated, ...fromEvents, ...extra]);
+    }
+    // When "All States" is selected, provide all curated cities in India + all event cities
+    const allCurated = Object.values(INDIA_CITIES_BY_STATE).flat();
+    const fromEvents = events.map((e) => e.city);
+    const extra = city && !allCurated.includes(city) && !fromEvents.includes(city) ? [city] : [];
+    return distinctSorted([...allCurated, ...fromEvents, ...extra]);
   }, [state, events, city]);
 
-  // Colleges, unlike states/cities, aren't a fixed list — only real ones show up.
-  const collegesInCity = useMemo(
-    () =>
-      distinctSorted(
-        events.filter((e) => e.state === state && e.city === city).map((e) => e.college),
-      ),
-    [events, state, city],
-  );
-
-  // Land on the signed-in user's own state/city on first render — no async
-  // wait needed since the state/city lists are static, not derived from
-  // events. There's no "see everything" default by design: browsing always
-  // starts scoped to somewhere.
-  useEffect(() => {
-    if (state) return;
-    const initialState = user?.state && INDIA_STATES.includes(user.state) ? user.state : INDIA_STATES[0];
-    setState(initialState);
-    setCity(bestCityForState(initialState, user?.city));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state]);
+  // Colleges matching the selected state/city, or all colleges if browsing nationwide
+  const collegesInCity = useMemo(() => {
+    let list = events;
+    if (state) {
+      list = list.filter((e) => e.state === state);
+    }
+    if (city) {
+      list = list.filter((e) => e.city === city);
+    }
+    return distinctSorted(list.map((e) => e.college));
+  }, [events, state, city]);
 
   const handleStateChange = (newState: string) => {
     setState(newState);
-    setCity(bestCityForState(newState, newState === user?.state ? user?.city : undefined));
+    setCity("");
     setCollege(ALL_COLLEGES);
   };
 
   const handleCityChange = (newCity: string) => {
     setCity(newCity);
+    if (!state && newCity) {
+      const foundState = Object.entries(INDIA_CITIES_BY_STATE).find(([, cities]) =>
+        cities.includes(newCity)
+      )?.[0];
+      if (foundState) {
+        setState(foundState);
+      }
+    }
     setCollege(ALL_COLLEGES);
   };
 
@@ -157,7 +151,16 @@ export const EventsPage: React.FC = () => {
     });
   }, [events, state, city, college, category, price, team, query, sortBy, fromDate, toDate, showSavedOnly, bookmarkedIds]);
 
-  const scopeLabel = college !== ALL_COLLEGES ? `at ${college}` : city ? `in ${city}, ${state}` : "";
+  const scopeLabel =
+    college !== ALL_COLLEGES
+      ? `at ${college}`
+      : city && state
+      ? `in ${city}, ${state}`
+      : city
+      ? `in ${city}`
+      : state
+      ? `in ${state}`
+      : "across India";
   const dateLabel =
     fromDate && toDate
       ? ` between ${new Date(fromDate + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short" })} and ${new Date(toDate + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short" })}`
@@ -204,8 +207,9 @@ export const EventsPage: React.FC = () => {
             <select
               value={state}
               onChange={(e) => handleStateChange(e.target.value)}
-              className="w-full appearance-none rounded-xl border border-coral/40 bg-surface py-2.5 pl-9 pr-3 text-sm font-medium text-cream focus:border-coral focus:outline-none"
+              className="w-full appearance-none rounded-xl border border-coral/40 bg-surface py-2.5 pl-9 pr-3 text-sm font-medium text-cream focus:border-coral focus:outline-none cursor-pointer"
             >
+              <option value="">All States (India)</option>
               {INDIA_STATES.map((s) => (
                 <option key={s} value={s}>
                   {s}
@@ -218,8 +222,9 @@ export const EventsPage: React.FC = () => {
             <select
               value={city}
               onChange={(e) => handleCityChange(e.target.value)}
-              className="w-full appearance-none rounded-xl border border-coral/40 bg-surface py-2.5 pl-9 pr-3 text-sm font-medium text-cream focus:border-coral focus:outline-none"
+              className="w-full appearance-none rounded-xl border border-coral/40 bg-surface py-2.5 pl-9 pr-3 text-sm font-medium text-cream focus:border-coral focus:outline-none cursor-pointer"
             >
+              <option value="">{state ? `All Cities (${state})` : "All Cities"}</option>
               {citiesInState.map((c) => (
                 <option key={c} value={c}>
                   {c}
