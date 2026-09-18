@@ -47,7 +47,7 @@ export const LandingPage: React.FC = () => {
             Every college event in India, <span className="text-coral">one place</span> to register.
           </h1>
           <p className="mt-5 max-w-xl text-lg text-cream/70">
-            Feastify replaces the pile of Google Forms and WhatsApp links your clubs use today
+            ShowUp replaces the pile of Google Forms and WhatsApp links your clubs use today
             with one login, real-time seats, QR check-in, and a dashboard organizers actually
             enjoy using.
           </p>

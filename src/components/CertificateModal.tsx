@@ -87,7 +87,7 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
             </div>
             <div>
               <h2 className="font-display text-lg font-semibold text-cream">
-                Feastify Verified Credential
+                ShowUp Verified Credential
               </h2>
               <p className="text-xs text-muted">
                 Official 1920x1080 High-Resolution Participation Certificate

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { X, ShieldCheck, CheckCircle2, QrCode, Smartphone, CreditCard, ArrowRight, Loader2 } from "lucide-react";
 import type { EventRecord } from "../types";
 import QRCode from "qrcode";
@@ -37,7 +37,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   // never trigger a real transfer — Feastify has no connected payment gateway.
   useEffect(() => {
     if (!isOpen) return;
-    const demoString = `FEASTIFY DEMO CHECKOUT — no real payment · ${event.title.slice(0, 40)} · Rs.${event.fee}`;
+    const demoString = `SHOWUP DEMO CHECKOUT — simulated payment · ${event.title.slice(0, 40)} · ₹${event.fee}`;
     QRCode.toDataURL(demoString, { width: 220, margin: 1, color: { dark: "#120d18", light: "#ffffff" } })
       .then(setQrDataUrl)
       .catch(() => {});
@@ -49,7 +49,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     setProcessing(true);
     // Simulated demo delay — no real payment gateway is connected
     setTimeout(() => {
-      const generatedTxnId = `pay_fst_${Math.random().toString(36).slice(2, 11)}_${Date.now().toString().slice(-4)}`;
+      const generatedTxnId = `pay_sup_${Math.random().toString(36).slice(2, 11)}_${Date.now().toString().slice(-4)}`;
       setProcessing(false);
       setPaid(true);
       setTimeout(() => {
@@ -66,7 +66,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           <div className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-success" />
             <div>
-              <p className="text-xs font-semibold text-cream">Feastify Demo Checkout</p>
+              <p className="text-xs font-semibold text-cream">ShowUp Demo Checkout</p>
               <p className="text-[10px] text-muted">Simulated payment — no real money moves</p>
             </div>
           </div>
@@ -242,7 +242,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 )}
               </button>
               <p className="text-center text-[10px] text-muted">
-                Demo checkout only — no real charge is made
+                Demo checkout only — no real charge is made · Powered by ShowUp Pay
               </p>
             </div>
           </div>

@@ -1,8 +1,7 @@
-# Feastify
+# ShowUp
 
-One login, one dashboard, every club's events — a campus event registration and
-hosting platform. Built as the antidote to a pile of Google Forms and a
-bolted-on legacy portal for the "real" registration step.
+One login, one dashboard, every event — a modern campus event discovery and
+registration platform. Built as the antidote to a pile of Google Forms and clunky legacy portals.
 
 ## What's in here
 
@@ -72,7 +71,7 @@ provider** — nothing is faked or partially wired:
    it to your project (`supabase link`).
 2. Deploy the function: `supabase functions deploy send-registration-notification`.
 3. Turn on whichever channels you want:
-   - **Email (Resend)** — `supabase secrets set RESEND_API_KEY=re_... RESEND_FROM="Feastify <onboarding@resend.dev>"`.
+   - **Email (Resend)** — `supabase secrets set RESEND_API_KEY=re_... RESEND_FROM="ShowUp <onboarding@resend.dev>"`.
      Sign up at [resend.com](https://resend.com) (free 3,000 emails/month). You can test immediately using `onboarding@resend.dev` or add your custom verified domain.
    - **SMS (India-First: Fast2SMS - Recommended)** — `supabase secrets set FAST2SMS_API_KEY=your_key`.
      Sign up at [fast2sms.com](https://www.fast2sms.com) (get instant SMS credits). Delivers SMS directly to Indian (+91) phone numbers without requiring telecom DLT registration.

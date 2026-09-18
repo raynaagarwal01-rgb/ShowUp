@@ -65,7 +65,7 @@ export const TeamHubModal: React.FC<TeamHubModalProps> = ({
     if (!data) return;
     const { team, event } = data;
     const shareText = `🚀 *Join my team for ${event.title}!*
-Hey! I've created the team "${team.name}" on Feastify for ${event.title}.
+Hey! I've created the team "${team.name}" on ShowUp for ${event.title}.
 
 🔑 *Team Join Code:* ${team.join_code}
 📍 *Venue:* ${event.venue}

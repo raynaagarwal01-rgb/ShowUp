@@ -78,7 +78,7 @@ export const OnboardingPage: React.FC = () => {
         <MapPin className="h-6 w-6 text-coral" />
         <h1 className="mt-3 font-display text-2xl font-bold">Where are you joining from?</h1>
         <p className="mt-1 text-sm text-muted">
-          Feastify covers events across India — this helps us show you what's happening near you,
+          ShowUp covers events across India — this helps us show you what's happening near you,
           and where to send your registration confirmations.
         </p>
 

@@ -1,4 +1,4 @@
-﻿import QRCode from "qrcode";
+import QRCode from "qrcode";
 import type { EventRecord } from "../types";
 import { formatDateRange } from "./format";
 
@@ -42,7 +42,7 @@ export async function downloadTicketImage({
   // Top header branding
   ctx.fillStyle = "#ffffff";
   ctx.font = "bold 24px sans-serif";
-  ctx.fillText("FEASTIFY", 40, 50);
+  ctx.fillText("SHOWUP", 40, 50);
 
   ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
   ctx.font = "bold 14px sans-serif";
@@ -196,7 +196,7 @@ export async function downloadTicketImage({
   ctx.fillStyle = "rgba(255, 255, 255, 0.4)";
   ctx.font = "12px sans-serif";
   ctx.textAlign = "center";
-  ctx.fillText("Feastify · Built for college festivals and events across India", width / 2, height - 20);
+  ctx.fillText("ShowUp · Built for college events and competitions across India", width / 2, height - 20);
 
   // Trigger download
   canvas.toBlob((blob) => {
@@ -204,7 +204,7 @@ export async function downloadTicketImage({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `feastify-ticket-${event.title.replace(/[^a-zA-Z0-9_-]/g, "_")}.png`;
+    a.download = `showup-ticket-${event.title.replace(/[^a-zA-Z0-9_-]/g, "_")}.png`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

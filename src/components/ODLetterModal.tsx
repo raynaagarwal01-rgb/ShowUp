@@ -185,7 +185,7 @@ export const ODLetterModal: React.FC<ODLetterModalProps> = ({
                     : "Official Registration Confirmed · Pending Venue Check-in"}
                 </span>
               </div>
-              <span className="font-mono text-[11px] font-bold">FEASTIFY CERTIFIED</span>
+              <span className="font-mono text-[11px] font-bold">SHOWUP CERTIFIED</span>
             </div>
 
             <p className="text-xs text-slate-700 italic">
@@ -204,7 +204,7 @@ export const ODLetterModal: React.FC<ODLetterModalProps> = ({
               )}
               <div className="text-[10px] text-slate-500 space-y-0.5">
                 <div className="font-bold text-slate-800 uppercase">Cryptographic QR Verification</div>
-                <div>Scan to authenticate this OD record on Feastify.</div>
+                <div>Scan to authenticate this OD record on ShowUp.</div>
                 <div className="font-mono text-slate-600">ID: {odRefId}</div>
               </div>
             </div>
