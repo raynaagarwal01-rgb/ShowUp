@@ -33,22 +33,8 @@ function App() {
             <Route path="/campus-map" element={<CampusMapPage />} />
             <Route path="/u/:userId" element={<PublicProfilePage />} />
             <Route path="/profile" element={<PublicProfilePage />} />
-            <Route
-              path="/events"
-              element={
-                <ProtectedRoute>
-                  <EventsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/events/:id"
-              element={
-                <ProtectedRoute>
-                  <EventDetailPage />
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/events" element={<EventsPage />} />
+            <Route path="/events/:id" element={<EventDetailPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
