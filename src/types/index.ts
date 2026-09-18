@@ -119,3 +119,15 @@ export interface EventWinner {
   announced_by: string;
   created_at: string;
 }
+
+export interface TeammateListing {
+  id: string;
+  event_id: string;
+  user_id: string;
+  user_name: string;
+  user_college: string;
+  looking_for: string;
+  message: string;
+  contact: string;
+  created_at: string;
+}

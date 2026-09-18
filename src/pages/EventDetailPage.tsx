@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Building2, CalendarDays, MapPin, Ticket, Users, CheckCircle2, Clock, Bookmark, Download, Award, Megaphone, MessageSquare, FileText, Trophy, Navigation } from "lucide-react";
+import { Building2, CalendarDays, MapPin, Ticket, Users, CheckCircle2, Clock, Bookmark, Download, Award, Megaphone, MessageSquare, FileText, Trophy, Navigation, UserPlus } from "lucide-react";
 import {
   createTeam,
   getEvent,
@@ -22,6 +22,7 @@ import { downloadTicketImage } from "../lib/ticketExport";
 import { PaymentModal } from "../components/PaymentModal";
 import { EventAnnouncementsTab } from "../components/EventAnnouncementsTab";
 import { EventQnATab } from "../components/EventQnATab";
+import { TeammatesTab } from "../components/TeammatesTab";
 import { CertificateModal } from "../components/CertificateModal";
 import { EventWinnersTab } from "../components/EventWinnersTab";
 import { ODLetterModal } from "../components/ODLetterModal";
@@ -45,7 +46,7 @@ export const EventDetailPage: React.FC = () => {
   const [notice, setNotice] = useState<NotificationOutcome | null>(null);
   const [paymentModalOpen, setPaymentModalOpen] = useState(false);
   const [pendingAction, setPendingAction] = useState<"solo" | "team_create" | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "announcements" | "qna" | "winners">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "teammates" | "announcements" | "qna" | "winners">("overview");
   const [certModalOpen, setCertModalOpen] = useState(false);
   const [odModalOpen, setOdModalOpen] = useState(false);
   const [teamModalOpen, setTeamModalOpen] = useState(false);
@@ -249,6 +250,20 @@ export const EventDetailPage: React.FC = () => {
             >
               Overview &amp; Rules
             </button>
+            {isTeamEvent && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("teammates")}
+                className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors ${
+                  activeTab === "teammates"
+                    ? "border-coral text-coral"
+                    : "border-transparent text-muted hover:text-cream"
+                }`}
+              >
+                <UserPlus className="h-4 w-4" />
+                Find Teammates
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setActiveTab("announcements")}
@@ -309,6 +324,8 @@ export const EventDetailPage: React.FC = () => {
               )}
             </div>
           )}
+
+          {activeTab === "teammates" && isTeamEvent && <TeammatesTab eventId={event.id} />}
 
           {activeTab === "announcements" && (
             <EventAnnouncementsTab
