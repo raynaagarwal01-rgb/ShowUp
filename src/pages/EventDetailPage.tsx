@@ -109,8 +109,9 @@ export const EventDetailPage: React.FC = () => {
       const registration = await registerSolo(event.id, currentUser.id);
       await refresh();
       notifyRegistrationConfirmed(event, currentUser, registration).then(setNotice);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not register.");
+    } catch (e: any) {
+      console.error("Solo registration error:", e);
+      setError(e?.message || (typeof e === "string" ? e : "Could not register."));
     } finally {
       setBusy(false);
     }
@@ -122,10 +123,13 @@ export const EventDetailPage: React.FC = () => {
     setError(null);
     try {
       const { registration } = await createTeam(event.id, currentUser.id, teamName.trim(), projectIdea.trim());
+      setTeamName("");
+      setProjectIdea("");
       await refresh();
       notifyRegistrationConfirmed(event, currentUser, registration).then(setNotice);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not create team.");
+    } catch (e: any) {
+      console.error("Create team error:", e);
+      setError(e?.message || (typeof e === "string" ? e : "Could not create team."));
     } finally {
       setBusy(false);
     }
@@ -174,10 +178,12 @@ export const EventDetailPage: React.FC = () => {
     setError(null);
     try {
       const { registration } = await joinTeam(event.id, currentUser.id, joinCodeInput.trim());
+      setJoinCodeInput("");
       await refresh();
       notifyRegistrationConfirmed(event, currentUser, registration).then(setNotice);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not join that team.");
+    } catch (e: any) {
+      console.error("Join team error:", e);
+      setError(e?.message || (typeof e === "string" ? e : "Could not join that team."));
     } finally {
       setBusy(false);
     }
