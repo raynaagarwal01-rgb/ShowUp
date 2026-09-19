@@ -38,6 +38,12 @@ export const LoginPage: React.FC = () => {
         <h1 className="font-display text-2xl font-bold">Welcome back</h1>
         <p className="mt-1 text-sm text-muted">Sign in to see your tickets and registrations.</p>
 
+        {params.get("redirect") && (
+          <div className="mt-4 rounded-xl border border-coral/30 bg-coral/10 px-3.5 py-2.5 text-xs text-coral-light flex items-center gap-2">
+            <span>🔒 Please sign in to explore and register for events.</span>
+          </div>
+        )}
+
         {isDemoMode && (
           <p className="mt-4 rounded-lg border border-plum/30 bg-plum/10 px-3 py-2 text-xs text-cream/80">
             Demo mode: this account lives only in your browser. Sign up first if you haven't.
@@ -84,7 +90,10 @@ export const LoginPage: React.FC = () => {
 
         <p className="mt-6 text-center text-sm text-muted">
           New here?{" "}
-          <Link to="/signup" className="font-medium text-coral">
+          <Link
+            to={params.get("redirect") ? `/signup?redirect=${encodeURIComponent(params.get("redirect")!)}` : "/signup"}
+            className="font-medium text-coral"
+          >
             Create an account
           </Link>
         </p>

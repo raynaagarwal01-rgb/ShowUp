@@ -29,12 +29,40 @@ function App() {
         <main className="flex-1">
           <Routes>
             <Route path="/" element={<LandingPage />} />
-            <Route path="/fests/gravitas26" element={<FestHubPage />} />
+            <Route
+              path="/fests/gravitas26"
+              element={
+                <ProtectedRoute>
+                  <FestHubPage />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/campus-map" element={<CampusMapPage />} />
             <Route path="/u/:userId" element={<PublicProfilePage />} />
-            <Route path="/profile" element={<PublicProfilePage />} />
-            <Route path="/events" element={<EventsPage />} />
-            <Route path="/events/:id" element={<EventDetailPage />} />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <PublicProfilePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/events"
+              element={
+                <ProtectedRoute>
+                  <EventsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/events/:id"
+              element={
+                <ProtectedRoute>
+                  <EventDetailPage />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
