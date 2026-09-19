@@ -12,26 +12,26 @@ STUDENT INFORMATION:
 
 PRIMARY LINKS:
 1. Live Production Website:
-   https://showup-campus.vercel.app (backup: https://feastify-gamma.vercel.app)
+   https://showup-campus.vercel.app
 
 2. graVITas '26 Official Events Hub (VIT Vellore 56+ Events):
    https://showup-campus.vercel.app/fests/gravitas26
 
 3. GitHub Repository:
-   https://github.com/raynaagarwal01-rgb/showup (or https://github.com/raynaagarwal01-rgb/feastify)
+   https://github.com/raynaagarwal01-rgb/ShowUp
 
 4. Google Drive Submission Folder:
    https://drive.google.com/drive/folders/1NqCytuNS5DiaBu40F68yNv-zc6RESz7v
 
 ================================================================================
-GENERATED SUBMISSION DOCUMENTS (IN C:\feastify):
+GENERATED SUBMISSION DOCUMENTS (SAVED ON DESKTOP & C:\feastify):
 ================================================================================
-1. SHOWUP_PROJECT_SUBMISSION_RAYNA_AGARWAL.pdf (Print-ready PDF report, 191 KB)
-2. SHOWUP_PROJECT_SUBMISSION_RAYNA_AGARWAL.html (Interactive web document)
-3. SHOWUP_PROJECT_SUBMISSION_RAYNA_AGARWAL.md (GitHub-flavored Markdown)
+1. SHOWUP_PROJECT_SUBMISSION_RAYNA_AGARWAL.pdf (Print-ready PDF report, 205 KB)
+2. SHOWUP_PROJECT_SUBMISSION_RAYNA_AGARWAL.html (Interactive web report, 24 KB)
+3. SHOWUP_PROJECT_SUBMISSION_RAYNA_AGARWAL.md (Comprehensive Markdown doc, 17 KB)
 
 ================================================================================
-KEY PLATFORM CAPABILITIES IMPLEMENTED:
+COMPLETE FEATURE HIGHLIGHTS:
 ================================================================================
 1. Dedicated graVITas '26 Hub (/fests/gravitas26):
    - Real-time countdown timer to Day 1 (Sep 26, 2026).
@@ -40,28 +40,39 @@ KEY PLATFORM CAPABILITIES IMPLEMENTED:
 
 2. Automated 1080p Participation Certificate Generator:
    - High-resolution (1920x1080) client-side canvas synthesis with zero backend dependencies.
-   - ShowUp Seal of Merit, gold filigree borders, and embedded cryptographic verification QR codes.
+   - ShowUp Official Gold Seal of Merit, ornate borders, and embedded cryptographic verification QR codes.
    - Pre-check-in watermark preview with automated post-check-in unlock.
 
-3. Live Event Announcements & Urgent Alerts:
-   - Organizer broadcast composer with priority "URGENT ALERT" badge styling.
-   - Cloud database synchronization with local offline persistence fallback.
+3. Interactive Event Destination Maps & Campus Distance:
+   - "View on Map" modal on every event card and detail page showing exact distance from campus landmarks.
+   - 1-click turn-by-turn routing button opening Google Maps directly.
 
-4. Per-Event Student Discussion & Q&A Forum:
-   - Live question asking thread with verified "Answered by Organizer" badges.
+4. Per-Event Teammate Finder:
+   - Dedicated matchmaking tab on hackathons and team competitions for solo students to post required skills (Frontend, AI/ML, UI/UX) and connect via WhatsApp.
 
-5. Online UPI & Card Payment Gateway:
+5. Student Portfolio & Public Profile (/profile & /u/:userId):
+   - Shareable student profile showcasing verified ShowUp credentials, competition wins, and bio.
+   - 1-click "Add to LinkedIn Profile" integration with prefilled certification IDs (SUP-XXXXXX).
+
+6. Secure Event Access & Return Redirects:
+   - Event discovery and detail pages protected behind student authentication.
+   - Unauthenticated visitors receive an educational prompt and are redirected back immediately upon login.
+
+7. Live Event Announcements & Urgent Alerts:
+   - Organizer broadcast composer with priority "URGENT ALERT" badge styling and real-time feed.
+
+8. Per-Event Student Discussion & Q&A Forum:
+   - Live question thread with verified "Answered by Organizer" badges.
+
+9. Online UPI & Card Payment Gateway:
    - Seamless checkout modal supporting Google Pay, PhonePe, Paytm, and dynamic QR Scan.
 
-6. Offline Photo Passes (PNG):
+10. Offline Photo Passes (PNG):
    - High-contrast 800x1080 entry pass saved directly to smartphone gallery with door QR code.
 
-7. Organizer OD CSV Export:
+11. Organizer OD CSV Export:
    - 13-column academic spreadsheet for university On-Duty authorization.
 
-8. Calendar Integration:
+12. Calendar Integration:
    - 1-click sync to Google Calendar and standard Apple/Outlook (.ics).
-
-9. Distance & Map Directions:
-   - Direct Google Maps routing modal for every event location with live campus distance calculation.
 ================================================================================

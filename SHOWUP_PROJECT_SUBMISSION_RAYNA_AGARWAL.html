@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ShowUp - Project Submission | Rayna Agarwal (25BCE0703)</title>
+  <title>ShowUp — Official Project Submission | Rayna Agarwal (25BCE0703)</title>
   <style>
     :root {
       --coral: #ff6b47;
@@ -17,6 +17,7 @@
       --gold: #f59e0b;
       --success: #10b981;
       --sky: #0ea5e9;
+      --purple: #8b5cf6;
     }
     * {
       box-sizing: border-box;
@@ -25,13 +26,13 @@
     }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      background-color: #f8fafc;
+      background-color: #f1f5f9;
       color: #1e293b;
       line-height: 1.65;
-      padding: 40px 20px;
+      padding: 30px 15px;
     }
     .container {
-      max-width: 960px;
+      max-width: 980px;
       margin: 0 auto;
       background: #ffffff;
       border-radius: 16px;
@@ -42,7 +43,7 @@
     .header-banner {
       background: linear-gradient(135deg, #0b0d14 0%, #171b2d 60%, #291a27 100%);
       color: #ffffff;
-      padding: 48px 40px;
+      padding: 44px 36px;
       border-bottom: 4px solid var(--coral);
       position: relative;
     }
@@ -60,25 +61,25 @@
       margin-bottom: 12px;
     }
     h1 {
-      font-size: 34px;
+      font-size: 32px;
       font-weight: 800;
       letter-spacing: -0.5px;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
       color: #ffffff;
     }
     .subtitle {
-      font-size: 17px;
+      font-size: 16px;
       color: #cbd5e1;
-      max-width: 780px;
+      max-width: 820px;
       margin-bottom: 24px;
     }
     .meta-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 16px;
-      margin-top: 24px;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 14px;
+      margin-top: 20px;
       background: rgba(255, 255, 255, 0.06);
-      padding: 18px 22px;
+      padding: 16px 20px;
       border-radius: 12px;
       border: 1px solid rgba(255, 255, 255, 0.12);
     }
@@ -101,14 +102,14 @@
       text-decoration: underline;
     }
     .content {
-      padding: 44px 40px;
+      padding: 36px 36px;
     }
     h2 {
-      font-size: 22px;
+      font-size: 21px;
       font-weight: 700;
       color: #0f172a;
-      margin-top: 36px;
-      margin-bottom: 16px;
+      margin-top: 32px;
+      margin-bottom: 14px;
       padding-bottom: 8px;
       border-bottom: 2px solid #f1f5f9;
       display: flex;
@@ -116,140 +117,121 @@
       gap: 10px;
     }
     h3 {
-      font-size: 17px;
+      font-size: 16px;
       font-weight: 700;
       color: #1e293b;
       margin-top: 24px;
       margin-bottom: 8px;
     }
     p {
-      margin-bottom: 14px;
+      margin-bottom: 12px;
       color: #334155;
+      font-size: 14px;
     }
     .callout {
       background: #f8fafc;
       border-left: 4px solid var(--coral);
-      padding: 16px 20px;
-      border-radius: 0 10px 10px 0;
-      margin: 20px 0;
-      font-size: 14.5px;
+      padding: 14px 18px;
+      border-radius: 0 8px 8px 0;
+      margin: 16px 0;
+      font-size: 14px;
     }
     .callout.success {
       border-left-color: var(--success);
       background: #f0fdf4;
     }
-    .callout.gold {
-      border-left-color: var(--gold);
-      background: #fefce8;
-    }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 20px 0;
-      font-size: 13.5px;
-    }
-    th, td {
-      padding: 12px 14px;
-      text-align: left;
-      border: 1px solid #e2e8f0;
-    }
-    th {
-      background-color: #f1f5f9;
-      font-weight: 700;
-      color: #0f172a;
-    }
-    tr:nth-child(even) {
-      background-color: #f8fafc;
-    }
-    .badge {
-      display: inline-block;
-      padding: 3px 8px;
-      border-radius: 6px;
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-    }
-    .badge-coral {
-      background: #ffedd5;
-      color: #c2410c;
-    }
-    .badge-green {
-      background: #dcfce7;
-      color: #15803d;
-    }
-    .badge-blue {
-      background: #e0f2fe;
-      color: #0369a1;
-    }
-    .badge-amber {
-      background: #fef3c7;
-      color: #b45309;
-    }
     .button-list {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
       gap: 12px;
-      margin: 14px 0 24px;
+      margin: 14px 0 24px 0;
     }
     .button-card {
       background: #f8fafc;
       border: 1px solid #e2e8f0;
       border-radius: 10px;
-      padding: 14px;
+      padding: 12px 16px;
       transition: all 0.2s ease;
+    }
+    .button-card:hover {
+      border-color: var(--coral);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(255, 107, 71, 0.12);
     }
     .button-card strong {
       display: block;
       color: #0f172a;
-      font-size: 14px;
+      font-size: 13px;
       margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
     .button-card span {
-      display: block;
+      font-size: 12px;
       color: #64748b;
-      font-size: 12.5px;
+      line-height: 1.45;
+      display: block;
     }
-    ul, ol {
-      margin-left: 24px;
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 13px;
+    }
+    th, td {
+      padding: 12px 14px;
+      text-align: left;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    th {
+      background-color: #0f172a;
+      color: #ffffff;
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.5px;
+    }
+    tr:nth-child(even) {
+      background-color: #f8fafc;
+    }
+    tr:hover {
+      background-color: #f1f5f9;
+    }
+    ul {
+      margin-left: 20px;
       margin-bottom: 16px;
       color: #334155;
+      font-size: 14px;
     }
     li {
       margin-bottom: 6px;
     }
     code {
       background: #f1f5f9;
-      color: #0f172a;
       padding: 2px 6px;
       border-radius: 4px;
-      font-size: 13px;
-      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-size: 12px;
+      color: #dc2626;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
     }
-    .footer {
-      border-top: 1px solid #e2e8f0;
-      background: #f8fafc;
-      padding: 24px 40px;
+    .footer-bar {
+      background: #0f172a;
+      color: #94a3b8;
+      padding: 20px;
       text-align: center;
-      font-size: 13px;
-      color: #64748b;
+      font-size: 12px;
+      border-top: 1px solid #1e293b;
     }
     @media print {
       body {
-        background: #ffffff;
         padding: 0;
+        background: white;
       }
       .container {
         box-shadow: none;
         border: none;
         max-width: 100%;
-      }
-      .header-banner {
-        padding: 30px;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-      }
-      .content {
-        padding: 20px;
       }
       .page-break {
         page-break-before: always;
@@ -287,7 +269,7 @@
       </div>
       <div class="meta-item">
         <strong>GitHub Repository</strong>
-        <a href="https://github.com/raynaagarwal01-rgb/showup" target="_blank">github.com/raynaagarwal01-rgb/showup ↗</a>
+        <a href="https://github.com/raynaagarwal01-rgb/ShowUp" target="_blank">github.com/raynaagarwal01-rgb/ShowUp ↗</a>
       </div>
       <div class="meta-item">
         <strong>graVITas '26 Hub</strong>
@@ -302,10 +284,10 @@
     <!-- 1. Executive Summary -->
     <h2>1. Executive Summary &amp; Project Mission</h2>
     <p>
-      At large university campuses such as <strong>VIT Vellore</strong>, thousands of students engage in hackathons, technical masterclasses, esports tournaments, and cultural competitions across major festivals like <strong>graVITas</strong> and <strong>Riviera</strong>. However, the existing registration and discovery process is fragmented across scattered WhatsApp links, Google Forms, and manual check-in sheets.
+      At large university campuses like <strong>VIT Vellore</strong>, thousands of students engage in hackathons, technical masterclasses, robotics contests, and cultural festivals like <strong>graVITas</strong> and <strong>Riviera</strong>. However, event coordination has traditionally been fragmented across scattered Google Forms, WhatsApp chats, and external Unstop links.
     </p>
     <div class="callout success">
-      <strong>The Solution — ShowUp:</strong> An end-to-end modern web application providing instant event discovery, team formation with secret join codes, online UPI and card payment processing, automated high-contrast offline passes (PNG photo pass), client-side 1920x1080 participation certificate generation, real-time organizer announcement broadcasts, per-event Q&amp;A discussion forums, calendar synchronization (Google &amp; iCal), and comprehensive On-Duty (OD) attendance export for university administration.
+      <strong>The Solution — ShowUp:</strong> An end-to-end modern web application providing instant event discovery, team formation with secret join codes, online UPI and card payment processing, automated high-contrast offline passes (PNG photo pass), client-side 1920x1080 participation certificate generation, real-time organizer announcement broadcasts, per-event Q&amp;A discussion forums, interactive venue destination mapping, calendar synchronization (Google &amp; iCal), and comprehensive On-Duty (OD) attendance export for university administration.
     </div>
 
     <!-- 2. Exhaustive Button-by-Button and Page-by-Page Guide -->
@@ -315,12 +297,12 @@
     <p>The gateway welcoming students and organizers to the campus event ecosystem.</p>
     <div class="button-list">
       <div class="button-card">
-        <strong>"Explore Events" Button</strong>
-        <span>Directs users to the live directory (<code>/events</code>) with full search and filters.</span>
+        <strong>"Browse events" Button</strong>
+        <span>Directs users to the live directory (<code>/events</code>) with full search and filters (protected by authentication).</span>
       </div>
       <div class="button-card">
-        <strong>"Host an Event" Button</strong>
-        <span>Navigates club leads to the Organizer Studio (<code>/organizer</code>) to publish events.</span>
+        <strong>"Host an event" Button</strong>
+        <span>Navigates club leads to the Organizer Studio (<code>/organizer</code>) to publish new campus events.</span>
       </div>
       <div class="button-card">
         <strong>"Sign In / Get Started" Buttons</strong>
@@ -330,17 +312,21 @@
         <strong>Category Pill Tiles</strong>
         <span>Instant shortcuts filtering Hackathons, Workshops, Cultural, and Competitions.</span>
       </div>
+      <div class="button-card">
+        <strong>Navbar Portfolio Link</strong>
+        <span>Directs logged-in students to their personal credential portfolio and bio editor (<code>/profile</code>).</span>
+      </div>
     </div>
 
     <h3>Page 2: Events Directory Page (<code>/events</code>)</h3>
-    <p>The centralized search and discovery engine featuring multi-dimensional filtering.</p>
+    <p>The centralized search and discovery engine featuring multi-dimensional filtering (protected behind student login).</p>
     <div class="button-list">
       <div class="button-card">
         <strong>Live Keyword Search Input</strong>
         <span>Real-time instant filtering matching event title, tagline, club name, venue, or college.</span>
       </div>
       <div class="button-card">
-        <strong>Scope Segmented Control ("All" / "Internal" / "External")</strong>
+        <strong>Scope Control ("All" / "Internal" / "External")</strong>
         <span>Filters events restricted to campus students versus open to outstation colleges.</span>
       </div>
       <div class="button-card">
@@ -360,8 +346,16 @@
         <span>Sorts by "Soonest First", "Latest First", "Fee: Free First", "Fee: Low to High", etc.</span>
       </div>
       <div class="button-card">
-        <strong>Event Card Bookmark Button (Heart/Ribbon)</strong>
+        <strong>"Reset all filters" Button</strong>
+        <span>Instantly clears all active search parameters, categories, and date boundaries.</span>
+      </div>
+      <div class="button-card">
+        <strong>Bookmark Ribbon (Heart/Bookmark)</strong>
         <span>Toggles immediate saving of the event to local storage without page reload.</span>
+      </div>
+      <div class="button-card">
+        <strong>"View on Map" / MapPin Button</strong>
+        <span>Opens the destination mapping modal showing distance from campus gate and Google Maps routing.</span>
       </div>
     </div>
 
@@ -377,83 +371,124 @@
         <span>Displays real-time organizer broadcast feed with glowing URGENT ALERT badges.</span>
       </div>
       <div class="button-card">
-        <strong>Tab: "Q&amp;A Forum"</strong>
-        <span>Student discussion thread with "Ask a Question" box and verified organizer replies.</span>
+        <strong>Tab: "Teammate Finder"</strong>
+        <span>Dedicated board where solo participants post skill requirements and connect directly via WhatsApp.</span>
       </div>
       <div class="button-card">
-        <strong>"Register" / "Create Team" / "Join with Code"</strong>
-        <span>Handles solo registration, team creation with unique join code, or joining via code.</span>
+        <strong>Tab: "Q&amp;A Forum"</strong>
+        <span>Allows students to submit queries and see verified responses flagged with "Answered by Organizer".</span>
+      </div>
+      <div class="button-card">
+        <strong>Tab: "Winners &amp; Trophies"</strong>
+        <span>Post-event podium showcasing champion teams, prize awards, and jury authentication stamps.</span>
+      </div>
+      <div class="button-card">
+        <strong>"Register Now" Button</strong>
+        <span>Launches ShowUp Demo UPI checkout for paid events, or completes instant free registration.</span>
+      </div>
+      <div class="button-card">
+        <strong>"Create Team" / "Join Team" Controls</strong>
+        <span>Enables collaborative group registration with 6-character cryptographic join codes.</span>
       </div>
       <div class="button-card">
         <strong>"Download Pass (PNG)" Button</strong>
-        <span>Generates an 800x1080 high-contrast photo pass with QR code for offline door entry.</span>
+        <span>Exports the 800x1080 high-contrast door ticket to smartphone photo gallery.</span>
       </div>
       <div class="button-card">
-        <strong>"Download / Preview Certificate (PNG)" Button</strong>
-        <span>Renders high-res 1920x1080 participation certificate with ShowUp seal &amp; verification QR.</span>
+        <strong>"Download / Preview Certificate"</strong>
+        <span>Synthesizes 1920x1080 participation credential on canvas with official gold seal.</span>
       </div>
       <div class="button-card">
         <strong>"Add to Calendar" Dropdown</strong>
-        <span>Directly exports to Google Calendar or downloads .ics file for Apple &amp; Outlook.</span>
+        <span>Exports to Google Calendar or downloads .ics file for Apple Calendar &amp; Outlook.</span>
       </div>
     </div>
 
-    <h3>Page 4: Official graVITas '26 Dedicated Fest Hub (<code>/fests/gravitas26</code>)</h3>
-    <p>Exclusive portal dedicated to VIT Vellore's flagship international technological festival.</p>
+    <h3>Page 4: Dedicated graVITas '26 Fest Hub (<code>/fests/gravitas26</code>)</h3>
+    <p>Exclusive portal dedicated to VIT Vellore's annual international tech fest.</p>
     <div class="button-list">
       <div class="button-card">
-        <strong>Live Countdown Clock</strong>
-        <span>Tick-by-tick countdown tracking Days, Hours, Minutes, and Seconds until Sep 26, 2026.</span>
+        <strong>Live Countdown Timer</strong>
+        <span>Real-time counter displaying Days, Hours, Minutes, and Seconds until Day 1 (Sep 26, 2026).</span>
       </div>
       <div class="button-card">
-        <strong>Schedule Day Switcher Tabs</strong>
-        <span>"All 3 Days (56)", "Day 1 · Sep 26", "Day 2 · Sep 27", "Day 3 · Sep 28".</span>
+        <strong>Schedule Timeline Switcher</strong>
+        <span>One-click tabs: "All 3 Days (56)", "Day 1 (Fri)", "Day 2 (Sat)", "Day 3 (Sun)".</span>
       </div>
       <div class="button-card">
-        <strong>"Teams Only" &amp; "Free Entry" Toggles</strong>
-        <span>Instant toggles to filter team hackathons or free entry competitions.</span>
+        <strong>Category Filter Pills</strong>
+        <span>Instant filtering across 56 synchronized VIT events (Hackathons, Workshops, Competitions).</span>
       </div>
       <div class="button-card">
-        <strong>OD &amp; Accommodation Accordion</strong>
-        <span>Verified information on on-duty attendance, hostel stay, and venue check-in.</span>
+        <strong>Fest Guidelines Accordion</strong>
+        <span>Covers official OD attendance, ShowUp certificates, Anna Aud/TT check-in desks, and hostel accommodation.</span>
       </div>
     </div>
 
     <h3>Page 5: Student Dashboard / My Events (<code>/dashboard</code>)</h3>
-    <p>Personalized student cockpit managing all registered event passes.</p>
+    <p>Personal command center for tracking registered tickets and event materials.</p>
     <div class="button-list">
       <div class="button-card">
         <strong>"Show / Hide Ticket" Button</strong>
-        <span>Expands scannable QR ticket on screen for door check-in staff.</span>
+        <span>Displays the full-screen scannable door QR code for rapid admission.</span>
       </div>
       <div class="button-card">
-        <strong>"Download Offline Pass (PNG)" Button</strong>
-        <span>Saves the official pass image straight to mobile camera roll or computer.</span>
+        <strong>"Download Offline Pass" Button</strong>
+        <span>Saves high-res PNG pass directly to phone storage.</span>
       </div>
       <div class="button-card">
         <strong>"Certificate" Button</strong>
-        <span>Opens the verified participation certificate modal for high-res PNG export.</span>
+        <span>Opens the verified credential modal with instant high-res PNG export.</span>
       </div>
       <div class="button-card">
-        <strong>"Cancel Registration" (X Icon)</strong>
-        <span>Cancels ticket and automatically releases seat back to the waitlist / pool.</span>
+        <strong>"Add to Calendar" Dropdown</strong>
+        <span>Synchronizes the event schedule with personal device calendars.</span>
+      </div>
+      <div class="button-card">
+        <strong>"Cancel Registration" Button (X)</strong>
+        <span>Allows students to cancel attendance, automatically releasing capacity to waitlisted peers.</span>
       </div>
     </div>
 
-    <h3>Page 6 &amp; 7: Organizer Studio &amp; Attendance OD Export (<code>/organizer</code>)</h3>
-    <p>Dedicated back-office suite for university club organizers.</p>
+    <h3>Page 6: Student Portfolio &amp; Public Profile (<code>/profile</code> &amp; <code>/u/:userId</code>)</h3>
+    <p>Shareable student resume featuring verified badges and competition trophies.</p>
     <div class="button-list">
       <div class="button-card">
-        <strong>"Create Event" Wizard</strong>
-        <span>Publishes new events with custom rules, banner hues, team limits, and fees.</span>
+        <strong>"Edit Portfolio" Button</strong>
+        <span>Opens the profile editor to update bio, university, grad year, skills, GitHub, and LinkedIn.</span>
       </div>
       <div class="button-card">
-        <strong>"Export OD &amp; Attendance (CSV)" Button</strong>
-        <span>Generates a 13-column academic OD spreadsheet for VIT administration approval.</span>
+        <strong>"Copy Profile Link" Button</strong>
+        <span>Copies the verified public profile link to the clipboard with visual confirmation.</span>
       </div>
       <div class="button-card">
-        <strong>"Door Check-in Scanner" (Webcam QR)</strong>
-        <span>Live camera scanner verifying participant tickets at venue entrance in real-time.</span>
+        <strong>"Add to LinkedIn" Button</strong>
+        <span>1-click URL generator pre-filling the LinkedIn Certification Form with verified ShowUp credentials.</span>
+      </div>
+      <div class="button-card">
+        <strong>"OD Slip" Button</strong>
+        <span>Generates the official On-Duty attendance verification document.</span>
+      </div>
+    </div>
+
+    <h3>Page 7: Organizer Studio (<code>/organizer</code>)</h3>
+    <p>Mission control for university clubs and fest management teams.</p>
+    <div class="button-list">
+      <div class="button-card">
+        <strong>"Create Event" Button</strong>
+        <span>Opens the publication wizard to set title, venue, fee, schedule, and team limits.</span>
+      </div>
+      <div class="button-card">
+        <strong>"Manage Registrants" Button</strong>
+        <span>Opens the attendee database with instant search and OD spreadsheet export.</span>
+      </div>
+      <div class="button-card">
+        <strong>"Door Check-in Scanner" Button</strong>
+        <span>Launches the camera-based QR code ticket scanner.</span>
+      </div>
+      <div class="button-card">
+        <strong>"Export OD CSV" Button</strong>
+        <span>Downloads 13-column academic spreadsheet formatted for the Student Welfare Office.</span>
       </div>
     </div>
 
@@ -487,9 +522,9 @@
         </tr>
         <tr>
           <td><strong>Vite 8</strong></td>
-          <td>Evan You</td>
+          <td>Evan You &amp; Vite Team</td>
           <td>Ultra-fast HMR dev server and optimized Rollup production bundler.</td>
-          <td>Compiles and bundles the application into optimized minified CSS/JS chunks.</td>
+          <td>Compiles and bundles the application into optimized minified CSS/JS chunks in ~900ms.</td>
         </tr>
         <tr>
           <td><strong>Tailwind CSS v4</strong></td>
@@ -507,7 +542,7 @@
           <td><strong>HTML5 Canvas 2D API</strong></td>
           <td>W3C Web Standards</td>
           <td>Zero-dependency client-side graphic rendering directly in the user's browser.</td>
-          <td>Synthesizes 1920x1080 participation certificates and 800x1080 offline pass PNGs offline.</td>
+          <td>Synthesizes 1920x1080 participation certificates and 800x1080 offline pass PNGs offline in ~80ms.</td>
         </tr>
         <tr>
           <td><strong>node-qrcode</strong></td>
@@ -529,15 +564,15 @@
         </tr>
         <tr>
           <td><strong>Vercel Edge Cloud</strong></td>
-          <td>Vercel</td>
+          <td>Guillermo Rauch / Vercel</td>
           <td>Global content delivery network (CDN) and automated Git deployment.</td>
-          <td>Hosts the live application with automatic SSL and zero-downtime rolling deploys.</td>
+          <td>Hosts the live application at <code>showup-campus.vercel.app</code> with automatic SSL.</td>
         </tr>
         <tr>
           <td><strong>GitHub</strong></td>
           <td>Microsoft</td>
           <td>Git source code version control and CI/CD triggers.</td>
-          <td>Maintains complete codebase history at <code>raynaagarwal01-rgb/showup</code>.</td>
+          <td>Maintains complete codebase history at <code>raynaagarwal01-rgb/ShowUp</code>.</td>
         </tr>
       </tbody>
     </table>
@@ -547,24 +582,25 @@
     <ul>
       <li><strong>Dual-Mode Resilience (Cloud &amp; Offline Demo Db):</strong> If internet connection drops or API keys are missing, the system gracefully degrades to the local Indexed/LocalStorage demo database without crashing.</li>
       <li><strong>Instant Client-Side Certificate Synthesis:</strong> Eliminates costly PDF rendering servers by generating 1080p certificates on HTML5 Canvas in under 80 milliseconds.</li>
+      <li><strong>Interactive Destination Mapping &amp; Distance Calculation:</strong> Integrates live campus map calculations and 1-click Google Maps turn-by-turn routing for every event venue.</li>
       <li><strong>Official Academic OD Attendance CSV:</strong> Standardized to VIT Vellore administrative guidelines for automated submission to Student Welfare Offices.</li>
       <li><strong>Comprehensive UPI Payment Gateway Simulation:</strong> Realistic checkout modal supporting GPay, PhonePe, Paytm, and QR Scan with zero processing fees.</li>
     </ul>
 
     <!-- 5. Verification Checklist -->
     <h2>5. Project Verification Checklist</h2>
-    <div class="callout gold">
+    <div class="callout">
       ✔ <strong>Live Production URL:</strong> <a href="https://showup-campus.vercel.app" target="_blank">https://showup-campus.vercel.app</a><br />
       ✔ <strong>graVITas '26 Hub:</strong> <a href="https://showup-campus.vercel.app/fests/gravitas26" target="_blank">https://showup-campus.vercel.app/fests/gravitas26</a><br />
-      ✔ <strong>GitHub Repo:</strong> <a href="https://github.com/raynaagarwal01-rgb/showup" target="_blank">https://github.com/raynaagarwal01-rgb/showup</a><br />
-      ✔ <strong>Build Status:</strong> Compiled with 0 TypeScript/Vite errors (commit <code>b0e0486</code>)<br />
-      ✔ <strong>Student Credential:</strong> Rayna Agarwal (Reg: 25BCE0703), VIT Vellore
+      ✔ <strong>GitHub Repo:</strong> <a href="https://github.com/raynaagarwal01-rgb/ShowUp" target="_blank">https://github.com/raynaagarwal01-rgb/ShowUp</a><br />
+      ✔ <strong>Google Drive Submission Folder:</strong> <a href="https://drive.google.com/drive/folders/1NqCytuNS5DiaBu40F68yNv-zc6RESz7v" target="_blank">https://drive.google.com/drive/folders/1NqCytuNS5DiaBu40F68yNv-zc6RESz7v</a><br />
+      ✔ <strong>Status:</strong> Ready for evaluation and live demonstration.
     </div>
 
   </div>
 
-  <!-- Footer -->
-  <div class="footer">
+  <!-- Footer Bar -->
+  <div class="footer-bar">
     ShowUp · Built with Passion by Rayna Agarwal (25BCE0703) · VIT Vellore · September 2026
   </div>
 </div>
