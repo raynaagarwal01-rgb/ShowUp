@@ -72,6 +72,7 @@ export interface Team {
   created_by: string;
   leader_id?: string;
   member_ids: string[];
+  project_idea?: string;
 }
 
 export interface RegistrationWithEvent extends Registration {

@@ -40,6 +40,7 @@ export const EventDetailPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<"create" | "join">("create");
   const [teamName, setTeamName] = useState("");
+  const [projectIdea, setProjectIdea] = useState("");
   const [joinCodeInput, setJoinCodeInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -120,7 +121,7 @@ export const EventDetailPage: React.FC = () => {
     setBusy(true);
     setError(null);
     try {
-      const { registration } = await createTeam(event.id, currentUser.id, teamName.trim());
+      const { registration } = await createTeam(event.id, currentUser.id, teamName.trim(), projectIdea.trim());
       await refresh();
       notifyRegistrationConfirmed(event, currentUser, registration).then(setNotice);
     } catch (e) {
@@ -485,8 +486,15 @@ export const EventDetailPage: React.FC = () => {
                         <input
                           value={teamName}
                           onChange={(e) => setTeamName(e.target.value)}
-                          placeholder="Team name"
+                          placeholder="Team name (e.g. CyberVellore)"
                           className="w-full rounded-lg border border-border bg-ink px-3 py-2 text-sm focus:border-coral focus:outline-none"
+                        />
+                        <textarea
+                          value={projectIdea}
+                          onChange={(e) => setProjectIdea(e.target.value)}
+                          rows={2}
+                          placeholder="Team project idea / problem statement (optional)"
+                          className="w-full rounded-lg border border-border bg-ink px-3 py-2 text-xs focus:border-coral focus:outline-none resize-none placeholder:text-muted"
                         />
                         <button
                           onClick={handleCreateTeam}
