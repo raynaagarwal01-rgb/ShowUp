@@ -166,6 +166,7 @@ export async function createTeam(
   eventId: string,
   userId: string,
   teamName: string,
+  projectIdea?: string,
 ): Promise<{ team: Team; registration: Registration }> {
   const stats = await computeSeatStats(eventId);
   const status: Registration["status"] = stats.full ? "waitlisted" : "confirmed";
@@ -174,6 +175,7 @@ export async function createTeam(
     id: newId("team"),
     event_id: eventId,
     name: teamName,
+    project_idea: projectIdea?.trim() || undefined,
     join_code: joinCode(),
     created_by: userId,
     member_ids: [userId],
@@ -199,6 +201,27 @@ export async function createTeam(
   demoDb.saveTeams([...demoDb.getTeams(), team]);
   demoDb.saveRegistrations([...demoDb.getRegistrations(), registration]);
   return { team, registration };
+}
+
+export async function updateTeamIdea(teamId: string, idea: string): Promise<Team | null> {
+  if (isSupabaseConfigured && supabase) {
+    const { data, error } = await supabase
+      .from("teams")
+      .update({ project_idea: idea.trim() })
+      .eq("id", teamId)
+      .select()
+      .maybeSingle();
+    if (error) throw error;
+    return (data as Team) || null;
+  }
+  const teams = demoDb.getTeams();
+  const index = teams.findIndex((t) => t.id === teamId);
+  if (index >= 0) {
+    teams[index] = { ...teams[index], project_idea: idea.trim() };
+    demoDb.saveTeams(teams);
+    return teams[index];
+  }
+  return null;
 }
 
 export async function joinTeam(
@@ -373,7 +396,7 @@ export async function listEventRegistrants(eventId: string): Promise<RegistrantV
     .map((r) => {
       const account = accounts.find((a) => a.id === r.user_id);
       const profile: Profile = account
-        ? { id: account.id, email: account.email, name: account.name, role: account.role }
+        ? { ...account }
         : { id: r.user_id, email: "unknown", name: "Unknown participant", role: "student" };
       const team = r.team_id ? teams.find((t) => t.id === r.team_id) : undefined;
       return { ...r, profile, team } as RegistrantView;

@@ -3,13 +3,15 @@ import {
   Check,
   Copy,
   Crown,
+  Edit3,
+  Lightbulb,
   Share2,
   Trash2,
   UserPlus,
   Users,
   X,
 } from "lucide-react";
-import { getTeamDetails, removeTeamMember } from "../lib/db";
+import { getTeamDetails, removeTeamMember, updateTeamIdea } from "../lib/db";
 import type { EventRecord, Profile, Team } from "../types";
 import { formatDateRange } from "../lib/format";
 
@@ -32,6 +34,9 @@ export const TeamHubModal: React.FC<TeamHubModalProps> = ({
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [removing, setRemoving] = useState<string | null>(null);
+  const [isEditingIdea, setIsEditingIdea] = useState(false);
+  const [ideaDraft, setIdeaDraft] = useState("");
+  const [savingIdea, setSavingIdea] = useState(false);
 
   const fetchTeam = async () => {
     if (!teamId) return;
@@ -89,6 +94,21 @@ ${window.location.origin}/events/${event.id}`;
       console.error("Failed to remove member:", err);
     } finally {
       setRemoving(null);
+    }
+  };
+
+  const handleSaveIdea = async () => {
+    if (!data) return;
+    setSavingIdea(true);
+    try {
+      await updateTeamIdea(data.team.id, ideaDraft);
+      await fetchTeam();
+      setIsEditingIdea(false);
+      onTeamUpdated?.();
+    } catch (err) {
+      console.error("Failed to update project idea:", err);
+    } finally {
+      setSavingIdea(false);
     }
   };
 
@@ -188,6 +208,65 @@ ${window.location.origin}/events/${event.id}`;
                   <Share2 className="h-4 w-4" />
                   Invite Teammates via WhatsApp
                 </button>
+              </div>
+
+              {/* Team Project Idea / Problem Statement */}
+              <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4.5 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-amber-300">
+                    <Lightbulb className="h-3.5 w-3.5 text-amber-400" />
+                    <span>Project Idea / Pitch</span>
+                  </div>
+                  {isLeader && !isEditingIdea && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIdeaDraft(data.team.project_idea || "");
+                        setIsEditingIdea(true);
+                      }}
+                      className="text-[11px] text-amber-400 hover:text-amber-300 font-semibold flex items-center gap-1"
+                    >
+                      <Edit3 className="h-3 w-3" /> Edit Pitch
+                    </button>
+                  )}
+                </div>
+
+                {isEditingIdea ? (
+                  <div className="space-y-2">
+                    <textarea
+                      value={ideaDraft}
+                      onChange={(e) => setIdeaDraft(e.target.value)}
+                      rows={3}
+                      placeholder="Describe what your team is building or the problem you're tackling..."
+                      className="w-full rounded-xl border border-amber-500/40 bg-ink p-2.5 text-xs text-cream focus:outline-none focus:ring-1 focus:ring-amber-400 resize-none"
+                    />
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingIdea(false)}
+                        className="rounded-lg px-2.5 py-1 text-xs text-muted hover:text-cream"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        disabled={savingIdea}
+                        onClick={handleSaveIdea}
+                        className="rounded-lg bg-amber-500 hover:bg-amber-400 px-3 py-1 text-xs font-semibold text-ink flex items-center gap-1 transition-colors"
+                      >
+                        {savingIdea ? "Saving..." : "Save Idea"}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-cream/90 italic leading-relaxed">
+                    {data.team.project_idea ? `"${data.team.project_idea}"` : (
+                      <span className="text-muted not-italic">
+                        No project idea submitted yet.{isLeader ? " Click 'Edit Pitch' to tell organizers and judges what your team is building." : ""}
+                      </span>
+                    )}
+                  </p>
+                )}
               </div>
 
               {/* Member Roster List */}
