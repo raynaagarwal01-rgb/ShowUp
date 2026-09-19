@@ -12,10 +12,10 @@ STUDENT INFORMATION:
 
 PRIMARY LINKS:
 1. Live Production Website:
-   https://showup.vercel.app (or current deployment: https://feastify-gamma.vercel.app)
+   https://showup-campus.vercel.app (backup: https://feastify-gamma.vercel.app)
 
 2. graVITas '26 Official Events Hub (VIT Vellore 56+ Events):
-   https://showup.vercel.app/fests/gravitas26
+   https://showup-campus.vercel.app/fests/gravitas26
 
 3. GitHub Repository:
    https://github.com/raynaagarwal01-rgb/showup (or https://github.com/raynaagarwal01-rgb/feastify)

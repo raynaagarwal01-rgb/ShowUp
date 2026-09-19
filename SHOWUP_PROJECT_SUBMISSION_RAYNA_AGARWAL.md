@@ -3,8 +3,8 @@
 **Student Name:** Rayna Agarwal  
 **Registration Number:** 25BCE0703  
 **Institution:** Vellore Institute of Technology (VIT), Vellore  
-**Live Production URL:** [https://showup.vercel.app](https://showup.vercel.app)  
-**graVITas '26 Fest Hub:** [https://showup.vercel.app/fests/gravitas26](https://showup.vercel.app/fests/gravitas26)  
+**Live Production URL:** [https://showup-campus.vercel.app](https://showup-campus.vercel.app)  
+**graVITas '26 Fest Hub:** [https://showup-campus.vercel.app/fests/gravitas26](https://showup-campus.vercel.app/fests/gravitas26)  
 **GitHub Repository:** [https://github.com/raynaagarwal01-rgb/showup](https://github.com/raynaagarwal01-rgb/showup)  
 **Submission Date:** September 18, 2026  
 
@@ -139,8 +139,8 @@ Students frequently miss deadlines, lose team codes, fail to receive On-Duty (OD
 
 ## 5. Verification & Submission Links
 
-- **Live Production URL:** [https://showup.vercel.app](https://showup.vercel.app)
-- **graVITas '26 Fest Hub:** [https://showup.vercel.app/fests/gravitas26](https://showup.vercel.app/fests/gravitas26)
+- **Live Production URL:** [https://showup-campus.vercel.app](https://showup-campus.vercel.app)
+- **graVITas '26 Fest Hub:** [https://showup-campus.vercel.app/fests/gravitas26](https://showup-campus.vercel.app/fests/gravitas26)
 - **GitHub Repository:** [https://github.com/raynaagarwal01-rgb/showup](https://github.com/raynaagarwal01-rgb/showup)
 - **Project Files in Workspace:**
   - `FEASTIFY_PROJECT_SUBMISSION_RAYNA_AGARWAL.pdf` (High-resolution PDF document)
