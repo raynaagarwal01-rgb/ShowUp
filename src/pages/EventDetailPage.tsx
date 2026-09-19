@@ -185,7 +185,7 @@ export const EventDetailPage: React.FC = () => {
   const saved = event ? isBookmarked(event.id) : false;
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
       <div
         className="relative rounded-2xl p-6 sm:p-8"
         style={{
@@ -236,13 +236,13 @@ export const EventDetailPage: React.FC = () => {
       </div>
 
       <div className="mt-8 grid gap-8 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
+        <div className="space-y-6 lg:col-span-2 min-w-0">
           {/* Tab navigation */}
-          <div className="flex items-center gap-2 border-b border-border pb-1">
+          <div className="flex items-center gap-2 border-b border-border pb-1 overflow-x-auto scrollbar-none">
             <button
               type="button"
               onClick={() => setActiveTab("overview")}
-              className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors ${
+              className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 border-b-2 px-3.5 py-2.5 text-xs sm:text-sm font-semibold transition-colors ${
                 activeTab === "overview"
                   ? "border-coral text-coral"
                   : "border-transparent text-muted hover:text-cream"
@@ -254,7 +254,7 @@ export const EventDetailPage: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setActiveTab("teammates")}
-                className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors ${
+                className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 border-b-2 px-3.5 py-2.5 text-xs sm:text-sm font-semibold transition-colors ${
                   activeTab === "teammates"
                     ? "border-coral text-coral"
                     : "border-transparent text-muted hover:text-cream"
@@ -267,7 +267,7 @@ export const EventDetailPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab("announcements")}
-              className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors ${
+              className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 border-b-2 px-3.5 py-2.5 text-xs sm:text-sm font-semibold transition-colors ${
                 activeTab === "announcements"
                   ? "border-coral text-coral"
                   : "border-transparent text-muted hover:text-cream"
@@ -279,7 +279,7 @@ export const EventDetailPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab("qna")}
-              className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors ${
+              className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 border-b-2 px-3.5 py-2.5 text-xs sm:text-sm font-semibold transition-colors ${
                 activeTab === "qna"
                   ? "border-coral text-coral"
                   : "border-transparent text-muted hover:text-cream"
@@ -291,7 +291,7 @@ export const EventDetailPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setActiveTab("winners")}
-              className={`flex items-center gap-2 border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors ${
+              className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 border-b-2 px-3.5 py-2.5 text-xs sm:text-sm font-semibold transition-colors ${
                 activeTab === "winners"
                   ? "border-amber-400 text-amber-400"
                   : "border-transparent text-muted hover:text-cream"
@@ -349,7 +349,7 @@ export const EventDetailPage: React.FC = () => {
           )}
         </div>
 
-        <aside className="rounded-2xl border border-border bg-surface p-5 lg:sticky lg:top-24 lg:h-fit">
+        <aside className="w-full rounded-2xl border border-border bg-surface p-5 lg:sticky lg:top-24 lg:h-fit">
           <div className="flex items-center justify-between">
             <span className="font-display text-2xl font-bold">{formatFee(event.fee)}</span>
             {event.fee > 0 && <span className="text-xs text-muted">per {isTeamEvent ? "team" : "ticket"}</span>}
