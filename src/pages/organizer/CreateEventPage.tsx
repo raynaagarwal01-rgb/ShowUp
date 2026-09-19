@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { createEvent, getEvent, listEvents, updateEvent } from "../../lib/db";
+import { AlertTriangle, Trash2 } from "lucide-react";
+import { createEvent, deleteEvent, getEvent, listEvents, updateEvent } from "../../lib/db";
 import type { EventCategory, EventScope } from "../../types";
 import { Field } from "../LoginPage";
 import { useAuth } from "../../context/AuthContext";
@@ -47,8 +48,25 @@ export const CreateEventPage: React.FC = () => {
     college: user?.college ?? "",
   }));
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [knownColleges, setKnownColleges] = useState<string[]>([]);
+
+  const handleDelete = async () => {
+    if (!id) return;
+    const confirmed = window.confirm(
+      `Are you sure you want to permanently delete "${form.title || "this event"}"?\n\nThis will remove the event, registrations, team rosters, and tickets permanently.`
+    );
+    if (!confirmed) return;
+    setDeleting(true);
+    try {
+      await deleteEvent(id, user?.id);
+      navigate("/organizer");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete event.");
+      setDeleting(false);
+    }
+  };
 
   useEffect(() => {
     listEvents().then((events) => {
@@ -342,6 +360,25 @@ export const CreateEventPage: React.FC = () => {
           {saving ? "Saving..." : isEditing ? "Save changes" : "Publish event"}
         </button>
       </form>
+
+      {isEditing && (
+        <div className="mt-8 rounded-2xl border border-red-500/30 bg-red-500/5 p-6 space-y-3">
+          <div className="flex items-center gap-2 text-sm font-bold text-red-400">
+            <AlertTriangle className="h-4 w-4" /> Danger Zone: Delete Event
+          </div>
+          <p className="text-xs text-muted leading-relaxed">
+            Deleting this event will permanently wipe all registrations, confirmed spots, teams, and tickets associated with it. This action cannot be reversed.
+          </p>
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleting}
+            className="flex items-center gap-2 rounded-xl bg-red-600/20 border border-red-500/40 px-4 py-2.5 text-xs font-bold text-red-300 hover:bg-red-600 hover:text-white transition-all disabled:opacity-50"
+          >
+            <Trash2 className="h-4 w-4" /> {deleting ? "Deleting event..." : "Delete this event"}
+          </button>
+        </div>
+      )}
     </div>
   );
 };

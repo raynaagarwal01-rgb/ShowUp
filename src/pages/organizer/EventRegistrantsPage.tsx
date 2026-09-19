@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   Download,
@@ -13,8 +13,11 @@ import {
   Building2,
   UserCheck,
   Sparkles,
+  Pencil,
+  Trash2,
 } from "lucide-react";
-import { getEvent, listEventRegistrants } from "../../lib/db";
+import { deleteEvent, getEvent, listEventRegistrants } from "../../lib/db";
+import { useAuth } from "../../context/AuthContext";
 import type { EventRecord, RegistrantView, Team } from "../../types";
 import { StatusPill, registrationTone } from "../../components/StatusPill";
 
@@ -82,11 +85,31 @@ interface TeamGroup {
 
 export const EventRegistrantsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [event, setEvent] = useState<EventRecord | null>(null);
   const [registrants, setRegistrants] = useState<RegistrantView[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [activeView, setActiveView] = useState<"teams" | "table">("teams");
+
+  const handleDeleteEvent = async () => {
+    if (!event || !id) return;
+    const confirmed = window.confirm(
+      `Are you sure you want to permanently delete "${event.title}"?\n\nThis will remove the event, registrations, teams, and tickets permanently.`
+    );
+    if (!confirmed) return;
+    setDeleting(true);
+    try {
+      await deleteEvent(id, user?.id);
+      navigate("/organizer");
+    } catch (err) {
+      console.error("Failed to delete event:", err);
+      alert("Failed to delete event.");
+      setDeleting(false);
+    }
+  };
 
   useEffect(() => {
     if (!id) return;
@@ -172,13 +195,29 @@ export const EventRegistrantsPage: React.FC = () => {
             to={`/organizer/events/${event.id}/checkin`}
             className="flex items-center gap-1.5 rounded-xl border border-border bg-surface-2 px-3.5 py-2.5 text-xs font-semibold text-cream hover:border-coral/50 transition-colors"
           >
-            <QrCode className="h-4 w-4 text-coral" /> Door Check-in Scanner
+            <QrCode className="h-4 w-4 text-coral" /> Check-in
+          </Link>
+          <Link
+            to={`/organizer/events/${event.id}/edit`}
+            className="flex items-center gap-1.5 rounded-xl border border-border bg-surface-2 px-3.5 py-2.5 text-xs font-semibold text-cream hover:border-coral/50 transition-colors"
+          >
+            <Pencil className="h-4 w-4 text-muted" /> Edit
           </Link>
           <button
             onClick={() => downloadCsv(event.title, registrants)}
             className="flex items-center gap-1.5 rounded-xl bg-coral px-4 py-2.5 text-xs font-bold text-ink hover:scale-[1.02] transition-transform shadow-md"
           >
             <Download className="h-4 w-4" /> Export OD &amp; Teams (CSV)
+          </button>
+          <button
+            type="button"
+            onClick={handleDeleteEvent}
+            disabled={deleting}
+            className="flex items-center gap-1.5 rounded-xl border border-red-500/30 bg-red-500/10 px-3.5 py-2.5 text-xs font-semibold text-red-400 hover:bg-red-500/20 hover:border-red-500/60 transition-colors disabled:opacity-50"
+            title="Delete this event"
+          >
+            <Trash2 className="h-4 w-4 text-red-400" />
+            <span>{deleting ? "Deleting..." : "Delete Event"}</span>
           </button>
         </div>
       </div>

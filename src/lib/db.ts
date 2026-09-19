@@ -115,6 +115,248 @@ export async function updateEvent(id: string, patch: Partial<EventRecord>): Prom
   demoDb.saveEvents(events.map((e) => (e.id === id ? { ...e, ...patch } : e)));
 }
 
+export async function deleteEvent(id: string, organizerId?: string): Promise<void> {
+  if (isSupabaseConfigured && supabase) {
+    await supabase.from("registrations").delete().eq("event_id", id);
+    await supabase.from("teams").delete().eq("event_id", id);
+    await supabase.from("announcements").delete().eq("event_id", id);
+    await supabase.from("event_questions").delete().eq("event_id", id);
+    await supabase.from("event_winners").delete().eq("event_id", id);
+    await supabase.from("teammate_listings").delete().eq("event_id", id);
+
+    let query = supabase.from("events").delete().eq("id", id);
+    if (organizerId) {
+      query = query.eq("created_by", organizerId);
+    }
+    const { error } = await query;
+    if (error) throw error;
+    return;
+  }
+
+  // Demo DB mode
+  demoDb.saveEvents(demoDb.getEvents().filter((e) => e.id !== id));
+  demoDb.saveRegistrations(demoDb.getRegistrations().filter((r) => r.event_id !== id));
+  demoDb.saveTeams(demoDb.getTeams().filter((t) => t.event_id !== id));
+  demoDb.saveAnnouncements(demoDb.getAnnouncements().filter((a) => a.event_id !== id));
+  demoDb.saveQuestions(demoDb.getQuestions().filter((q) => q.event_id !== id));
+  demoDb.saveWinners(demoDb.getWinners().filter((w) => w.event_id !== id));
+  demoDb.saveTeammateListings(demoDb.getTeammateListings().filter((l) => l.event_id !== id));
+}
+
+export async function createSampleEventForOrganizer(user: {
+  id: string;
+  name?: string;
+  college?: string;
+  city?: string;
+  state?: string;
+}): Promise<EventRecord> {
+  const eventId = newId("evt");
+  const now = new Date();
+  const startAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const endAt = new Date(now.getTime() + 9 * 24 * 60 * 60 * 1000).toISOString();
+  const deadline = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000).toISOString();
+
+  const clubName = user.name ? `${user.name}'s Tech Club` : "ShowUp Innovation Lab";
+  const college = user.college || "VIT Vellore";
+  const city = user.city || "Vellore";
+  const state = user.state || "Tamil Nadu";
+
+  const event: EventRecord = {
+    id: eventId,
+    club_id: user.id,
+    club_name: clubName,
+    title: "HackSphere 2026: National Hackathon",
+    tagline: "36-Hour National AI & Systems Hackathon",
+    description:
+      "A premier 36-hour hackathon bringing together students across India to build innovative solutions in AI, Climate Tech, and FinTech. Features 1-on-1 industry mentorship, cloud credits, and cash prizes.",
+    rules: [
+      "Teams of 2 to 4 members. Inter-college teams are welcome.",
+      "All code and prototypes must be developed during the hackathon period.",
+      "Projects require a public GitHub repository and a 3-minute pitch presentation.",
+      "Organizers reserve the right to disqualify entries violating the code of conduct.",
+    ],
+    category: "Hackathon",
+    scope: "both",
+    state,
+    city,
+    college,
+    venue: "Dr. APJ Abdul Kalam Innovation Auditorium, Tech Tower",
+    start_at: startAt,
+    end_at: endAt,
+    registration_deadline: deadline,
+    capacity: 100,
+    fee: 0,
+    team_min: 2,
+    team_max: 4,
+    banner_hue: 220,
+    status: "published",
+    created_by: user.id,
+  };
+
+  if (isSupabaseConfigured && supabase) {
+    const { error } = await supabase.from("events").insert([event]);
+    if (error) throw error;
+    return event;
+  }
+
+  // Demo DB mode: Seed the event, sample teams, sample registrants, and an announcement!
+  const demoAccounts = demoDb.getAccounts();
+  const sampleUsers: Array<{
+    id: string;
+    name: string;
+    email: string;
+    college: string;
+    branch: string;
+    phone: string;
+  }> = [
+    {
+      id: "demo_usr_ananya",
+      name: "Ananya Sharma",
+      email: "ananya.sharma@vitstudent.ac.in",
+      college,
+      branch: "Computer Science & Engg",
+      phone: "+91 98765 43210",
+    },
+    {
+      id: "demo_usr_rohan",
+      name: "Rohan Mehta",
+      email: "rohan.mehta@vitstudent.ac.in",
+      college,
+      branch: "Information Technology",
+      phone: "+91 98765 43211",
+    },
+    {
+      id: "demo_usr_vikram",
+      name: "Vikram Malhotra",
+      email: "vikram.m@iitm.ac.in",
+      college: "IIT Madras",
+      branch: "Electrical & Computer Engg",
+      phone: "+91 98765 43212",
+    },
+    {
+      id: "demo_usr_priya",
+      name: "Priya Patel",
+      email: "priya.patel@bmsce.ac.in",
+      college: "BMS College of Engineering",
+      branch: "Artificial Intelligence",
+      phone: "+91 98765 43213",
+    },
+    {
+      id: "demo_usr_sameer",
+      name: "Sameer Khan",
+      email: "sameer.khan@bits-pilani.ac.in",
+      college: "BITS Pilani",
+      branch: "Software Systems",
+      phone: "+91 98765 43214",
+    },
+  ];
+
+  const updatedAccounts = [...demoAccounts];
+  for (const s of sampleUsers) {
+    if (!updatedAccounts.some((a) => a.id === s.id)) {
+      updatedAccounts.push({
+        id: s.id,
+        email: s.email,
+        name: s.name,
+        role: "student",
+        college: s.college,
+        branch: s.branch,
+        phone: s.phone,
+        password: "demopassword",
+      });
+    }
+  }
+  demoDb.saveAccounts(updatedAccounts);
+
+  const team1: Team = {
+    id: "team_neuralcraft_" + eventId,
+    event_id: eventId,
+    name: "NeuralCraft",
+    join_code: "NC8821",
+    created_by: "demo_usr_ananya",
+    leader_id: "demo_usr_ananya",
+    member_ids: ["demo_usr_ananya", "demo_usr_rohan"],
+    project_idea: "Autonomous drone pipeline inspection with edge AI and real-time thermal anomaly detection.",
+  };
+
+  const team2: Team = {
+    id: "team_codeforge_" + eventId,
+    event_id: eventId,
+    name: "CodeForge",
+    join_code: "CF4910",
+    created_by: "demo_usr_vikram",
+    leader_id: "demo_usr_vikram",
+    member_ids: ["demo_usr_vikram", "demo_usr_priya"],
+    project_idea: "Decentralized carbon credit ledger and green energy certificate trading platform for universities.",
+  };
+
+  const registrations: Registration[] = [
+    {
+      id: newId("reg"),
+      event_id: eventId,
+      user_id: "demo_usr_ananya",
+      team_id: team1.id,
+      status: "confirmed",
+      checked_in_at: new Date(now.getTime() - 15 * 60 * 1000).toISOString(),
+      created_at: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: newId("reg"),
+      event_id: eventId,
+      user_id: "demo_usr_rohan",
+      team_id: team1.id,
+      status: "confirmed",
+      checked_in_at: new Date(now.getTime() - 10 * 60 * 1000).toISOString(),
+      created_at: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: newId("reg"),
+      event_id: eventId,
+      user_id: "demo_usr_vikram",
+      team_id: team2.id,
+      status: "confirmed",
+      checked_in_at: null,
+      created_at: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: newId("reg"),
+      event_id: eventId,
+      user_id: "demo_usr_priya",
+      team_id: team2.id,
+      status: "confirmed",
+      checked_in_at: null,
+      created_at: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+    {
+      id: newId("reg"),
+      event_id: eventId,
+      user_id: "demo_usr_sameer",
+      team_id: null,
+      status: "confirmed",
+      checked_in_at: null,
+      created_at: new Date(now.getTime() - 12 * 60 * 60 * 1000).toISOString(),
+    },
+  ];
+
+  const announcement: Announcement = {
+    id: newId(),
+    event_id: eventId,
+    title: "Hackathon Briefing & Mentor Allocation Schedule",
+    content:
+      "Welcome teams! Mentor check-ins are now live in Block C Labs. Please have your GitHub repo created and project pitch ready.",
+    author_name: clubName,
+    is_urgent: true,
+    created_at: new Date().toISOString(),
+  };
+
+  demoDb.saveEvents([event, ...demoDb.getEvents()]);
+  demoDb.saveTeams([...demoDb.getTeams(), team1, team2]);
+  demoDb.saveRegistrations([...demoDb.getRegistrations(), ...registrations]);
+  demoDb.saveAnnouncements([...demoDb.getAnnouncements(), announcement]);
+
+  return event;
+}
+
 export async function getSeatStats(eventId: string): Promise<SeatStats> {
   return computeSeatStats(eventId);
 }
