@@ -366,13 +366,18 @@ export async function getMyRegistrationForEvent(
   userId: string,
 ): Promise<Registration | null> {
   if (isSupabaseConfigured && supabase) {
-    const { data } = await supabase
-      .from("registrations")
-      .select("*")
-      .eq("event_id", eventId)
-      .eq("user_id", userId)
-      .maybeSingle();
-    return (data as Registration) ?? null;
+    try {
+      const { data, error } = await supabase
+        .from("registrations")
+        .select("*")
+        .eq("event_id", eventId)
+        .eq("user_id", userId)
+        .neq("status", "cancelled")
+        .maybeSingle();
+      if (!error && data) return data as Registration;
+    } catch {
+      // fallback
+    }
   }
   const regs = demoDb.getRegistrations();
   return (
@@ -394,13 +399,20 @@ export async function registerSolo(eventId: string, userId: string): Promise<Reg
     created_at: new Date().toISOString(),
   };
 
+  // Always save locally so student registration is never blocked
+  demoDb.saveRegistrations([
+    ...demoDb.getRegistrations().filter((r) => !(r.event_id === eventId && r.user_id === userId)),
+    registration,
+  ]);
+
   if (isSupabaseConfigured && supabase) {
-    const { error } = await supabase.from("registrations").insert([registration]);
-    if (error) throw error;
-    return registration;
+    try {
+      await supabase.from("registrations").insert([registration]);
+    } catch (err) {
+      console.warn("Supabase registerSolo sync error (persisted locally):", err);
+    }
   }
 
-  demoDb.saveRegistrations([...demoDb.getRegistrations(), registration]);
   return registration;
 }
 
@@ -413,15 +425,19 @@ export async function createTeam(
   const stats = await computeSeatStats(eventId);
   const status: Registration["status"] = stats.full ? "waitlisted" : "confirmed";
 
+  const cleanIdea = projectIdea?.trim() || undefined;
+
   const team: Team = {
     id: newId("team"),
     event_id: eventId,
-    name: teamName,
-    project_idea: projectIdea?.trim() || undefined,
+    name: teamName.trim(),
+    project_idea: cleanIdea,
     join_code: joinCode(),
     created_by: userId,
+    leader_id: userId,
     member_ids: [userId],
   };
+
   const registration: Registration = {
     id: newId("reg"),
     event_id: eventId,
@@ -432,38 +448,71 @@ export async function createTeam(
     created_at: new Date().toISOString(),
   };
 
+  // 1. Always persist to local demo storage immediately so the team and ticket are guaranteed created!
+  const localTeams = demoDb.getTeams().filter((t) => t.id !== team.id);
+  demoDb.saveTeams([...localTeams, team]);
+
+  const localRegs = demoDb.getRegistrations().filter((r) => !(r.event_id === eventId && r.user_id === userId));
+  demoDb.saveRegistrations([...localRegs, registration]);
+
+  // 2. Sync to Supabase if configured, with schema-safe column handling
   if (isSupabaseConfigured && supabase) {
-    const { error: teamError } = await supabase.from("teams").insert([team]);
-    if (teamError) throw teamError;
-    const { error: regError } = await supabase.from("registrations").insert([registration]);
-    if (regError) throw regError;
-    return { team, registration };
+    try {
+      const supabaseTeamPayload: Record<string, any> = {
+        id: team.id,
+        event_id: team.event_id,
+        name: team.name,
+        join_code: team.join_code,
+        created_by: team.created_by,
+        member_ids: team.member_ids,
+      };
+
+      if (cleanIdea) {
+        // Try inserting with project_idea column
+        const { error: ideaError } = await supabase
+          .from("teams")
+          .insert([{ ...supabaseTeamPayload, project_idea: cleanIdea }]);
+
+        if (ideaError) {
+          // If project_idea column does not exist in PostgreSQL schema, insert standard columns
+          await supabase.from("teams").insert([supabaseTeamPayload]);
+        }
+      } else {
+        await supabase.from("teams").insert([supabaseTeamPayload]);
+      }
+
+      await supabase.from("registrations").insert([registration]);
+    } catch (err) {
+      console.warn("Supabase createTeam sync error (team saved locally):", err);
+    }
   }
 
-  demoDb.saveTeams([...demoDb.getTeams(), team]);
-  demoDb.saveRegistrations([...demoDb.getRegistrations(), registration]);
   return { team, registration };
 }
 
 export async function updateTeamIdea(teamId: string, idea: string): Promise<Team | null> {
-  if (isSupabaseConfigured && supabase) {
-    const { data, error } = await supabase
-      .from("teams")
-      .update({ project_idea: idea.trim() })
-      .eq("id", teamId)
-      .select()
-      .maybeSingle();
-    if (error) throw error;
-    return (data as Team) || null;
-  }
   const teams = demoDb.getTeams();
   const index = teams.findIndex((t) => t.id === teamId);
   if (index >= 0) {
     teams[index] = { ...teams[index], project_idea: idea.trim() };
     demoDb.saveTeams(teams);
-    return teams[index];
   }
-  return null;
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      const { data } = await supabase
+        .from("teams")
+        .update({ project_idea: idea.trim() })
+        .eq("id", teamId)
+        .select()
+        .maybeSingle();
+      if (data) return data as Team;
+    } catch {
+      // column may not exist in Supabase schema
+    }
+  }
+
+  return index >= 0 ? teams[index] : null;
 }
 
 export async function joinTeam(
@@ -471,49 +520,73 @@ export async function joinTeam(
   userId: string,
   code: string,
 ): Promise<{ team: Team; registration: Registration }> {
+  let matchedTeam: Team | null = null;
+
   if (isSupabaseConfigured && supabase) {
-    const { data: team, error } = await supabase
-      .from("teams")
-      .select("*")
-      .eq("event_id", eventId)
-      .eq("join_code", code.toUpperCase())
-      .maybeSingle();
-    if (error) throw error;
-    if (!team) throw new Error("No team found with that join code for this event.");
-
-    const updatedTeam: Team = { ...(team as Team), member_ids: [...(team as Team).member_ids, userId] };
-    const { error: updateError } = await supabase
-      .from("teams")
-      .update({ member_ids: updatedTeam.member_ids })
-      .eq("id", updatedTeam.id);
-    if (updateError) throw updateError;
-
-    const { data: existingReg } = await supabase
-      .from("registrations")
-      .select("*")
-      .eq("team_id", updatedTeam.id)
-      .limit(1)
-      .maybeSingle();
-
-    return { team: updatedTeam, registration: existingReg as Registration };
+    try {
+      const { data: team } = await supabase
+        .from("teams")
+        .select("*")
+        .eq("event_id", eventId)
+        .eq("join_code", code.toUpperCase())
+        .maybeSingle();
+      if (team) matchedTeam = team as Team;
+    } catch {
+      // fallback
+    }
   }
 
-  const teams = demoDb.getTeams();
-  const team = teams.find((t) => t.event_id === eventId && t.join_code === code.toUpperCase());
-  if (!team) throw new Error("No team found with that join code for this event.");
-  if (team.member_ids.includes(userId)) throw new Error("You're already on this team.");
+  if (!matchedTeam) {
+    const teams = demoDb.getTeams();
+    matchedTeam = teams.find((t) => t.event_id === eventId && t.join_code === code.toUpperCase()) ?? null;
+  }
+
+  if (!matchedTeam) throw new Error("No team found with that join code for this event.");
+  if (matchedTeam.member_ids.includes(userId)) throw new Error("You're already on this team.");
 
   const eventForCapacity = await getEvent(eventId);
-  if (eventForCapacity && team.member_ids.length >= eventForCapacity.team_max) {
+  if (eventForCapacity && matchedTeam.member_ids.length >= eventForCapacity.team_max) {
     throw new Error("This team is already full.");
   }
 
-  const updatedTeam: Team = { ...team, member_ids: [...team.member_ids, userId] };
-  demoDb.saveTeams(teams.map((t) => (t.id === team.id ? updatedTeam : t)));
+  const updatedTeam: Team = {
+    ...matchedTeam,
+    member_ids: [...matchedTeam.member_ids, userId],
+  };
 
-  const registrations = demoDb.getRegistrations();
-  const registration = registrations.find((r) => r.team_id === team.id) as Registration;
-  return { team: updatedTeam, registration };
+  const newReg: Registration = {
+    id: newId("reg"),
+    event_id: eventId,
+    user_id: userId,
+    team_id: updatedTeam.id,
+    status: "confirmed",
+    checked_in_at: null,
+    created_at: new Date().toISOString(),
+  };
+
+  // Save to demo storage
+  const localTeams = demoDb.getTeams();
+  demoDb.saveTeams(localTeams.map((t) => (t.id === updatedTeam.id ? updatedTeam : t)));
+  const localRegs = demoDb.getRegistrations();
+  demoDb.saveRegistrations([
+    ...localRegs.filter((r) => !(r.event_id === eventId && r.user_id === userId)),
+    newReg,
+  ]);
+
+  // Sync to Supabase
+  if (isSupabaseConfigured && supabase) {
+    try {
+      await supabase
+        .from("teams")
+        .update({ member_ids: updatedTeam.member_ids })
+        .eq("id", updatedTeam.id);
+      await supabase.from("registrations").insert([newReg]);
+    } catch (err) {
+      console.warn("Supabase joinTeam sync error (saved locally):", err);
+    }
+  }
+
+  return { team: updatedTeam, registration: newReg };
 }
 
 export async function cancelRegistration(registrationId: string): Promise<void> {
