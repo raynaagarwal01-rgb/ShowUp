@@ -75,6 +75,15 @@ export interface Team {
   project_idea?: string;
 }
 
+export interface TeammateInput {
+  name: string;
+  email: string;
+  phone?: string;
+  college?: string;
+  reg_no?: string;
+  branch?: string;
+}
+
 export interface RegistrationWithEvent extends Registration {
   event: EventRecord;
   team?: Team;

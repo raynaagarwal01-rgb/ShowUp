@@ -11,6 +11,7 @@ import type {
   RegistrantView,
   RegistrationWithEvent,
   Team,
+  TeammateInput,
   TeammateListing,
 } from "../types";
 
@@ -421,21 +422,74 @@ export async function createTeam(
   userId: string,
   teamName: string,
   projectIdea?: string,
+  teammates?: TeammateInput[],
 ): Promise<{ team: Team; registration: Registration }> {
   const stats = await computeSeatStats(eventId);
   const status: Registration["status"] = stats.full ? "waitlisted" : "confirmed";
 
   const cleanIdea = projectIdea?.trim() || undefined;
+  const teamId = newId("team");
+
+  // Leader member ID
+  const memberIds: string[] = [userId];
+
+  // If teammates are supplied, create their accounts and registrations
+  const teammateAccounts: Array<Profile & { password: string }> = [];
+  const teammateRegistrations: Registration[] = [];
+
+  if (teammates && teammates.length > 0) {
+    const existingAccounts = demoDb.getAccounts();
+    for (const t of teammates) {
+      if (!t.name?.trim() || !t.email?.trim()) continue;
+
+      // Check if account already exists
+      const existing = existingAccounts.find(
+        (a) => a.email.toLowerCase() === t.email.trim().toLowerCase()
+      );
+
+      let memberUserId: string;
+      if (existing) {
+        memberUserId = existing.id;
+      } else {
+        memberUserId = newId("usr");
+        const newProfile = {
+          id: memberUserId,
+          name: t.name.trim(),
+          email: t.email.trim().toLowerCase(),
+          phone: t.phone?.trim() || undefined,
+          college: t.college?.trim() || "VIT Vellore",
+          reg_no: t.reg_no?.trim() || undefined,
+          branch: t.branch?.trim() || "Engineering",
+          role: "student" as const,
+          password: "demopassword",
+        };
+        teammateAccounts.push(newProfile);
+      }
+
+      if (!memberIds.includes(memberUserId)) {
+        memberIds.push(memberUserId);
+        teammateRegistrations.push({
+          id: newId("reg"),
+          event_id: eventId,
+          user_id: memberUserId,
+          team_id: teamId,
+          status,
+          checked_in_at: null,
+          created_at: new Date().toISOString(),
+        });
+      }
+    }
+  }
 
   const team: Team = {
-    id: newId("team"),
+    id: teamId,
     event_id: eventId,
     name: teamName.trim(),
     project_idea: cleanIdea,
     join_code: joinCode(),
     created_by: userId,
     leader_id: userId,
-    member_ids: [userId],
+    member_ids: memberIds,
   };
 
   const registration: Registration = {
@@ -448,12 +502,20 @@ export async function createTeam(
     created_at: new Date().toISOString(),
   };
 
-  // 1. Always persist to local demo storage immediately so the team and ticket are guaranteed created!
+  // 1. Always persist locally to demoDb immediately
+  if (teammateAccounts.length > 0) {
+    demoDb.saveAccounts([...demoDb.getAccounts(), ...teammateAccounts]);
+  }
+
   const localTeams = demoDb.getTeams().filter((t) => t.id !== team.id);
   demoDb.saveTeams([...localTeams, team]);
 
-  const localRegs = demoDb.getRegistrations().filter((r) => !(r.event_id === eventId && r.user_id === userId));
-  demoDb.saveRegistrations([...localRegs, registration]);
+  const allNewRegs = [registration, ...teammateRegistrations];
+  const allNewUserIds = new Set(allNewRegs.map((r) => r.user_id));
+  const localRegs = demoDb
+    .getRegistrations()
+    .filter((r) => !(r.event_id === eventId && allNewUserIds.has(r.user_id)));
+  demoDb.saveRegistrations([...localRegs, ...allNewRegs]);
 
   // 2. Sync to Supabase if configured, with schema-safe column handling
   if (isSupabaseConfigured && supabase) {
@@ -468,20 +530,18 @@ export async function createTeam(
       };
 
       if (cleanIdea) {
-        // Try inserting with project_idea column
         const { error: ideaError } = await supabase
           .from("teams")
           .insert([{ ...supabaseTeamPayload, project_idea: cleanIdea }]);
 
         if (ideaError) {
-          // If project_idea column does not exist in PostgreSQL schema, insert standard columns
           await supabase.from("teams").insert([supabaseTeamPayload]);
         }
       } else {
         await supabase.from("teams").insert([supabaseTeamPayload]);
       }
 
-      await supabase.from("registrations").insert([registration]);
+      await supabase.from("registrations").insert(allNewRegs);
     } catch (err) {
       console.warn("Supabase createTeam sync error (team saved locally):", err);
     }

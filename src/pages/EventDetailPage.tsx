@@ -1,6 +1,27 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Building2, CalendarDays, MapPin, Ticket, Users, CheckCircle2, Clock, Bookmark, Download, Award, Megaphone, MessageSquare, FileText, Trophy, Navigation, UserPlus } from "lucide-react";
+import {
+  Building2,
+  CalendarDays,
+  MapPin,
+  Ticket,
+  Users,
+  CheckCircle2,
+  Clock,
+  Bookmark,
+  Download,
+  Award,
+  Megaphone,
+  MessageSquare,
+  FileText,
+  Trophy,
+  Navigation,
+  UserPlus,
+  Crown,
+  Plus,
+  Trash2,
+  UserCheck,
+} from "lucide-react";
 import {
   createTeam,
   getEvent,
@@ -10,7 +31,7 @@ import {
   registerSolo,
   type SeatStats,
 } from "../lib/db";
-import type { EventRecord, Registration } from "../types";
+import type { EventRecord, Registration, TeammateInput } from "../types";
 import { formatDateRange, formatFee, formatTeamSize, timeUntil } from "../lib/format";
 import { StatusPill, registrationTone } from "../components/StatusPill";
 import { useAuth } from "../context/AuthContext";
@@ -42,6 +63,10 @@ export const EventDetailPage: React.FC = () => {
   const [teamName, setTeamName] = useState("");
   const [projectIdea, setProjectIdea] = useState("");
   const [joinCodeInput, setJoinCodeInput] = useState("");
+  const [teamSize, setTeamSize] = useState<number>(2);
+  const [teammates, setTeammates] = useState<TeammateInput[]>([
+    { name: "", email: "", phone: "", college: user?.college || "", reg_no: "" },
+  ]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<NotificationOutcome | null>(null);
@@ -53,6 +78,67 @@ export const EventDetailPage: React.FC = () => {
   const [teamModalOpen, setTeamModalOpen] = useState(false);
   const [locationModalOpen, setLocationModalOpen] = useState(false);
   const { isBookmarked, toggleBookmark } = useBookmarks();
+
+  useEffect(() => {
+    if (event && event.team_max > 1) {
+      const minSize = Math.max(2, event.team_min || 2);
+      setTeamSize(minSize);
+      const initialTeammates: TeammateInput[] = [];
+      for (let i = 1; i < minSize; i++) {
+        initialTeammates.push({
+          name: "",
+          email: "",
+          phone: "",
+          college: user?.college || "",
+          reg_no: "",
+        });
+      }
+      setTeammates(initialTeammates);
+    }
+  }, [event?.id, event?.team_min, event?.team_max, user?.college]);
+
+  const handleSetTeamSize = (newSize: number) => {
+    setTeamSize(newSize);
+    const needed = Math.max(0, newSize - 1);
+    setTeammates((prev) => {
+      const next = [...prev];
+      while (next.length < needed) {
+        next.push({
+          name: "",
+          email: "",
+          phone: "",
+          college: user?.college || "",
+          reg_no: "",
+        });
+      }
+      return next.slice(0, needed);
+    });
+  };
+
+  const updateTeammate = (index: number, field: keyof TeammateInput, value: string) => {
+    setTeammates((prev) => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
+  const handleAddTeammate = () => {
+    if (!event) return;
+    const max = event.team_max || 4;
+    if (teamSize < max) {
+      handleSetTeamSize(teamSize + 1);
+    }
+  };
+
+  const handleRemoveTeammate = (index: number) => {
+    if (!event) return;
+    const min = event.team_min || 2;
+    if (teamSize > min) {
+      setTeammates((prev) => prev.filter((_, i) => i !== index));
+      setTeamSize((prev) => Math.max(min, prev - 1));
+    }
+  };
 
   const refresh = useCallback(async () => {
     if (!id) return;
@@ -122,7 +208,14 @@ export const EventDetailPage: React.FC = () => {
     setBusy(true);
     setError(null);
     try {
-      const { registration } = await createTeam(event.id, currentUser.id, teamName.trim(), projectIdea.trim());
+      const validTeammates = teammates.filter((t) => t.name.trim() && t.email.trim());
+      const { registration } = await createTeam(
+        event.id,
+        currentUser.id,
+        teamName.trim(),
+        projectIdea.trim(),
+        validTeammates,
+      );
       setTeamName("");
       setProjectIdea("");
       await refresh();
@@ -150,6 +243,18 @@ export const EventDetailPage: React.FC = () => {
     const currentUser = requireOnboardedUser();
     if (!currentUser || !event) return;
     if (!teamName.trim()) return setError("Give your team a name.");
+
+    // Validate teammates entered
+    for (let i = 0; i < teammates.length; i++) {
+      const t = teammates[i];
+      if (!t.name.trim()) {
+        return setError(`Please enter the full name for Teammate #${i + 2}.`);
+      }
+      if (!t.email.trim() || !t.email.includes("@")) {
+        return setError(`Please enter a valid college email for Teammate #${i + 2}.`);
+      }
+    }
+
     if (event.fee > 0) {
       setPendingAction("team_create");
       setPaymentModalOpen(true);
@@ -488,28 +593,172 @@ export const EventDetailPage: React.FC = () => {
                       </button>
                     </div>
                     {mode === "create" ? (
-                      <>
-                        <input
-                          value={teamName}
-                          onChange={(e) => setTeamName(e.target.value)}
-                          placeholder="Team name (e.g. CyberVellore)"
-                          className="w-full rounded-lg border border-border bg-ink px-3 py-2 text-sm focus:border-coral focus:outline-none"
-                        />
-                        <textarea
-                          value={projectIdea}
-                          onChange={(e) => setProjectIdea(e.target.value)}
-                          rows={2}
-                          placeholder="Team project idea / problem statement (optional)"
-                          className="w-full rounded-lg border border-border bg-ink px-3 py-2 text-xs focus:border-coral focus:outline-none resize-none placeholder:text-muted"
-                        />
+                      <div className="space-y-3.5">
+                        {/* Team Name */}
+                        <div>
+                          <label className="block text-[11px] font-bold uppercase tracking-wider text-muted mb-1">
+                            Team Name *
+                          </label>
+                          <input
+                            required
+                            value={teamName}
+                            onChange={(e) => setTeamName(e.target.value)}
+                            placeholder="e.g. CyberVellore or NeuralCraft"
+                            className="w-full rounded-xl border border-border bg-ink px-3.5 py-2 text-sm text-cream focus:border-coral focus:outline-none"
+                          />
+                        </div>
+
+                        {/* Team Size Selector */}
+                        <div className="rounded-xl border border-border bg-surface-2/60 p-3 space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-bold text-cream flex items-center gap-1.5">
+                              <Users className="h-3.5 w-3.5 text-coral" /> Total Participants
+                            </span>
+                            <span className="text-[11px] text-muted">
+                              {event.team_min || 2} - {event.team_max || 4} Members
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 pt-0.5">
+                            {Array.from(
+                              { length: Math.max(1, (event.team_max || 4) - Math.max(2, event.team_min || 2) + 1) },
+                              (_, i) => Math.max(2, event.team_min || 2) + i
+                            ).map((size) => (
+                              <button
+                                key={size}
+                                type="button"
+                                onClick={() => handleSetTeamSize(size)}
+                                className={`flex-1 rounded-lg py-1.5 text-xs font-bold transition-all ${
+                                  teamSize === size
+                                    ? "bg-coral text-ink shadow-md"
+                                    : "border border-border bg-ink text-muted hover:text-cream"
+                                }`}
+                              >
+                                {size} Members
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Attached Profiles Section */}
+                        <div className="space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[11px] font-bold uppercase tracking-wider text-muted">
+                              Attached Profiles ({1 + teammates.length})
+                            </span>
+                            <span className="text-[10px] text-coral font-medium">All members registered</span>
+                          </div>
+
+                          {/* Member 1: Leader (You) */}
+                          <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 text-xs space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-amber-300 flex items-center gap-1.5">
+                                <Crown className="h-3.5 w-3.5 text-amber-400" /> Member 1: Leader (You)
+                              </span>
+                              <span className="rounded-full bg-amber-400/20 px-2 py-0.2 text-[9px] font-bold text-amber-300">
+                                Leader
+                              </span>
+                            </div>
+                            <p className="font-semibold text-cream">{user?.name || "Your Profile"}</p>
+                            <p className="text-[11px] text-muted">{user?.email} · {user?.college || "VIT Vellore"}</p>
+                          </div>
+
+                          {/* Teammates Profiles */}
+                          {teammates.map((teammate, idx) => (
+                            <div
+                              key={idx}
+                              className="rounded-xl border border-border bg-surface-2 p-3 text-xs space-y-2"
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-cream flex items-center gap-1.5">
+                                  <UserCheck className="h-3.5 w-3.5 text-coral" /> Member {idx + 2} Profile
+                                </span>
+                                {teamSize > (event.team_min || 2) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveTeammate(idx)}
+                                    className="text-muted hover:text-red-400 p-0.5 rounded transition-colors"
+                                    title="Remove member"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
+                              </div>
+
+                              <div className="space-y-1.5">
+                                <input
+                                  required
+                                  value={teammate.name}
+                                  onChange={(e) => updateTeammate(idx, "name", e.target.value)}
+                                  placeholder="Full Name *"
+                                  className="w-full rounded-lg border border-border bg-ink px-3 py-1.5 text-xs text-cream focus:border-coral focus:outline-none"
+                                />
+                                <input
+                                  required
+                                  type="email"
+                                  value={teammate.email}
+                                  onChange={(e) => updateTeammate(idx, "email", e.target.value)}
+                                  placeholder="College Email Address *"
+                                  className="w-full rounded-lg border border-border bg-ink px-3 py-1.5 text-xs text-cream focus:border-coral focus:outline-none"
+                                />
+                                <div className="grid grid-cols-2 gap-1.5">
+                                  <input
+                                    value={teammate.phone || ""}
+                                    onChange={(e) => updateTeammate(idx, "phone", e.target.value)}
+                                    placeholder="Phone (optional)"
+                                    className="w-full rounded-lg border border-border bg-ink px-2.5 py-1.5 text-[11px] text-cream focus:border-coral focus:outline-none"
+                                  />
+                                  <input
+                                    value={teammate.reg_no || ""}
+                                    onChange={(e) => updateTeammate(idx, "reg_no", e.target.value)}
+                                    placeholder="Reg No. (e.g. 25BCE0703)"
+                                    className="w-full rounded-lg border border-border bg-ink px-2.5 py-1.5 text-[11px] text-cream focus:border-coral focus:outline-none"
+                                  />
+                                </div>
+                                <input
+                                  value={teammate.college || ""}
+                                  onChange={(e) => updateTeammate(idx, "college", e.target.value)}
+                                  placeholder="College / Institution"
+                                  className="w-full rounded-lg border border-border bg-ink px-3 py-1.5 text-[11px] text-cream focus:border-coral focus:outline-none"
+                                />
+                              </div>
+                            </div>
+                          ))}
+
+                          {/* Quick Add Member button */}
+                          {teamSize < (event.team_max || 4) && (
+                            <button
+                              type="button"
+                              onClick={handleAddTeammate}
+                              className="w-full py-2 rounded-xl border border-dashed border-coral/40 bg-coral/5 hover:bg-coral/10 text-xs font-semibold text-coral flex items-center justify-center gap-1.5 transition-colors"
+                            >
+                              <Plus className="h-3.5 w-3.5" /> Add Member {teamSize + 1}
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Project Idea */}
+                        <div>
+                          <label className="block text-[11px] font-bold uppercase tracking-wider text-muted mb-1">
+                            Team Project Idea / Pitch (Optional)
+                          </label>
+                          <textarea
+                            value={projectIdea}
+                            onChange={(e) => setProjectIdea(e.target.value)}
+                            rows={2}
+                            placeholder="Describe what your team will build or the problem statement..."
+                            className="w-full rounded-xl border border-border bg-ink px-3.5 py-2 text-xs text-cream focus:border-coral focus:outline-none resize-none placeholder:text-muted"
+                          />
+                        </div>
+
                         <button
                           onClick={handleCreateTeam}
                           disabled={busy}
-                          className="w-full rounded-xl bg-coral py-2.5 text-sm font-semibold text-ink disabled:opacity-60"
+                          className="w-full rounded-xl bg-coral py-2.5 text-sm font-bold text-ink hover:scale-[1.02] transition-transform disabled:opacity-60 shadow-lg shadow-coral/20"
                         >
-                          {busy ? "Creating..." : "Create team & register"}
+                          {busy ? "Registering team..." : `Register Team (${1 + teammates.length} Members)`}
                         </button>
-                      </>
+                      </div>
                     ) : (
                       <>
                         <input
