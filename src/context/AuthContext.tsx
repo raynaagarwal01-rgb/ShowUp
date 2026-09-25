@@ -1,7 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { supabase, isSupabaseConfigured } from "../lib/supabase";
-import { demoDb, type DemoAccount } from "../lib/demoStorage";
-import { newId } from "../lib/id";
+import { api, ApiError, getToken, setToken, TOKEN_KEY } from "../lib/api";
 import type { Profile, Role } from "../types";
 
 interface SignUpDetails {
@@ -16,7 +14,6 @@ interface SignUpDetails {
 interface AuthContextType {
   user: Profile | null;
   loading: boolean;
-  isDemoMode: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null; profile: Profile | null }>;
   signUp: (
     email: string,
@@ -25,97 +22,80 @@ interface AuthContextType {
   ) => Promise<{ error: string | null; profile: Profile | null }>;
   signOut: () => Promise<void>;
   updateProfile: (patch: Partial<Profile>) => Promise<{ error: string | null }>;
-  /** Supabase: emails a real reset link. Demo mode: just confirms the account
-   * exists — there's no email transport, so the caller collects a new
-   * password directly and calls updatePassword with demoEmail set. */
+  /** Emails a single-use reset link to /reset-password?token=... */
   requestPasswordReset: (email: string) => Promise<{ error: string | null }>;
-  /** Supabase: requires an active recovery session (from the emailed link).
-   * Demo mode: pass demoEmail to look the account up directly. */
-  updatePassword: (newPassword: string, demoEmail?: string) => Promise<{ error: string | null }>;
+  /** Redeems the token from that link, sets the new password, and signs in. */
+  resetPassword: (token: string, newPassword: string) => Promise<{ error: string | null }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-function profileFromAccount(account: DemoAccount): Profile {
-  const { password: _password, ...profile } = account;
-  return profile;
+const errorMessage = (e: unknown): string =>
+  e instanceof Error ? e.message : "Something went wrong. Please try again.";
+
+interface SessionResponse {
+  token: string;
+  user: Profile;
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const isDemoMode = !isSupabaseConfigured;
 
   useEffect(() => {
-    if (isSupabaseConfigured && supabase) {
-      const client = supabase;
-      client.auth.getSession().then(async ({ data: { session } }) => {
-        if (session?.user) {
-          const { data: profile } = await client
-            .from("profiles")
-            .select("*")
-            .eq("id", session.user.id)
-            .maybeSingle();
-          setUser(profile as Profile | null);
-        }
-        setLoading(false);
-      });
+    let cancelled = false;
 
-      const { data: { subscription } } = client.auth.onAuthStateChange(
-        async (_event, session) => {
-          if (session?.user) {
-            const { data: profile } = await client
-              .from("profiles")
-              .select("*")
-              .eq("id", session.user.id)
-              .maybeSingle();
-            setUser(profile as Profile | null);
-          } else {
-            setUser(null);
-          }
-        },
-      );
-
-      return () => subscription.unsubscribe();
-    } else {
-      const sessionId = demoDb.getSession();
-      if (sessionId) {
-        const account = demoDb.getAccounts().find((a) => a.id === sessionId);
-        if (account) setUser(profileFromAccount(account));
+    const restoreSession = async () => {
+      if (!getToken()) {
+        if (!cancelled) setUser(null);
+        return;
       }
-      setLoading(false);
-    }
+      try {
+        const { user: me } = await api<{ user: Profile }>("/auth/me");
+        if (!cancelled) setUser(me);
+      } catch (e) {
+        // An expired/revoked token is discarded; a network blip keeps it so the
+        // next load can try again.
+        if (e instanceof ApiError && e.status === 401) setToken(null);
+        if (!cancelled) setUser(null);
+      }
+    };
+
+    restoreSession().finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+
+    // Keep tabs in sync: signing in or out in one tab updates the others.
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === TOKEN_KEY || e.key === null) void restoreSession();
+    };
+    window.addEventListener("storage", onStorage);
+
+    return () => {
+      cancelled = true;
+      window.removeEventListener("storage", onStorage);
+    };
   }, []);
+
+  const startSession = ({ token, user: profile }: SessionResponse) => {
+    setToken(token);
+    setUser(profile);
+  };
 
   const signIn = async (
     email: string,
     password: string,
   ): Promise<{ error: string | null; profile: Profile | null }> => {
-    if (isSupabaseConfigured && supabase) {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) return { error: error.message, profile: null };
-      if (data.user) {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", data.user.id)
-          .maybeSingle();
-        setUser(profile as Profile | null);
-        return { error: null, profile: profile as Profile | null };
-      }
-      return { error: null, profile: null };
+    try {
+      const session = await api<SessionResponse>("/auth/login", {
+        method: "POST",
+        body: { email, password },
+      });
+      startSession(session);
+      return { error: null, profile: session.user };
+    } catch (e) {
+      return { error: errorMessage(e), profile: null };
     }
-
-    const account = demoDb
-      .getAccounts()
-      .find((a) => a.email.toLowerCase() === email.toLowerCase());
-    if (!account || account.password !== password) {
-      return { error: "Invalid email or password.", profile: null };
-    }
-    demoDb.setSession(account.id);
-    const profile = profileFromAccount(account);
-    setUser(profile);
-    return { error: null, profile };
   };
 
   const signUp = async (
@@ -126,105 +106,65 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (password.length < 6) {
       return { error: "Password must be at least 6 characters.", profile: null };
     }
-
-    if (isSupabaseConfigured && supabase) {
-      // The profiles row is created server-side by the on_auth_user_created
-      // trigger (see supabase_schema.sql) — a client-side insert right here
-      // would fail RLS whenever email confirmation is on, since there's no
-      // confirmed session yet to authenticate it. name/role ride along as
-      // signup metadata for the trigger to read back out.
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { name: details.name, role: details.role } },
+    try {
+      const session = await api<SessionResponse>("/auth/signup", {
+        method: "POST",
+        body: { email, password, ...details },
       });
-      if (error) return { error: error.message, profile: null };
-      if (data.user) {
-        const profile: Profile = { id: data.user.id, email, ...details };
-        setUser(profile);
-        return { error: null, profile };
-      }
-      return { error: null, profile: null };
+      startSession(session);
+      return { error: null, profile: session.user };
+    } catch (e) {
+      return { error: errorMessage(e), profile: null };
     }
-
-    const accounts = demoDb.getAccounts();
-    if (accounts.some((a) => a.email.toLowerCase() === email.toLowerCase())) {
-      return { error: "An account with this email already exists.", profile: null };
-    }
-    const account: DemoAccount = {
-      id: newId("user"),
-      email,
-      password,
-      ...details,
-    };
-    demoDb.saveAccounts([...accounts, account]);
-    demoDb.setSession(account.id);
-    const profile = profileFromAccount(account);
-    setUser(profile);
-    return { error: null, profile };
   };
 
   const signOut = async (): Promise<void> => {
-    if (isSupabaseConfigured && supabase) {
-      await supabase.auth.signOut();
-    } else {
-      demoDb.setSession(null);
+    try {
+      await api("/auth/logout", { method: "POST", body: {} });
+    } catch {
+      // Even if the server can't be reached, sign out locally.
     }
+    setToken(null);
     setUser(null);
   };
 
   const updateProfile = async (patch: Partial<Profile>): Promise<{ error: string | null }> => {
     if (!user) return { error: "Not signed in." };
-
-    if (isSupabaseConfigured && supabase) {
-      const { error } = await supabase.from("profiles").update(patch).eq("id", user.id);
-      if (error) return { error: error.message };
-      setUser({ ...user, ...patch });
+    try {
+      const { user: updated } = await api<{ user: Profile }>("/auth/profile", {
+        method: "PATCH",
+        body: patch,
+      });
+      setUser(updated);
       return { error: null };
+    } catch (e) {
+      return { error: errorMessage(e) };
     }
-
-    const accounts = demoDb.getAccounts();
-    demoDb.saveAccounts(accounts.map((a) => (a.id === user.id ? { ...a, ...patch } : a)));
-    setUser({ ...user, ...patch });
-    return { error: null };
   };
 
   const requestPasswordReset = async (email: string): Promise<{ error: string | null }> => {
-    if (isSupabaseConfigured && supabase) {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
-      return { error: error ? error.message : null };
+    try {
+      await api("/auth/forgot", { method: "POST", body: { email } });
+      return { error: null };
+    } catch (e) {
+      return { error: errorMessage(e) };
     }
-
-    const exists = demoDb
-      .getAccounts()
-      .some((a) => a.email.toLowerCase() === email.toLowerCase());
-    if (!exists) return { error: "No account found with that email." };
-    return { error: null };
   };
 
-  const updatePassword = async (
-    newPassword: string,
-    demoEmail?: string,
-  ): Promise<{ error: string | null }> => {
+  const resetPassword = async (token: string, newPassword: string): Promise<{ error: string | null }> => {
     if (newPassword.length < 6) {
       return { error: "Password must be at least 6 characters." };
     }
-
-    if (isSupabaseConfigured && supabase) {
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      return { error: error ? error.message : null };
+    try {
+      const session = await api<SessionResponse>("/auth/reset", {
+        method: "POST",
+        body: { token, password: newPassword },
+      });
+      startSession(session);
+      return { error: null };
+    } catch (e) {
+      return { error: errorMessage(e) };
     }
-
-    if (!demoEmail) return { error: "Missing email." };
-    const accounts = demoDb.getAccounts();
-    const idx = accounts.findIndex((a) => a.email.toLowerCase() === demoEmail.toLowerCase());
-    if (idx === -1) return { error: "No account found with that email." };
-    const updated = [...accounts];
-    updated[idx] = { ...updated[idx], password: newPassword };
-    demoDb.saveAccounts(updated);
-    return { error: null };
   };
 
   return (
@@ -232,13 +172,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         user,
         loading,
-        isDemoMode,
         signIn,
         signUp,
         signOut,
         updateProfile,
         requestPasswordReset,
-        updatePassword,
+        resetPassword,
       }}
     >
       {children}

@@ -498,14 +498,14 @@ export const EventDetailPage: React.FC = () => {
                         ? notice.error
                           ? "Notification alert"
                           : "✓ Confirmation notification dispatched!"
-                        : "Notification prepared (Demo Mode)"}
+                        : "Notification not sent"}
                     </p>
                     <p className="mt-1 text-muted">
                       {notice.attempted
                         ? notice.error
                           ? `Delivery issue: ${notice.error}`
                           : `Sent to ${[notice.recipientEmail, notice.recipientPhone].filter(Boolean).join(" & ")} (${notice.channels.join(", ")}).`
-                        : `Ready for ${[notice.recipientEmail, notice.recipientPhone].filter(Boolean).join(" & ")} via ${notice.channels.join(", ")}. Logged to console in Demo Mode.`}
+                        : `No email/SMS provider is configured on the server yet, so nothing was sent to ${[notice.recipientEmail, notice.recipientPhone].filter(Boolean).join(" & ")}. Your ticket is available below.`}
                     </p>
                   </div>
                 )}
