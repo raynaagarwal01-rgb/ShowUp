@@ -1,26 +1,36 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { KeyRound, Loader2 } from "lucide-react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { KeyRound } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { Logo } from "../components/Logo";
 import { Field } from "./LoginPage";
 
 export const ResetPasswordPage: React.FC = () => {
-  const { user, loading, isDemoMode, updatePassword } = useAuth();
+  const { resetPassword } = useAuth();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+  // The single-use token from the emailed link: /reset-password?token=...
+  const token = params.get("token");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  // Set when the server rejects the token (expired or already used).
+  const [invalidLink, setInvalidLink] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!token) return;
     if (newPassword !== confirmPassword) return setError("Passwords don't match.");
     setBusy(true);
     setError(null);
-    const { error } = await updatePassword(newPassword);
+    const { error } = await resetPassword(token, newPassword);
     setBusy(false);
-    if (error) return setError(error);
+    if (error) {
+      // A rejected token means the link is dead; anything else is fixable in place.
+      if (/reset link/i.test(error)) return setInvalidLink(true);
+      return setError(error);
+    }
     navigate("/dashboard");
   };
 
@@ -30,25 +40,7 @@ export const ResetPasswordPage: React.FC = () => {
         <Logo />
       </Link>
       <div className="rounded-2xl border border-border bg-surface p-6 sm:p-8">
-        {loading ? (
-          <div className="flex justify-center py-4">
-            <Loader2 className="h-6 w-6 animate-spin text-coral" />
-          </div>
-        ) : isDemoMode ? (
-          <>
-            <h1 className="font-display text-2xl font-bold">This link is for real email resets</h1>
-            <p className="mt-1 text-sm text-muted">
-              In demo mode, password resets happen directly on the forgot-password page — there's
-              no email to click through from.
-            </p>
-            <Link
-              to="/forgot-password"
-              className="mt-6 block w-full rounded-xl bg-coral py-2.5 text-center text-sm font-semibold text-ink"
-            >
-              Go there now
-            </Link>
-          </>
-        ) : !user ? (
+        {!token || invalidLink ? (
           <>
             <h1 className="font-display text-2xl font-bold">This reset link isn't valid</h1>
             <p className="mt-1 text-sm text-muted">
@@ -65,7 +57,7 @@ export const ResetPasswordPage: React.FC = () => {
           <>
             <KeyRound className="h-6 w-6 text-coral" />
             <h1 className="mt-3 font-display text-2xl font-bold">Choose a new password</h1>
-            <p className="mt-1 text-sm text-muted">You're resetting the password for {user.email}.</p>
+            <p className="mt-1 text-sm text-muted">Pick a new password for your ShowUp account.</p>
             <form onSubmit={handleSubmit} className="mt-6 space-y-4">
               <Field label="New password">
                 <input

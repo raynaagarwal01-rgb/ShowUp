@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from "./supabase";
+import { api } from "./api";
 import type { EventRecord, Profile, Registration } from "../types";
 
 export interface NotificationOutcome {
@@ -9,58 +9,64 @@ export interface NotificationOutcome {
   recipientPhone?: string;
 }
 
+interface ChannelResult {
+  channel: "email" | "sms" | "whatsapp";
+  status: "sent" | "skipped_not_configured" | "skipped_no_phone" | "failed";
+  detail?: string;
+}
+
 /**
  * Fires the registration-confirmed notification (email + SMS + WhatsApp).
  * This never throws and never blocks the caller — a notification failing
  * should not undo an otherwise-successful registration.
  *
- * - Supabase mode: invokes the `send-registration-notification` Edge
- *   Function (see supabase/functions/). That function delivers via Resend
- *   for email, Fast2SMS/Twilio for SMS, and Twilio for WhatsApp once configured.
- * - Demo mode: there's no backend to deliver anything for real, so this
- *   logs what *would* be sent instead of silently pretending to send it.
+ * The API server does the delivery (server/notify.js): Resend for email,
+ * 2Factor/Fast2SMS/Twilio for SMS, Twilio for WhatsApp. Each channel is a
+ * no-op until its provider is configured in .env, and this reports honestly
+ * what happened: `attempted` is true only if at least one channel really sent
+ * or failed, and `channels` lists the ones that actually went out.
  */
 export async function notifyRegistrationConfirmed(
-  event: EventRecord,
+  _event: EventRecord,
   profile: Profile,
   registration: Registration,
 ): Promise<NotificationOutcome> {
-  const channels: Array<"email" | "sms" | "whatsapp"> = ["email"];
-  if (profile.phone) channels.push("sms", "whatsapp");
+  const wanted: Array<"email" | "sms" | "whatsapp"> = ["email"];
+  if (profile.phone) wanted.push("sms", "whatsapp");
 
-  const baseOutcome = {
-    channels,
+  const base = {
     recipientEmail: profile.email,
     recipientPhone: profile.phone ?? undefined,
   };
 
-  if (isSupabaseConfigured && supabase) {
-    try {
-      const { error } = await supabase.functions.invoke("send-registration-notification", {
-        body: {
-          event: {
-            id: event.id,
-            title: event.title,
-            start_at: event.start_at,
-            venue: event.venue,
-            city: event.city,
-          },
-          profile: { name: profile.name, email: profile.email, phone: profile.phone ?? null },
-          registration: { id: registration.id, status: registration.status },
-        },
-      });
-      if (error) return { attempted: true, error: error.message, ...baseOutcome };
-      return { attempted: true, ...baseOutcome };
-    } catch (e) {
-      return { attempted: true, error: e instanceof Error ? e.message : "Unknown error", ...baseOutcome };
-    }
-  }
+  try {
+    const { results } = await api<{ results: ChannelResult[] }>("/notifications/registration-confirmed", {
+      method: "POST",
+      body: { registrationId: registration.id },
+    });
 
-  console.info(
-    `[demo] Would notify ${profile.name} <${profile.email}> that "${event.title}" is ${registration.status} ` +
-      (profile.phone
-        ? `— email, SMS, and WhatsApp to ${profile.phone}.`
-        : `— email only (no phone on file for SMS/WhatsApp).`),
-  );
-  return { attempted: false, ...baseOutcome };
+    const sent = results.filter((r) => r.status === "sent").map((r) => r.channel);
+    const failed = results.filter((r) => r.status === "failed");
+
+    if (sent.length > 0) {
+      return { attempted: true, channels: sent, ...base };
+    }
+    if (failed.length > 0) {
+      return {
+        attempted: true,
+        channels: wanted,
+        error: failed[0].detail || `${failed[0].channel} delivery failed`,
+        ...base,
+      };
+    }
+    // Every channel was skipped: no provider is configured on the server.
+    return { attempted: false, channels: wanted, ...base };
+  } catch (e) {
+    return {
+      attempted: true,
+      channels: wanted,
+      error: e instanceof Error ? e.message : "Unknown error",
+      ...base,
+    };
+  }
 }
