@@ -75,9 +75,9 @@ export const EventLocationModal: React.FC<EventLocationModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Calculate distance if user coordinates are known
+  // Calculate distance if user coordinates and a real destination are known
   let estimate: TravelEstimate | null = null;
-  if (userCoords) {
+  if (userCoords && destCoords) {
     const km = calculateDistanceKm(
       userCoords.lat,
       userCoords.lng,
@@ -98,15 +98,17 @@ export const EventLocationModal: React.FC<EventLocationModalProps> = ({
 
   const gmapsUrl = getGoogleMapsDirectionsUrl(event, userCoords || undefined);
 
-  // OpenStreetMap embed coordinates bounding box
+  // OpenStreetMap embed coordinates bounding box (only when we have a real pin)
   const delta = 0.012;
-  const mapEmbedUrl = `https://www.openstreetmap.org/export/embed.html?bbox=${(
-    destCoords.lng - delta
-  ).toFixed(4)}%2C${(destCoords.lat - delta).toFixed(4)}%2C${(
-    destCoords.lng + delta
-  ).toFixed(4)}%2C${(destCoords.lat + delta).toFixed(4)}&layer=mapnik&marker=${
-    destCoords.lat
-  }%2C${destCoords.lng}`;
+  const mapEmbedUrl = destCoords
+    ? `https://www.openstreetmap.org/export/embed.html?bbox=${(
+        destCoords.lng - delta
+      ).toFixed(4)}%2C${(destCoords.lat - delta).toFixed(4)}%2C${(
+        destCoords.lng + delta
+      ).toFixed(4)}%2C${(destCoords.lat + delta).toFixed(4)}&layer=mapnik&marker=${
+        destCoords.lat
+      }%2C${destCoords.lng}`
+    : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
@@ -217,7 +219,13 @@ export const EventLocationModal: React.FC<EventLocationModalProps> = ({
               )}
             </div>
 
-            {estimate ? (
+            {!destCoords ? (
+              <div className="text-xs text-muted">
+                We don't have precise map coordinates for this venue yet, so we can't
+                estimate distance or travel time. Use "Open in Google Maps" below —
+                it will search by the venue's address instead.
+              </div>
+            ) : estimate ? (
               <div className="space-y-3">
                 {/* Distance & Time Highlight */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
@@ -282,32 +290,34 @@ export const EventLocationModal: React.FC<EventLocationModalProps> = ({
             )}
 
             {/* Quick city selectors fallback */}
-            <div className="pt-2 border-t border-border/40">
-              <span className="text-[11px] font-medium text-muted block mb-2">
-                Calculate distance from a specific city:
-              </span>
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  { key: "vellore", label: "VIT / Vellore" },
-                  { key: "chennai", label: "Chennai" },
-                  { key: "bengaluru", label: "Bengaluru" },
-                  { key: "hyderabad", label: "Hyderabad" },
-                  { key: "mumbai", label: "Mumbai" },
-                  { key: "delhi", label: "Delhi / NCR" },
-                  { key: "coimbatore", label: "Coimbatore" },
-                  { key: "tirupati", label: "Tirupati" },
-                ].map((c) => (
-                  <button
-                    key={c.key}
-                    type="button"
-                    onClick={() => handleManualCitySelect(c.key)}
-                    className="rounded-lg border border-border bg-surface px-2.5 py-1 text-xs text-cream/80 hover:border-coral hover:text-coral transition-colors"
-                  >
-                    {c.label}
-                  </button>
-                ))}
+            {destCoords && (
+              <div className="pt-2 border-t border-border/40">
+                <span className="text-[11px] font-medium text-muted block mb-2">
+                  Calculate distance from a specific city:
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { key: "vellore", label: "VIT / Vellore" },
+                    { key: "chennai", label: "Chennai" },
+                    { key: "bengaluru", label: "Bengaluru" },
+                    { key: "hyderabad", label: "Hyderabad" },
+                    { key: "mumbai", label: "Mumbai" },
+                    { key: "delhi", label: "Delhi / NCR" },
+                    { key: "coimbatore", label: "Coimbatore" },
+                    { key: "tirupati", label: "Tirupati" },
+                  ].map((c) => (
+                    <button
+                      key={c.key}
+                      type="button"
+                      onClick={() => handleManualCitySelect(c.key)}
+                      className="rounded-lg border border-border bg-surface px-2.5 py-1 text-xs text-cream/80 hover:border-coral hover:text-coral transition-colors"
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Interactive OpenStreetMap Preview */}
@@ -316,18 +326,28 @@ export const EventLocationModal: React.FC<EventLocationModalProps> = ({
               <span className="font-semibold uppercase tracking-wider text-[11px]">
                 Interactive Map View
               </span>
-              <span>Latitude: {destCoords.lat.toFixed(4)}, Longitude: {destCoords.lng.toFixed(4)}</span>
+              {destCoords && (
+                <span>Latitude: {destCoords.lat.toFixed(4)}, Longitude: {destCoords.lng.toFixed(4)}</span>
+              )}
             </div>
             <div className="relative h-64 w-full rounded-2xl overflow-hidden border border-border bg-ink">
-              <iframe
-                title="Event Venue Location Map"
-                src={mapEmbedUrl}
-                className="w-full h-full border-0"
-                loading="lazy"
-              />
-              <div className="pointer-events-none absolute bottom-2 left-2 rounded-md bg-black/80 px-2 py-1 text-[10px] text-cream/70 backdrop-blur-sm">
-                Map data © OpenStreetMap contributors
-              </div>
+              {destCoords && mapEmbedUrl ? (
+                <>
+                  <iframe
+                    title="Event Venue Location Map"
+                    src={mapEmbedUrl}
+                    className="w-full h-full border-0"
+                    loading="lazy"
+                  />
+                  <div className="pointer-events-none absolute bottom-2 left-2 rounded-md bg-black/80 px-2 py-1 text-[10px] text-cream/70 backdrop-blur-sm">
+                    Map data © OpenStreetMap contributors
+                  </div>
+                </>
+              ) : (
+                <div className="flex h-full w-full items-center justify-center px-6 text-center text-xs text-muted">
+                  No map preview available for this venue yet — use "Open in Google Maps" below.
+                </div>
+              )}
             </div>
           </div>
         </div>
