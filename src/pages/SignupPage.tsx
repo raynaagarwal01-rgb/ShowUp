@@ -6,7 +6,7 @@ import { Field } from "./LoginPage";
 import type { Role } from "../types";
 
 export const SignupPage: React.FC = () => {
-  const { signUp, isDemoMode } = useAuth();
+  const { signUp } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [name, setName] = useState("");
@@ -36,12 +36,6 @@ export const SignupPage: React.FC = () => {
       <div className="rounded-2xl border border-border bg-surface p-6 sm:p-8">
         <h1 className="font-display text-2xl font-bold">Create your account</h1>
         <p className="mt-1 text-sm text-muted">One profile for every college event across India.</p>
-
-        {isDemoMode && (
-          <p className="mt-4 rounded-lg border border-plum/30 bg-plum/10 px-3 py-2 text-xs text-cream/80">
-            Demo mode: no email or backend needed — this account is saved in your browser only.
-          </p>
-        )}
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <Field label="Full name">

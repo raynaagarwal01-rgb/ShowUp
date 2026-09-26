@@ -1,7 +1,10 @@
-// Script to fetch live campus events from Unstop and sync to Feastify Supabase database
+// Script to fetch live campus events from Unstop and sync to the ShowUp MySQL database
 import fs from "node:fs";
 
-const CREATOR_ID = "4a16f3fb-0423-46dc-b93d-74542a64dbb1"; // Rayna Agarwal's profile ID
+// The organizer profile that will own the synced events, looked up by email in
+// the database. Defaults to the placeholder organizer that `npm run db:seed`
+// creates; set SYNC_CREATOR_EMAIL to use a real organizer account instead.
+const CREATOR_EMAIL = process.env.SYNC_CREATOR_EMAIL || "organizer@showup.local";
 
 const STATE_CITY_MAPPINGS = [
   { match: /bengaluru|bangalore/i, state: "Karnataka", city: "Bengaluru" },
@@ -84,7 +87,12 @@ function getBannerHue(category) {
 
 function escapeSql(str) {
   if (!str) return "''";
-  return "'" + String(str).replace(/'/g, "''") + "'";
+  return "'" + String(str).replace(/\\/g, "\\\\").replace(/'/g, "''") + "'";
+}
+
+// DATETIME literal in UTC, e.g. '2026-10-02 09:00:00.000'
+function sqlDate(iso) {
+  return "'" + iso.replace("T", " ").replace("Z", "") + "'";
 }
 
 async function fetchCategory(category) {
@@ -173,7 +181,7 @@ async function main() {
       team_max: opp.regnRequirements?.max_team_size || 1,
       banner_hue: getBannerHue(category),
       status: "published",
-      created_by: CREATOR_ID,
+      created_by: CREATOR_EMAIL,
     };
 
     feastifyEvents.push(eventRecord);
@@ -183,10 +191,9 @@ async function main() {
   const uniqueEvents = Array.from(new Map(feastifyEvents.map((e) => [e.id, e])).values());
   console.log(`Prepared ${uniqueEvents.length} unique events.`);
 
-  // Generate SQL batch insert
+  // Generate a MySQL batch upsert (re-running refreshes existing rows by id)
   const valuesSql = uniqueEvents
     .map((e) => {
-      const rulesArrayLiteral = "ARRAY[" + e.rules.map((r) => escapeSql(r)).join(", ") + "]::text[]";
       return `(
         ${escapeSql(e.id)},
         ${escapeSql(e.club_id)},
@@ -194,40 +201,44 @@ async function main() {
         ${escapeSql(e.title)},
         ${escapeSql(e.tagline)},
         ${escapeSql(e.description)},
-        ${rulesArrayLiteral},
+        ${escapeSql(JSON.stringify(e.rules))},
         ${escapeSql(e.category)},
         ${escapeSql(e.scope)},
         ${escapeSql(e.state)},
         ${escapeSql(e.city)},
         ${escapeSql(e.college)},
         ${escapeSql(e.venue)},
-        ${escapeSql(e.start_at)}::timestamptz,
-        ${escapeSql(e.end_at)}::timestamptz,
-        ${escapeSql(e.registration_deadline)}::timestamptz,
+        ${sqlDate(e.start_at)},
+        ${sqlDate(e.end_at)},
+        ${sqlDate(e.registration_deadline)},
         ${e.capacity},
         ${e.fee},
         ${e.team_min},
         ${e.team_max},
         ${e.banner_hue},
         'published',
-        '${CREATOR_ID}'::uuid
+        @creator
       )`;
     })
     .join(",\n");
 
   const fullSql = `
-    INSERT INTO public.events (
+    -- Load with:  mysql -u root -p showup < scripts/unstop_events.sql
+    SET @creator = (SELECT id FROM profiles WHERE email = ${escapeSql(CREATOR_EMAIL)} LIMIT 1);
+
+    INSERT INTO events (
       id, club_id, club_name, title, tagline, description, rules, category, scope,
       state, city, college, venue, start_at, end_at, registration_deadline,
       capacity, fee, team_min, team_max, banner_hue, status, created_by
-    ) VALUES 
+    ) VALUES
     ${valuesSql}
-    ON CONFLICT (id) DO UPDATE SET
-      title = EXCLUDED.title,
-      description = EXCLUDED.description,
-      registration_deadline = EXCLUDED.registration_deadline,
-      start_at = EXCLUDED.start_at,
-      end_at = EXCLUDED.end_at;
+    AS incoming
+    ON DUPLICATE KEY UPDATE
+      title = incoming.title,
+      description = incoming.description,
+      registration_deadline = incoming.registration_deadline,
+      start_at = incoming.start_at,
+      end_at = incoming.end_at;
   `;
 
   fs.writeFileSync("scripts/unstop_events.sql", fullSql, "utf8");

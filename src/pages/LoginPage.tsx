@@ -5,7 +5,7 @@ import { Logo } from "../components/Logo";
 import { isOnboardingComplete } from "../lib/profile";
 
 export const LoginPage: React.FC = () => {
-  const { signIn, isDemoMode } = useAuth();
+  const { signIn } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [email, setEmail] = useState("");
@@ -42,12 +42,6 @@ export const LoginPage: React.FC = () => {
           <div className="mt-4 rounded-xl border border-coral/30 bg-coral/10 px-3.5 py-2.5 text-xs text-coral-light flex items-center gap-2">
             <span>🔒 Please sign in to explore and register for events.</span>
           </div>
-        )}
-
-        {isDemoMode && (
-          <p className="mt-4 rounded-lg border border-plum/30 bg-plum/10 px-3 py-2 text-xs text-cream/80">
-            Demo mode: this account lives only in your browser. Sign up first if you haven't.
-          </p>
         )}
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
