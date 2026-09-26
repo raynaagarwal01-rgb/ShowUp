@@ -1,27 +1,16 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { CheckCircle2, KeyRound } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { Logo } from "../components/Logo";
 import { Field } from "./LoginPage";
 
 export const ForgotPasswordPage: React.FC = () => {
-  const { requestPasswordReset, updatePassword, isDemoMode } = useAuth();
-  const navigate = useNavigate();
+  const { requestPasswordReset } = useAuth();
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
-  // Supabase mode: this is the end state — an email is on its way.
   const [emailSent, setEmailSent] = useState(false);
-
-  // Demo mode: no email transport, so once the account is confirmed to
-  // exist we collect the new password right here instead of pretending
-  // to send something nobody will receive.
-  const [demoStep, setDemoStep] = useState<"email" | "newPassword">("email");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [demoDone, setDemoDone] = useState(false);
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,22 +19,7 @@ export const ForgotPasswordPage: React.FC = () => {
     const { error } = await requestPasswordReset(email);
     setBusy(false);
     if (error) return setError(error);
-    if (isDemoMode) {
-      setDemoStep("newPassword");
-    } else {
-      setEmailSent(true);
-    }
-  };
-
-  const handleDemoPasswordSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newPassword !== confirmPassword) return setError("Passwords don't match.");
-    setBusy(true);
-    setError(null);
-    const { error } = await updatePassword(newPassword, email);
-    setBusy(false);
-    if (error) return setError(error);
-    setDemoDone(true);
+    setEmailSent(true);
   };
 
   return (
@@ -54,19 +28,7 @@ export const ForgotPasswordPage: React.FC = () => {
         <Logo />
       </Link>
       <div className="rounded-2xl border border-border bg-surface p-6 sm:p-8">
-        {demoDone ? (
-          <>
-            <CheckCircle2 className="h-6 w-6 text-success" />
-            <h1 className="mt-3 font-display text-2xl font-bold">Password updated</h1>
-            <p className="mt-1 text-sm text-muted">You can sign in with your new password now.</p>
-            <button
-              onClick={() => navigate("/login")}
-              className="mt-6 w-full rounded-xl bg-coral py-2.5 text-sm font-semibold text-ink transition-transform hover:scale-[1.02]"
-            >
-              Back to sign in
-            </button>
-          </>
-        ) : emailSent ? (
+        {emailSent ? (
           <>
             <CheckCircle2 className="h-6 w-6 text-success" />
             <h1 className="mt-3 font-display text-2xl font-bold">Check your email</h1>
@@ -81,55 +43,11 @@ export const ForgotPasswordPage: React.FC = () => {
               Back to sign in
             </Link>
           </>
-        ) : demoStep === "newPassword" ? (
-          <>
-            <KeyRound className="h-6 w-6 text-coral" />
-            <h1 className="mt-3 font-display text-2xl font-bold">Choose a new password</h1>
-            <p className="mt-1 text-sm text-muted">
-              Demo mode has no email to send — set your new password directly.
-            </p>
-            <form onSubmit={handleDemoPasswordSubmit} className="mt-6 space-y-4">
-              <Field label="New password">
-                <input
-                  type="password"
-                  required
-                  minLength={6}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none"
-                  placeholder="At least 6 characters"
-                />
-              </Field>
-              <Field label="Confirm new password">
-                <input
-                  type="password"
-                  required
-                  minLength={6}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none"
-                  placeholder="Re-enter the password"
-                />
-              </Field>
-              {error && <p className="text-sm text-danger">{error}</p>}
-              <button
-                type="submit"
-                disabled={busy}
-                className="w-full rounded-xl bg-coral py-2.5 text-sm font-semibold text-ink transition-transform hover:scale-[1.02] disabled:opacity-60"
-              >
-                {busy ? "Saving..." : "Update password"}
-              </button>
-            </form>
-          </>
         ) : (
           <>
             <KeyRound className="h-6 w-6 text-coral" />
             <h1 className="mt-3 font-display text-2xl font-bold">Forgot your password?</h1>
-            <p className="mt-1 text-sm text-muted">
-              {isDemoMode
-                ? "Enter the email you signed up with."
-                : "We'll email you a link to reset it."}
-            </p>
+            <p className="mt-1 text-sm text-muted">We'll email you a link to reset it.</p>
             <form onSubmit={handleEmailSubmit} className="mt-6 space-y-4">
               <Field label="Email">
                 <input
@@ -147,7 +65,7 @@ export const ForgotPasswordPage: React.FC = () => {
                 disabled={busy}
                 className="w-full rounded-xl bg-coral py-2.5 text-sm font-semibold text-ink transition-transform hover:scale-[1.02] disabled:opacity-60"
               >
-                {busy ? "Sending..." : isDemoMode ? "Continue" : "Send reset link"}
+                {busy ? "Sending..." : "Send reset link"}
               </button>
             </form>
             <p className="mt-6 text-center text-sm text-muted">
