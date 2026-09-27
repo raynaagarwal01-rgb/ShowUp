@@ -37,7 +37,7 @@ export const PublicProfilePage: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
   const { user: currentUser } = useAuth();
 
-  const targetId = userId || currentUser?.id || "rayna-25bce0703";
+  const targetId = userId || currentUser?.id;
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [registrations, setRegistrations] = useState<RegistrationWithEvent[]>([]);
@@ -53,6 +53,10 @@ export const PublicProfilePage: React.FC = () => {
 
   useEffect(() => {
     async function load() {
+      if (!targetId) {
+        setLoading(false);
+        return;
+      }
       setLoading(true);
       try {
         const data = await getUserPublicProfile(targetId);

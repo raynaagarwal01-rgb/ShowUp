@@ -70,8 +70,10 @@ export const KNOWN_CITIES: Record<string, GeoCoordinates> = {
 
 /**
  * Resolves destination coordinates for an event based on college, venue, or city.
+ * Returns null when none of these are recognized — callers must not guess a
+ * location in that case, since a wrong pin is worse than no pin.
  */
-export function getEventCoordinates(event: EventRecord): GeoCoordinates {
+export function getEventCoordinates(event: EventRecord): GeoCoordinates | null {
   const collegeKey = event.college.toLowerCase().trim();
   for (const [key, coords] of Object.entries(KNOWN_CAMPUSES)) {
     if (collegeKey.includes(key)) {
@@ -99,8 +101,9 @@ export function getEventCoordinates(event: EventRecord): GeoCoordinates {
     return KNOWN_CITIES[cityKey];
   }
 
-  // Fallback default: Vellore / Central India
-  return { lat: 12.9692, lng: 79.1559, name: `${event.venue}, ${event.city}` };
+  // Unrecognized college, venue, and city: we have no real coordinates for
+  // this event. Let the caller show that plainly instead of pointing at Vellore.
+  return null;
 }
 
 /**

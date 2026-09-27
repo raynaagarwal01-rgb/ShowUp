@@ -192,57 +192,7 @@ export async function answerEventQuestion(
 // --- Winners ----------------------------------------------------------------------------
 
 export async function listEventWinners(eventId: string): Promise<EventWinner[]> {
-  try {
-    const winners = await api<EventWinner[]>(`/events/${seg(eventId)}/winners`);
-    if (winners.length > 0) return winners;
-  } catch {
-    // fall through to the sample winners below
-  }
-
-  // Sample winners for demonstration on flagship events
-  const defaultWinners: EventWinner[] = [
-    {
-      id: "win-1-" + eventId.slice(0, 8),
-      event_id: eventId,
-      position: 1,
-      winner_title: "1st Place · Grand Champion",
-      team_or_participant_name: "Team CyberVellore (Rayna Agarwal & Team)",
-      college: "Vellore Institute of Technology, Vellore",
-      prize_amount: "₹25,000 + Gold Trophy",
-      project_title: "ShowUp: Automated Campus Events Platform",
-      project_link: "https://github.com/raynaagarwal01-rgb/showup",
-      announced_by: "graVITas '26 Executive Jury",
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: "win-2-" + eventId.slice(0, 8),
-      event_id: eventId,
-      position: 2,
-      winner_title: "2nd Place · 1st Runner Up",
-      team_or_participant_name: "Team ByteCraft",
-      college: "IIT Madras",
-      prize_amount: "₹15,000 + Silver Trophy",
-      project_title: "NeuroQueue: Real-time Crowd Flow Optimizer",
-      project_link: "https://github.com",
-      announced_by: "graVITas '26 Executive Jury",
-      created_at: new Date().toISOString(),
-    },
-    {
-      id: "win-3-" + eventId.slice(0, 8),
-      event_id: eventId,
-      position: 3,
-      winner_title: "3rd Place · 2nd Runner Up",
-      team_or_participant_name: "Team QuantumForge",
-      college: "BITS Pilani",
-      prize_amount: "₹10,000 + Bronze Trophy",
-      project_title: "AeroTelemetry IoT Rig",
-      project_link: "https://github.com",
-      announced_by: "graVITas '26 Executive Jury",
-      created_at: new Date().toISOString(),
-    },
-  ];
-
-  return defaultWinners;
+  return api<EventWinner[]>(`/events/${seg(eventId)}/winners`);
 }
 
 export async function publishEventWinner(
@@ -303,26 +253,8 @@ export async function getUserPublicProfile(userId: string): Promise<{
   try {
     return await api(`/users/${seg(userId)}/public-profile`);
   } catch (e) {
-    // Signed out, or no such user: show the placeholder profile below, as before.
-    if (!isStatus(e, 401, 404)) throw e;
+    // Signed out, or no such user: the page shows its own "not found" state.
+    if (isStatus(e, 401, 404)) return null;
+    throw e;
   }
-
-  // Fallback for Rayna Agarwal or default demo user
-  const profile: Profile = {
-    id: userId || "rayna-25bce0703",
-    name: "Rayna Agarwal",
-    email: "rayna.agarwal2025@vitstudent.ac.in",
-    role: "student",
-    college: "Vellore Institute of Technology (VIT), Vellore",
-    branch: "Computer Science and Engineering (CSE)",
-    year: "2nd Year / B.Tech",
-    reg_no: "25BCE0703",
-    city: "Vellore",
-    state: "Tamil Nadu",
-    bio: "Tech innovator, hackathon builder, and active participant at VIT Vellore graVITas '26.",
-    github: "https://github.com/raynaagarwal01-rgb",
-    linkedin: "https://linkedin.com/in/rayna-agarwal",
-  };
-
-  return { profile, registrations: [], wonEvents: [] };
 }
