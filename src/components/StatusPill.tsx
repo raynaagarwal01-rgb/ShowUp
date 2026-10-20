@@ -24,7 +24,6 @@ export const StatusPill: React.FC<{ label: string; tone: Tone; className?: strin
 
 export function registrationTone(status: string): Tone {
   if (status === "confirmed") return "success";
-  if (status === "waitlisted") return "warning";
   if (status === "cancelled") return "danger";
   return "muted";
 }

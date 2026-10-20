@@ -8,13 +8,9 @@ import { EventsPage } from "./pages/EventsPage";
 import { EventDetailPage } from "./pages/EventDetailPage";
 import { LoginPage } from "./pages/LoginPage";
 import { SignupPage } from "./pages/SignupPage";
-import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
-import { ResetPasswordPage } from "./pages/ResetPasswordPage";
-import { OnboardingPage } from "./pages/OnboardingPage";
 import { DashboardPage } from "./pages/DashboardPage";
-import { FestHubPage } from "./pages/FestHubPage";
 import { CampusMapPage } from "./pages/CampusMapPage";
-import { PublicProfilePage } from "./pages/PublicProfilePage";
+import { ProfilePage } from "./pages/ProfilePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { OrganizerDashboardPage } from "./pages/organizer/OrganizerDashboardPage";
 import { CreateEventPage } from "./pages/organizer/CreateEventPage";
@@ -29,21 +25,12 @@ function App() {
         <main className="flex-1">
           <Routes>
             <Route path="/" element={<LandingPage />} />
-            <Route
-              path="/fests/gravitas26"
-              element={
-                <ProtectedRoute>
-                  <FestHubPage />
-                </ProtectedRoute>
-              }
-            />
             <Route path="/campus-map" element={<CampusMapPage />} />
-            <Route path="/u/:userId" element={<PublicProfilePage />} />
             <Route
               path="/profile"
               element={
                 <ProtectedRoute>
-                  <PublicProfilePage />
+                  <ProfilePage />
                 </ProtectedRoute>
               }
             />
@@ -65,9 +52,6 @@ function App() {
             />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignupPage />} />
-            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-            <Route path="/reset-password" element={<ResetPasswordPage />} />
-            <Route path="/onboarding" element={<OnboardingPage />} />
             <Route
               path="/dashboard"
               element={

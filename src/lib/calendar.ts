@@ -1,20 +1,29 @@
 import type { EventRecord } from "../types";
 
-function formatUtcDate(isoString: string): string {
-  const d = new Date(isoString);
-  return d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+// Events store only a start time, so calendar entries assume two hours.
+const DEFAULT_DURATION_MS = 2 * 60 * 60 * 1000;
+
+function formatUtcDate(date: Date): string {
+  return date.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
 }
 
+function eventTimes(event: EventRecord) {
+  const start = new Date(event.event_date);
+  return { start: formatUtcDate(start), end: formatUtcDate(new Date(start.getTime() + DEFAULT_DURATION_MS)) };
+}
+
+const eventLocation = (event: EventRecord) =>
+  [event.venue, event.organizer_college].filter(Boolean).join(", ");
+
 export function getGoogleCalendarUrl(event: EventRecord): string {
-  const startUtc = formatUtcDate(event.start_at);
-  const endUtc = formatUtcDate(event.end_at);
-  const location = `${event.venue}, ${event.college}, ${event.city}`;
-  const details = `${event.tagline}\n\n${event.description}\n\nVenue: ${location}\nRegistration via ShowUp: ${window.location.origin}/events/${event.id}`;
+  const { start, end } = eventTimes(event);
+  const location = eventLocation(event);
+  const details = `${event.description}\n\nVenue: ${location}\nRegistration via ShowUp: ${window.location.origin}/events/${event.id}`;
 
   const params = new URLSearchParams({
     action: "TEMPLATE",
     text: event.title,
-    dates: `${startUtc}/${endUtc}`,
+    dates: `${start}/${end}`,
     details,
     location,
   });
@@ -23,12 +32,11 @@ export function getGoogleCalendarUrl(event: EventRecord): string {
 }
 
 export function downloadIcs(event: EventRecord): void {
-  const startUtc = formatUtcDate(event.start_at);
-  const endUtc = formatUtcDate(event.end_at);
-  const nowUtc = formatUtcDate(new Date().toISOString());
-  const location = `${event.venue}, ${event.college}, ${event.city}`.replace(/[,;]/g, " ");
+  const { start, end } = eventTimes(event);
+  const nowUtc = formatUtcDate(new Date());
+  const location = eventLocation(event).replace(/[,;]/g, " ");
   const cleanTitle = event.title.replace(/[\r\n]/g, " ");
-  const cleanSummary = (event.tagline || event.title).replace(/[\r\n]/g, " ");
+  const cleanSummary = `Hosted by ${event.organizer_name}`.replace(/[\r\n,;]/g, " ");
 
   const icsContent = [
     "BEGIN:VCALENDAR",
@@ -39,8 +47,8 @@ export function downloadIcs(event: EventRecord): void {
     "BEGIN:VEVENT",
     `UID:showup-${event.id}@showup.app`,
     `DTSTAMP:${nowUtc}`,
-    `DTSTART:${startUtc}`,
-    `DTEND:${endUtc}`,
+    `DTSTART:${start}`,
+    `DTEND:${end}`,
     `SUMMARY:${cleanTitle}`,
     `DESCRIPTION:${cleanSummary}`,
     `LOCATION:${location}`,

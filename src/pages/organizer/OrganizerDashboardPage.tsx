@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Plus,
@@ -7,84 +7,53 @@ import {
   Pencil,
   Trash2,
   AlertTriangle,
-  Sparkles,
+  CalendarPlus,
   CheckCircle2,
   X,
 } from "lucide-react";
-import {
-  createSampleEventForOrganizer,
-  deleteEvent,
-  getSeatStats,
-  listOrganizerEvents,
-} from "../../lib/db";
+import { deleteEvent, listEvents } from "../../lib/api";
 import type { EventRecord } from "../../types";
-import { formatDateRange, formatFee } from "../../lib/format";
+import { formatEventDate, formatFee } from "../../lib/format";
 import { useAuth } from "../../context/AuthContext";
-
-interface Row {
-  event: EventRecord;
-  confirmed: number;
-  capacity: number;
-}
 
 export const OrganizerDashboardPage: React.FC = () => {
   const { user } = useAuth();
-  const [rows, setRows] = useState<Row[]>([]);
+  const [events, setEvents] = useState<EventRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  const [creatingSample, setCreatingSample] = useState(false);
   const [eventToDelete, setEventToDelete] = useState<EventRecord | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
 
-  const fetchEvents = async () => {
+  // GET /api/events already includes registered_count (COUNT ... GROUP BY),
+  // so the organizer's own events just need filtering by organizer_id.
+  const fetchEvents = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
-      const events = await listOrganizerEvents(user.id);
-      const withStats = await Promise.all(
-        events.map(async (event) => {
-          const stats = await getSeatStats(event.id);
-          return { event, confirmed: stats.confirmed, capacity: stats.capacity };
-        }),
-      );
-      setRows(withStats);
+      const all = await listEvents();
+      setEvents(all.filter((e) => e.organizer_id === user.id));
     } catch (err) {
-      console.error("Failed to load organizer events:", err);
+      setNotification(err instanceof Error ? err.message : "Failed to load your events.");
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     fetchEvents();
-  }, [user]);
-
-  const handleCreateSample = async () => {
-    if (!user) return;
-    setCreatingSample(true);
-    try {
-      const sample = await createSampleEventForOrganizer(user);
-      setNotification(`✨ Created sample event "${sample.title}" with sample teams and pitches!`);
-      await fetchEvents();
-      setTimeout(() => setNotification(null), 5000);
-    } catch (err) {
-      console.error("Failed to create sample event:", err);
-    } finally {
-      setCreatingSample(false);
-    }
-  };
+  }, [fetchEvents]);
 
   const handleConfirmDelete = async () => {
     if (!eventToDelete) return;
     setDeleting(true);
     try {
-      await deleteEvent(eventToDelete.id, user?.id);
-      setNotification(`🗑️ Successfully deleted event "${eventToDelete.title}".`);
+      await deleteEvent(eventToDelete.id);
+      setNotification(`Deleted event "${eventToDelete.title}".`);
       setEventToDelete(null);
       await fetchEvents();
       setTimeout(() => setNotification(null), 5000);
     } catch (err) {
-      console.error("Failed to delete event:", err);
+      setNotification(err instanceof Error ? err.message : "Failed to delete event.");
     } finally {
       setDeleting(false);
     }
@@ -116,16 +85,6 @@ export const OrganizerDashboardPage: React.FC = () => {
           <p className="mt-1 text-cream/70">Every event your club is running, in one place.</p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
-          <button
-            type="button"
-            disabled={creatingSample}
-            onClick={handleCreateSample}
-            className="flex items-center gap-1.5 rounded-full border border-amber-500/50 bg-amber-500/10 px-4 py-2.5 text-sm font-semibold text-amber-300 hover:bg-amber-500/20 transition-all disabled:opacity-50"
-            title="Generate a sample hackathon event with pre-filled teams and ideas"
-          >
-            <Sparkles className="h-4 w-4 text-amber-400" />
-            <span>{creatingSample ? "Creating sample..." : "Create Sample Event"}</span>
-          </button>
           <Link
             to="/organizer/new"
             className="flex items-center gap-1.5 rounded-full bg-coral px-4 py-2.5 text-sm font-semibold text-ink transition-transform hover:scale-[1.03]"
@@ -139,37 +98,28 @@ export const OrganizerDashboardPage: React.FC = () => {
       <div className="mt-8 space-y-3">
         {loading ? (
           <p className="text-sm text-muted">Loading events...</p>
-        ) : rows.length === 0 ? (
+        ) : events.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border py-14 px-6 text-center space-y-4 bg-surface/40">
             <div className="mx-auto w-12 h-12 rounded-2xl bg-coral/10 border border-coral/30 flex items-center justify-center text-coral">
-              <Sparkles className="h-6 w-6" />
+              <CalendarPlus className="h-6 w-6" />
             </div>
             <div>
               <h3 className="text-base font-bold text-cream">You haven't created an event yet</h3>
               <p className="mt-1 text-xs text-muted max-w-md mx-auto">
-                Get started by generating a ready-to-test sample hackathon with pre-filled teams and project pitches, or create your event from scratch.
+                Create your first event — students will be able to find it and register right away.
               </p>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-              <button
-                type="button"
-                disabled={creatingSample}
-                onClick={handleCreateSample}
-                className="flex items-center gap-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 px-4 py-2.5 text-xs font-bold text-ink shadow-lg shadow-amber-900/20 transition-all disabled:opacity-50"
-              >
-                <Sparkles className="h-4 w-4" />
-                <span>{creatingSample ? "Generating..." : "✨ Create Sample Hackathon Event"}</span>
-              </button>
               <Link
                 to="/organizer/new"
-                className="flex items-center gap-1.5 rounded-xl border border-border bg-surface-2 px-4 py-2.5 text-xs font-semibold text-cream hover:border-coral/50 transition-colors"
+                className="flex items-center gap-1.5 rounded-xl bg-coral px-4 py-2.5 text-xs font-bold text-ink transition-colors"
               >
-                <Plus className="h-4 w-4 text-coral" /> Create Custom Event
+                <Plus className="h-4 w-4" /> Create Event
               </Link>
             </div>
           </div>
         ) : (
-          rows.map(({ event, confirmed, capacity }) => (
+          events.map((event) => (
             <div
               key={event.id}
               className="flex flex-col gap-4 rounded-2xl border border-border bg-surface p-5 sm:flex-row sm:items-center sm:justify-between transition-colors hover:border-border/80"
@@ -182,10 +132,10 @@ export const OrganizerDashboardPage: React.FC = () => {
                   <p className="font-display font-semibold text-cream truncate">{event.title}</p>
                 </div>
                 <p className="mt-1 text-xs text-muted">
-                  {formatDateRange(event.start_at, event.end_at)} · {event.venue} · {formatFee(event.fee)}
+                  {formatEventDate(event.event_date)} · {event.venue} · {formatFee(event.fee)}
                 </p>
                 <p className="mt-1 text-xs text-coral-light font-medium">
-                  {confirmed}/{capacity} confirmed registrations
+                  {event.registered_count ?? 0}/{event.capacity} confirmed participants
                 </p>
               </div>
 
@@ -244,8 +194,7 @@ export const OrganizerDashboardPage: React.FC = () => {
 
             <div className="rounded-xl border border-border bg-surface-2 p-3 text-[11px] text-muted space-y-1">
               <p>• All attendee registrations &amp; tickets will be wiped.</p>
-              <p>• Team rosters and project pitch submissions will be removed.</p>
-              <p>• Event will disappear from the public campus directory.</p>
+              <p>• Teams, announcements, questions and winners will be removed (ON DELETE CASCADE).</p>
             </div>
 
             <div className="flex items-center justify-end gap-2.5 pt-2">

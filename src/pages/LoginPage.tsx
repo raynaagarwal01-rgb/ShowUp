@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { Logo } from "../components/Logo";
-import { isOnboardingComplete } from "../lib/profile";
 
 export const LoginPage: React.FC = () => {
   const { signIn } = useAuth();
@@ -17,16 +16,10 @@ export const LoginPage: React.FC = () => {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const { error, profile } = await signIn(email, password);
+    const { error, user } = await signIn(email, password);
     setBusy(false);
     if (error) return setError(error);
-
-    const redirect = params.get("redirect") || "/dashboard";
-    if (profile && !isOnboardingComplete(profile)) {
-      navigate(`/onboarding?next=${encodeURIComponent(redirect)}`);
-    } else {
-      navigate(redirect);
-    }
+    navigate(params.get("redirect") || (user?.role === "organizer" ? "/organizer" : "/dashboard"));
   };
 
   return (
@@ -65,12 +58,6 @@ export const LoginPage: React.FC = () => {
               placeholder="••••••••"
             />
           </Field>
-          <div className="text-right">
-            <Link to="/forgot-password" className="text-xs font-medium text-coral">
-              Forgot password?
-            </Link>
-          </div>
-
           {error && <p className="text-sm text-danger">{error}</p>}
 
           <button

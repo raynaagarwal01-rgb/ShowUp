@@ -1,13 +1,12 @@
 import QRCode from "qrcode";
 import type { EventRecord } from "../types";
-import { formatDateRange } from "./format";
+import { formatEventDate } from "./format";
 
 export interface CertificateParams {
   event: EventRecord;
   attendeeName: string;
   attendeeCollege?: string;
-  registrationId?: string;
-  checkedInAt?: string;
+  registrationId?: number;
   isPreview?: boolean;
 }
 
@@ -18,7 +17,7 @@ export async function drawCertificateCanvas(
     event,
     attendeeName,
     attendeeCollege = "",
-    registrationId = "SAMPLE-2026",
+    registrationId,
     isPreview = false,
   } = params;
 
@@ -81,7 +80,7 @@ export async function drawCertificateCanvas(
   ctx.textAlign = "center";
   ctx.fillStyle = "#f59e0b";
   ctx.font = "bold 16px sans-serif";
-  ctx.fillText("★   SHOWUP OFFICIAL CREDENTIAL SYSTEM   ★", width / 2, 130);
+  ctx.fillText("★   SHOWUP · DEMO CERTIFICATE   ★", width / 2, 130);
 
   ctx.fillStyle = "#ffffff";
   ctx.font = "bold 52px serif";
@@ -133,10 +132,10 @@ export async function drawCertificateCanvas(
   ctx.stroke();
 
   // Recipient College / Institution
-  const collegeName = attendeeCollege || event.college || "VIT Vellore";
+  const collegeName = attendeeCollege || event.organizer_college || "";
   ctx.fillStyle = "#cbd5e1";
   ctx.font = "italic 22px serif";
-  ctx.fillText(`representing ${collegeName}`, width / 2, 430);
+  if (collegeName) ctx.fillText(`representing ${collegeName}`, width / 2, 430);
 
   // 5. Body Citation
   ctx.fillStyle = "#94a3b8";
@@ -157,13 +156,13 @@ export async function drawCertificateCanvas(
   // Organization & Date Line
   ctx.fillStyle = "#cbd5e1";
   ctx.font = "500 20px sans-serif";
-  const orgLine = `Organized by ${event.club_name} · ${event.college}`;
+  const orgLine = ["Organized by " + event.organizer_name, event.organizer_college].filter(Boolean).join(" · ");
   ctx.fillText(orgLine, width / 2, 605);
 
   ctx.fillStyle = "#f59e0b";
   ctx.font = "600 19px sans-serif";
   ctx.fillText(
-    `Held on ${formatDateRange(event.start_at, event.end_at)}`,
+    `Held on ${formatEventDate(event.event_date)}`,
     width / 2,
     645
   );
@@ -180,21 +179,21 @@ export async function drawCertificateCanvas(
   ctx.textAlign = "left";
   ctx.fillStyle = "#64748b";
   ctx.font = "bold 14px sans-serif";
-  ctx.fillText("CREDENTIAL IDENTIFIER", innerPad + 60, 800);
+  ctx.fillText("REGISTRATION ID", innerPad + 60, 800);
 
   ctx.fillStyle = "#f8fafc";
   ctx.font = "600 18px monospace";
-  const displayRegId = `FST-${(registrationId || "SAMPLE").slice(0, 12).toUpperCase()}`;
+  const displayRegId = registrationId ? `#${registrationId}` : "SAMPLE";
   ctx.fillText(displayRegId, innerPad + 60, 830);
 
   ctx.fillStyle = "#64748b";
   ctx.font = "bold 14px sans-serif";
-  ctx.fillText("STATUS & VERIFICATION", innerPad + 60, 875);
+  ctx.fillText("ATTENDANCE", innerPad + 60, 875);
 
   ctx.fillStyle = isPreview ? "#fbbf24" : "#10b981";
   ctx.font = "bold 16px sans-serif";
   ctx.fillText(
-    isPreview ? "● PREVIEW (UNLOCKS ON CHECK-IN)" : "✔ VERIFIED ATTENDANCE",
+    isPreview ? "● PREVIEW (UNLOCKS ON CHECK-IN)" : "✔ CHECKED IN AT THE EVENT",
     innerPad + 60,
     905
   );
@@ -206,7 +205,7 @@ export async function drawCertificateCanvas(
     month: "short",
     day: "numeric",
   });
-  ctx.fillText(`Issued: ${dateIssued} · Immutable Record`, innerPad + 60, 935);
+  ctx.fillText(`Generated: ${dateIssued} · demo, not an official document`, innerPad + 60, 935);
 
   // 6B. Center: Gold Foil ShowUp Seal
   const sealX = width / 2;
@@ -243,8 +242,8 @@ export async function drawCertificateCanvas(
   ctx.font = "bold 13px sans-serif";
   ctx.fillText("SHOWUP", sealX, sealY - 14);
   ctx.font = "bold 10px sans-serif";
-  ctx.fillText("★ OFFICIAL ★", sealX, sealY + 2);
-  ctx.fillText("SEAL OF MERIT", sealX, sealY + 18);
+  ctx.fillText("★ DEMO ★", sealX, sealY + 2);
+  ctx.fillText("CERTIFICATE", sealX, sealY + 18);
 
   // Ribbon tails below seal
   ctx.fillStyle = "#b45309";
@@ -270,8 +269,8 @@ export async function drawCertificateCanvas(
   const qrY = 785;
 
   try {
-    const verifyUrl = `${window.location.origin}/events/${event.id}`;
-    const qrDataUrl = await QRCode.toDataURL(verifyUrl, {
+    const eventUrl = `${window.location.origin}/events/${event.id}`;
+    const qrDataUrl = await QRCode.toDataURL(eventUrl, {
       margin: 1,
       width: qrSize,
       color: {
@@ -303,7 +302,7 @@ export async function drawCertificateCanvas(
   ctx.textAlign = "center";
   ctx.fillStyle = "#94a3b8";
   ctx.font = "12px sans-serif";
-  ctx.fillText("Scan to Verify Credential", qrX + qrSize / 2, qrY + qrSize + 22);
+  ctx.fillText("Scan to open the event page", qrX + qrSize / 2, qrY + qrSize + 22);
 
   // Signature Block
   const sigX = qrX - 160;
@@ -318,11 +317,11 @@ export async function drawCertificateCanvas(
   // Faux elegant handwritten signature
   ctx.fillStyle = "#fde68a";
   ctx.font = "italic 26px serif";
-  ctx.fillText("ShowUp Committee", sigX, sigY - 12);
+  ctx.fillText(event.organizer_name, sigX, sigY - 12);
 
   ctx.fillStyle = "#64748b";
   ctx.font = "12px sans-serif";
-  ctx.fillText("AUTHORIZED CONVENOR", sigX, sigY + 22);
+  ctx.fillText("EVENT ORGANIZER", sigX, sigY + 22);
 
   // 7. Watermark for Preview Mode
   if (isPreview) {

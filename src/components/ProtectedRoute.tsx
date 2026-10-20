@@ -1,7 +1,6 @@
 import React from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { isOnboardingComplete } from "../lib/profile";
 import { Loader2 } from "lucide-react";
 
 const Spinner: React.FC = () => (
@@ -10,6 +9,9 @@ const Spinner: React.FC = () => (
   </div>
 );
 
+// These only decide what the browser shows. The real access checks happen on
+// the server (requireAuth / requireOrganizer in server/auth.js).
+
 export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
@@ -17,9 +19,6 @@ export const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ childr
   if (loading) return <Spinner />;
   if (!user) {
     return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />;
-  }
-  if (!isOnboardingComplete(user)) {
-    return <Navigate to={`/onboarding?next=${encodeURIComponent(location.pathname)}`} replace />;
   }
   return <>{children}</>;
 };
@@ -32,11 +31,6 @@ export const OrganizerRoute: React.FC<{ children: React.ReactNode }> = ({ childr
   if (!user) {
     return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />;
   }
-  if (!isOnboardingComplete(user)) {
-    return <Navigate to={`/onboarding?next=${encodeURIComponent(location.pathname)}`} replace />;
-  }
-  if (user.role !== "organizer" && user.role !== "admin") {
-    return <Navigate to="/dashboard" replace />;
-  }
+  if (user.role !== "organizer") return <Navigate to="/dashboard" replace />;
   return <>{children}</>;
 };

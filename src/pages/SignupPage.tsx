@@ -13,6 +13,8 @@ export const SignupPage: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState<Role>("student");
+  const [college, setCollege] = useState("");
+  const [regNo, setRegNo] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -20,12 +22,17 @@ export const SignupPage: React.FC = () => {
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const { error } = await signUp(email, password, { name, role });
+    const { error } = await signUp({
+      name,
+      email,
+      password,
+      role,
+      college: college.trim() || undefined,
+      reg_no: role === "student" ? regNo.trim() || undefined : undefined,
+    });
     setBusy(false);
     if (error) return setError(error);
-
-    const redirect = params.get("redirect") || (role === "organizer" ? "/organizer" : "/dashboard");
-    navigate(`/onboarding?next=${encodeURIComponent(redirect)}`);
+    navigate(params.get("redirect") || (role === "organizer" ? "/organizer" : "/dashboard"));
   };
 
   return (
@@ -38,9 +45,10 @@ export const SignupPage: React.FC = () => {
         <p className="mt-1 text-sm text-muted">One profile for every college event across India.</p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          <Field label="Full name">
+          <Field label={role === "organizer" ? "Club or organizer name" : "Full name"}>
             <input
               required
+              maxLength={100}
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none"
@@ -84,6 +92,27 @@ export const SignupPage: React.FC = () => {
               ))}
             </div>
           </Field>
+
+          <Field label="College (optional)">
+            <input
+              value={college}
+              maxLength={150}
+              onChange={(e) => setCollege(e.target.value)}
+              className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none"
+              placeholder="e.g. VIT Vellore"
+            />
+          </Field>
+          {role === "student" && (
+            <Field label="Registration number (optional)">
+              <input
+                value={regNo}
+                maxLength={30}
+                onChange={(e) => setRegNo(e.target.value)}
+                className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm uppercase focus:border-coral focus:outline-none"
+                placeholder="e.g. 25BCE0703"
+              />
+            </Field>
+          )}
 
           {error && <p className="text-sm text-danger">{error}</p>}
 

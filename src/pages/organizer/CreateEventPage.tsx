@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { AlertTriangle, Trash2 } from "lucide-react";
-import { createEvent, deleteEvent, getEvent, listEvents, updateEvent } from "../../lib/db";
-import type { EventCategory, EventScope } from "../../types";
+import { createEvent, deleteEvent, getEvent, updateEvent } from "../../lib/api";
+import type { EventCategory, EventInput } from "../../types";
 import { Field } from "../LoginPage";
 import { useAuth } from "../../context/AuthContext";
-import { INDIA_STATES } from "../../lib/indiaStates";
-import { CitySelect } from "../../components/CitySelect";
 
 const CATEGORIES: EventCategory[] = ["Hackathon", "Workshop", "Competition", "Cultural", "Talk"];
 
+const inputClass =
+  "w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none";
+
+/** ISO string -> value for <input type="datetime-local"> in local time. */
 function toLocalInputValue(iso: string): string {
   const d = new Date(iso);
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -18,17 +20,10 @@ function toLocalInputValue(iso: string): string {
 
 const emptyForm = {
   title: "",
-  tagline: "",
   description: "",
-  rules: "",
   category: "Workshop" as EventCategory,
-  scope: "both" as EventScope,
-  state: "",
-  city: "",
-  college: "",
   venue: "",
-  start_at: "",
-  end_at: "",
+  event_date: "",
   registration_deadline: "",
   capacity: 50,
   fee: 0,
@@ -39,58 +34,24 @@ const emptyForm = {
 export const CreateEventPage: React.FC = () => {
   const { user } = useAuth();
   const { id } = useParams<{ id: string }>();
-  const isEditing = Boolean(id);
+  const eventId = id ? Number(id) : null;
   const navigate = useNavigate();
-  const [form, setForm] = useState(() => ({
-    ...emptyForm,
-    state: user?.state ?? "",
-    city: user?.city ?? "",
-    college: user?.college ?? "",
-  }));
+  const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [knownColleges, setKnownColleges] = useState<string[]>([]);
-
-  const handleDelete = async () => {
-    if (!id) return;
-    const confirmed = window.confirm(
-      `Are you sure you want to permanently delete "${form.title || "this event"}"?\n\nThis will remove the event, registrations, team rosters, and tickets permanently.`
-    );
-    if (!confirmed) return;
-    setDeleting(true);
-    try {
-      await deleteEvent(id, user?.id);
-      navigate("/organizer");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete event.");
-      setDeleting(false);
-    }
-  };
 
   useEffect(() => {
-    listEvents().then((events) => {
-      setKnownColleges(Array.from(new Set(events.map((e) => e.college))).sort());
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!id) return;
-    getEvent(id).then((event) => {
-      if (!event) return;
+    if (!eventId) return;
+    getEvent(eventId).then((event) => {
+      if (!event) return setError("Event not found.");
+      if (event.organizer_id !== user?.id) return setError("You can only edit events you created.");
       setForm({
         title: event.title,
-        tagline: event.tagline,
         description: event.description,
-        rules: event.rules.join("\n"),
         category: event.category,
-        scope: event.scope,
-        state: event.state,
-        city: event.city,
-        college: event.college,
         venue: event.venue,
-        start_at: toLocalInputValue(event.start_at),
-        end_at: toLocalInputValue(event.end_at),
+        event_date: toLocalInputValue(event.event_date),
         registration_deadline: toLocalInputValue(event.registration_deadline),
         capacity: event.capacity,
         fee: event.fee,
@@ -98,55 +59,43 @@ export const CreateEventPage: React.FC = () => {
         team_max: event.team_max,
       });
     });
-  }, [id]);
+  }, [eventId, user?.id]);
 
   const set = <K extends keyof typeof emptyForm>(key: K, value: (typeof emptyForm)[K]) =>
     setForm((f) => ({ ...f, [key]: value }));
 
+  const handleDelete = async () => {
+    if (!eventId) return;
+    const confirmed = window.confirm(
+      `Permanently delete "${form.title || "this event"}"?\n\nAll registrations, teams, announcements, questions and winners for it are deleted too.`,
+    );
+    if (!confirmed) return;
+    setDeleting(true);
+    try {
+      await deleteEvent(eventId);
+      navigate("/organizer");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete event.");
+      setDeleting(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
-    if (form.team_max < form.team_min) {
-      return setError("Max team size can't be smaller than min team size.");
+    if (form.team_max < form.team_min) return setError("Max team size can't be smaller than min team size.");
+    if (new Date(form.registration_deadline) > new Date(form.event_date)) {
+      return setError("The registration deadline must be before the event starts.");
     }
-    if (!form.state) return setError("Select which state this event is in.");
-    if (!form.city.trim()) return setError("Enter which city this event is in.");
-    if (!form.college.trim()) return setError("Enter which college this event is hosted at.");
     setSaving(true);
     setError(null);
     try {
-      const payload = {
-        club_id: user.id,
-        club_name: user.name,
-        title: form.title,
-        tagline: form.tagline,
-        description: form.description,
-        rules: form.rules.split("\n").map((r) => r.trim()).filter(Boolean),
-        category: form.category,
-        scope: form.scope,
-        state: form.state,
-        city: form.city,
-        college: form.college.trim(),
-        venue: form.venue,
-        start_at: new Date(form.start_at).toISOString(),
-        end_at: new Date(form.end_at).toISOString(),
+      const payload: EventInput = {
+        ...form,
+        event_date: new Date(form.event_date).toISOString(),
         registration_deadline: new Date(form.registration_deadline).toISOString(),
-        capacity: Number(form.capacity),
-        fee: Number(form.fee),
-        team_min: Number(form.team_min),
-        team_max: Number(form.team_max),
-        banner_hue: Math.floor(Math.random() * 360),
-        status: "published" as const,
-        created_by: user.id,
       };
-
-      if (isEditing && id) {
-        await updateEvent(id, payload);
-        navigate(`/organizer/events/${id}`);
-      } else {
-        const created = await createEvent(payload);
-        navigate(`/organizer/events/${created.id}`);
-      }
+      const saved = eventId ? await updateEvent(eventId, payload) : await createEvent(payload);
+      navigate(`/organizer/events/${saved.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not save this event.");
     } finally {
@@ -156,51 +105,30 @@ export const CreateEventPage: React.FC = () => {
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6">
-      <h1 className="font-display text-3xl font-bold">{isEditing ? "Edit event" : "Create an event"}</h1>
-      <p className="mt-1 text-cream/70">Students will see this the moment you publish it.</p>
+      <h1 className="font-display text-3xl font-bold">{eventId ? "Edit event" : "Create an event"}</h1>
+      <p className="mt-1 text-cream/70">
+        Students will see this the moment you publish it. Your organizer name
+        {user?.college ? ` and college (${user.college})` : ""} are shown as the host.
+      </p>
 
       <form onSubmit={handleSubmit} className="mt-8 space-y-4 rounded-2xl border border-border bg-surface p-6">
         <Field label="Title">
-          <input
-            required
-            value={form.title}
-            onChange={(e) => set("title", e.target.value)}
-            className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none"
-          />
+          <input required maxLength={200} value={form.title} onChange={(e) => set("title", e.target.value)} className={inputClass} />
         </Field>
-        <Field label="Tagline (one line)">
-          <input
-            required
-            value={form.tagline}
-            onChange={(e) => set("tagline", e.target.value)}
-            className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none"
-          />
-        </Field>
-        <Field label="Full description">
+        <Field label="Description (include any rules here)">
           <textarea
             required
-            rows={4}
+            rows={5}
+            maxLength={5000}
             value={form.description}
             onChange={(e) => set("description", e.target.value)}
-            className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none"
-          />
-        </Field>
-        <Field label="Rules (one per line)">
-          <textarea
-            rows={3}
-            value={form.rules}
-            onChange={(e) => set("rules", e.target.value)}
-            className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none"
+            className={inputClass}
           />
         </Field>
 
         <div className="grid grid-cols-2 gap-4">
           <Field label="Category">
-            <select
-              value={form.category}
-              onChange={(e) => set("category", e.target.value as EventCategory)}
-              className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none"
-            >
+            <select value={form.category} onChange={(e) => set("category", e.target.value as EventCategory)} className={inputClass}>
               {CATEGORIES.map((c) => (
                 <option key={c} value={c}>
                   {c}
@@ -208,121 +136,58 @@ export const CreateEventPage: React.FC = () => {
               ))}
             </select>
           </Field>
-          <Field label="Who can register">
-            <select
-              value={form.scope}
-              onChange={(e) => set("scope", e.target.value as EventScope)}
-              className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none"
-            >
-              <option value="internal">Internal only</option>
-              <option value="external">External only</option>
-              <option value="both">Both</option>
-            </select>
-          </Field>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="State">
-            <select
-              required
-              value={form.state}
-              onChange={(e) => {
-                set("state", e.target.value);
-                set("city", "");
-              }}
-              className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none"
-            >
-              <option value="" disabled>
-                Select state
-              </option>
-              {INDIA_STATES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="City">
-            <CitySelect state={form.state} value={form.city} onChange={(c) => set("city", c)} />
-          </Field>
-        </div>
-
-        <Field label="College">
-          <input
-            required
-            list="known-colleges"
-            value={form.college}
-            onChange={(e) => set("college", e.target.value)}
-            placeholder="e.g. VIT Vellore"
-            className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none"
-          />
-          <datalist id="known-colleges">
-            {knownColleges.map((c) => (
-              <option key={c} value={c} />
-            ))}
-          </datalist>
-        </Field>
-
-        <Field label="Venue">
-          <input
-            required
-            value={form.venue}
-            onChange={(e) => set("venue", e.target.value)}
-            placeholder="e.g. Innovation Lab, Block C"
-            className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none"
-          />
-        </Field>
-
-        <div className="grid grid-cols-2 gap-4">
-          <Field label="Starts">
+          <Field label="Venue">
             <input
               required
-              type="datetime-local"
-              value={form.start_at}
-              onChange={(e) => set("start_at", e.target.value)}
-              className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none"
-            />
-          </Field>
-          <Field label="Ends">
-            <input
-              required
-              type="datetime-local"
-              value={form.end_at}
-              onChange={(e) => set("end_at", e.target.value)}
-              className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none"
+              maxLength={200}
+              value={form.venue}
+              onChange={(e) => set("venue", e.target.value)}
+              placeholder="e.g. Innovation Lab, Block C"
+              className={inputClass}
             />
           </Field>
         </div>
 
-        <Field label="Registration deadline">
-          <input
-            required
-            type="datetime-local"
-            value={form.registration_deadline}
-            onChange={(e) => set("registration_deadline", e.target.value)}
-            className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none"
-          />
-        </Field>
+        <div className="grid grid-cols-2 gap-4">
+          <Field label="Event date & time">
+            <input
+              required
+              type="datetime-local"
+              value={form.event_date}
+              onChange={(e) => set("event_date", e.target.value)}
+              className={inputClass}
+            />
+          </Field>
+          <Field label="Registration deadline">
+            <input
+              required
+              type="datetime-local"
+              value={form.registration_deadline}
+              onChange={(e) => set("registration_deadline", e.target.value)}
+              className={inputClass}
+            />
+          </Field>
+        </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <Field label="Capacity (seats or teams)">
+          <Field label="Capacity (number of participants)">
             <input
               required
               type="number"
               min={1}
               value={form.capacity}
               onChange={(e) => set("capacity", Number(e.target.value))}
-              className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none"
+              className={inputClass}
             />
           </Field>
-          <Field label="Fee in ₹ (0 = free)">
+          <Field label="Fee in ₹ (0 = free, shown only)">
             <input
               required
               type="number"
               min={0}
               value={form.fee}
               onChange={(e) => set("fee", Number(e.target.value))}
-              className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none"
+              className={inputClass}
             />
           </Field>
         </div>
@@ -335,7 +200,7 @@ export const CreateEventPage: React.FC = () => {
               min={1}
               value={form.team_min}
               onChange={(e) => set("team_min", Number(e.target.value))}
-              className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none"
+              className={inputClass}
             />
           </Field>
           <Field label="Max team size (1 = solo)">
@@ -345,7 +210,7 @@ export const CreateEventPage: React.FC = () => {
               min={1}
               value={form.team_max}
               onChange={(e) => set("team_max", Number(e.target.value))}
-              className="w-full rounded-xl border border-border bg-ink px-3.5 py-2.5 text-sm focus:border-coral focus:outline-none"
+              className={inputClass}
             />
           </Field>
         </div>
@@ -357,17 +222,17 @@ export const CreateEventPage: React.FC = () => {
           disabled={saving}
           className="w-full rounded-xl bg-coral py-2.5 text-sm font-semibold text-ink transition-transform hover:scale-[1.02] disabled:opacity-60"
         >
-          {saving ? "Saving..." : isEditing ? "Save changes" : "Publish event"}
+          {saving ? "Saving..." : eventId ? "Save changes" : "Publish event"}
         </button>
       </form>
 
-      {isEditing && (
+      {eventId && (
         <div className="mt-8 rounded-2xl border border-red-500/30 bg-red-500/5 p-6 space-y-3">
           <div className="flex items-center gap-2 text-sm font-bold text-red-400">
             <AlertTriangle className="h-4 w-4" /> Danger Zone: Delete Event
           </div>
           <p className="text-xs text-muted leading-relaxed">
-            Deleting this event will permanently wipe all registrations, confirmed spots, teams, and tickets associated with it. This action cannot be reversed.
+            Deleting this event permanently removes its registrations, teams, announcements, questions and winners.
           </p>
           <button
             type="button"

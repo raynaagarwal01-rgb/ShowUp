@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Users, MapPin, Clock, Bookmark, Navigation } from "lucide-react";
 import type { EventRecord } from "../types";
-import { formatDateRange, formatFee, formatTeamSize, timeUntil } from "../lib/format";
+import { bannerHue, formatEventDate, formatFee, formatTeamSize, timeUntil } from "../lib/format";
 import { StatusPill } from "./StatusPill";
 import { useBookmarks } from "../lib/bookmarks";
 import { EventLocationModal } from "./EventLocationModal";
@@ -12,6 +12,8 @@ export const EventCard: React.FC<{ event: EventRecord }> = ({ event }) => {
   const { isBookmarked, toggleBookmark } = useBookmarks();
   const [mapOpen, setMapOpen] = useState(false);
   const saved = isBookmarked(event.id);
+  const hue = bannerHue(event);
+  const spotsLeft = Math.max(event.capacity - (event.registered_count ?? 0), 0);
 
   const handleCardClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
@@ -35,12 +37,12 @@ export const EventCard: React.FC<{ event: EventRecord }> = ({ event }) => {
         <div
           className="relative flex h-28 items-end justify-between p-4"
           style={{
-            background: `linear-gradient(135deg, hsl(${event.banner_hue} 70% 22%), hsl(${event.banner_hue} 70% 12%))`,
+            background: `linear-gradient(135deg, hsl(${hue} 70% 22%), hsl(${hue} 70% 12%))`,
           }}
         >
           <StatusPill label={event.category} tone="coral" />
           <div className="flex items-center gap-2">
-            <StatusPill label={event.city} tone="muted" />
+            <StatusPill label={spotsLeft > 0 ? `${spotsLeft} spots left` : "Full"} tone={spotsLeft > 0 ? "muted" : "danger"} />
             <button
               type="button"
               onClick={(e) => {
@@ -71,10 +73,10 @@ export const EventCard: React.FC<{ event: EventRecord }> = ({ event }) => {
               </Link>
             </h3>
             <p className="text-xs text-muted">
-              {event.club_name} · {event.college}
+              {[event.organizer_name, event.organizer_college].filter(Boolean).join(" · ")}
             </p>
           </div>
-          <p className="line-clamp-2 text-sm text-cream/70">{event.tagline}</p>
+          <p className="line-clamp-2 text-sm text-cream/70">{event.description}</p>
           <div className="mt-auto flex flex-wrap items-center justify-between gap-y-1.5 pt-2 text-xs text-muted">
             <div className="flex items-center gap-1.5 flex-wrap">
               <span className="flex items-center gap-1 font-medium text-cream/90">
@@ -100,7 +102,7 @@ export const EventCard: React.FC<{ event: EventRecord }> = ({ event }) => {
           </div>
           <div className="flex items-center justify-between border-t border-border pt-3 text-sm">
             <div className="flex flex-col">
-              <span className="font-medium text-cream/80">{formatDateRange(event.start_at, event.end_at)}</span>
+              <span className="font-medium text-cream/80">{formatEventDate(event.event_date)}</span>
               {event.registration_deadline && (
                 <span className="flex items-center gap-1 text-[11px] text-muted">
                   <Clock className="h-3 w-3 text-coral" /> Reg: {timeUntil(event.registration_deadline)}

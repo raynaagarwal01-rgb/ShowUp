@@ -1,54 +1,55 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
+  Award,
+  Bookmark,
   Building2,
   CalendarDays,
-  MapPin,
-  Ticket,
-  Users,
+  Check,
   CheckCircle2,
   Clock,
-  Bookmark,
+  Copy,
   Download,
-  Award,
+  MapPin,
   Megaphone,
   MessageSquare,
-  FileText,
-  Trophy,
   Navigation,
-  UserPlus,
-  Crown,
-  Plus,
-  Trash2,
-  UserCheck,
+  Settings,
+  Ticket,
+  Trophy,
+  Users,
 } from "lucide-react";
+import { createTeam, getEvent, joinTeam, listMyRegistrations, registerSolo } from "../lib/api";
+import type { EventRecord, MyRegistration } from "../types";
 import {
-  createTeam,
-  getEvent,
-  getMyRegistrationForEvent,
-  getSeatStats,
-  joinTeam,
-  registerSolo,
-  type SeatStats,
-} from "../lib/db";
-import type { EventRecord, Registration, TeammateInput } from "../types";
-import { formatDateRange, formatFee, formatTeamSize, timeUntil } from "../lib/format";
-import { StatusPill, registrationTone } from "../components/StatusPill";
+  bannerHue,
+  deadlinePassed,
+  formatEventDate,
+  formatFee,
+  formatTeamSize,
+  isTeamEvent,
+  timeUntil,
+} from "../lib/format";
+import { StatusPill } from "../components/StatusPill";
 import { useAuth } from "../context/AuthContext";
-import { isOnboardingComplete } from "../lib/profile";
-import { notifyRegistrationConfirmed, type NotificationOutcome } from "../lib/notifications";
 import { useBookmarks } from "../lib/bookmarks";
 import { AddToCalendarButton } from "../components/AddToCalendarButton";
 import { downloadTicketImage } from "../lib/ticketExport";
-import { PaymentModal } from "../components/PaymentModal";
 import { EventAnnouncementsTab } from "../components/EventAnnouncementsTab";
 import { EventQnATab } from "../components/EventQnATab";
-import { TeammatesTab } from "../components/TeammatesTab";
 import { CertificateModal } from "../components/CertificateModal";
 import { EventWinnersTab } from "../components/EventWinnersTab";
-import { ODLetterModal } from "../components/ODLetterModal";
 import { TeamHubModal } from "../components/TeamHubModal";
 import { EventLocationModal } from "../components/EventLocationModal";
+
+type Tab = "overview" | "announcements" | "qna" | "winners";
+
+const TABS: Array<{ id: Tab; label: string; icon?: React.ElementType }> = [
+  { id: "overview", label: "Overview" },
+  { id: "announcements", label: "Announcements", icon: Megaphone },
+  { id: "qna", label: "Q&A", icon: MessageSquare },
+  { id: "winners", label: "Winners & Results", icon: Trophy },
+];
 
 export const EventDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -56,104 +57,34 @@ export const EventDetailPage: React.FC = () => {
   const navigate = useNavigate();
 
   const [event, setEvent] = useState<EventRecord | null>(null);
-  const [seats, setSeats] = useState<SeatStats | null>(null);
-  const [myRegistration, setMyRegistration] = useState<Registration | null>(null);
+  const [myRegistration, setMyRegistration] = useState<MyRegistration | null>(null);
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<"create" | "join">("create");
   const [teamName, setTeamName] = useState("");
-  const [projectIdea, setProjectIdea] = useState("");
   const [joinCodeInput, setJoinCodeInput] = useState("");
-  const [teamSize, setTeamSize] = useState<number>(2);
-  const [teammates, setTeammates] = useState<TeammateInput[]>([
-    { name: "", email: "", phone: "", college: user?.college || "", reg_no: "" },
-  ]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<NotificationOutcome | null>(null);
-  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
-  const [pendingAction, setPendingAction] = useState<"solo" | "team_create" | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "teammates" | "announcements" | "qna" | "winners">("overview");
+  const [success, setSuccess] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [certModalOpen, setCertModalOpen] = useState(false);
-  const [odModalOpen, setOdModalOpen] = useState(false);
   const [teamModalOpen, setTeamModalOpen] = useState(false);
   const [locationModalOpen, setLocationModalOpen] = useState(false);
   const { isBookmarked, toggleBookmark } = useBookmarks();
 
-  useEffect(() => {
-    if (event && event.team_max > 1) {
-      const minSize = Math.max(2, event.team_min || 2);
-      setTeamSize(minSize);
-      const initialTeammates: TeammateInput[] = [];
-      for (let i = 1; i < minSize; i++) {
-        initialTeammates.push({
-          name: "",
-          email: "",
-          phone: "",
-          college: user?.college || "",
-          reg_no: "",
-        });
-      }
-      setTeammates(initialTeammates);
-    }
-  }, [event?.id, event?.team_min, event?.team_max, user?.college]);
-
-  const handleSetTeamSize = (newSize: number) => {
-    setTeamSize(newSize);
-    const needed = Math.max(0, newSize - 1);
-    setTeammates((prev) => {
-      const next = [...prev];
-      while (next.length < needed) {
-        next.push({
-          name: "",
-          email: "",
-          phone: "",
-          college: user?.college || "",
-          reg_no: "",
-        });
-      }
-      return next.slice(0, needed);
-    });
-  };
-
-  const updateTeammate = (index: number, field: keyof TeammateInput, value: string) => {
-    setTeammates((prev) => {
-      const updated = [...prev];
-      updated[index] = { ...updated[index], [field]: value };
-      return updated;
-    });
-  };
-
-  const handleAddTeammate = () => {
-    if (!event) return;
-    const max = event.team_max || 4;
-    if (teamSize < max) {
-      handleSetTeamSize(teamSize + 1);
-    }
-  };
-
-  const handleRemoveTeammate = (index: number) => {
-    if (!event) return;
-    const min = event.team_min || 2;
-    if (teamSize > min) {
-      setTeammates((prev) => prev.filter((_, i) => i !== index));
-      setTeamSize((prev) => Math.max(min, prev - 1));
-    }
-  };
-
   const refresh = useCallback(async () => {
     if (!id) return;
-    const [ev, st] = await Promise.all([getEvent(id), getSeatStats(id)]);
+    const ev = await getEvent(id);
     setEvent(ev);
-    setSeats(st);
-    if (user) {
-      const reg = await getMyRegistrationForEvent(id, user.id);
-      setMyRegistration(reg);
+    if (ev && user?.role === "student") {
+      const mine = await listMyRegistrations();
+      setMyRegistration(mine.find((r) => r.event_id === ev.id) ?? null);
     }
     setLoading(false);
   }, [id, user]);
 
   useEffect(() => {
-    refresh();
+    refresh().catch(() => setLoading(false));
   }, [refresh]);
 
   if (loading) {
@@ -170,139 +101,69 @@ export const EventDetailPage: React.FC = () => {
     );
   }
 
-  const isTeamEvent = event.team_max > 1;
-  const deadlinePassed = event.registration_deadline
-    ? new Date(event.registration_deadline).getTime() < Date.now()
-    : false;
+  const teamEvent = isTeamEvent(event);
+  const closed = deadlinePassed(event);
+  const spotsLeft = Math.max(event.capacity - (event.registered_count ?? 0), 0);
+  const isEventOrganizer = user?.id === event.organizer_id;
+  const saved = isBookmarked(event.id);
+  const hue = bannerHue(event);
 
-  const requireOnboardedUser = (): typeof user => {
+  // Runs one registration action, then reloads the event (seat count) and
+  // the user's registration. Success is shown right here on the page.
+  const runAction = async (action: () => Promise<string>) => {
     if (!user) {
       navigate(`/login?redirect=${encodeURIComponent(`/events/${event.id}`)}`);
-      return null;
-    }
-    if (!isOnboardingComplete(user)) {
-      navigate(`/onboarding?next=${encodeURIComponent(`/events/${event.id}`)}`);
-      return null;
-    }
-    return user;
-  };
-
-  const executeSoloRegister = async (currentUser: typeof user) => {
-    if (!currentUser || !event) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const registration = await registerSolo(event.id, currentUser.id);
-      await refresh();
-      notifyRegistrationConfirmed(event, currentUser, registration).then(setNotice);
-    } catch (e: any) {
-      console.error("Solo registration error:", e);
-      setError(e?.message || (typeof e === "string" ? e : "Could not register."));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const executeCreateTeam = async (currentUser: typeof user) => {
-    if (!currentUser || !event) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const validTeammates = teammates.filter((t) => t.name.trim() && t.email.trim());
-      const { registration } = await createTeam(
-        event.id,
-        currentUser.id,
-        teamName.trim(),
-        projectIdea.trim(),
-        validTeammates,
-      );
-      setTeamName("");
-      setProjectIdea("");
-      await refresh();
-      notifyRegistrationConfirmed(event, currentUser, registration).then(setNotice);
-    } catch (e: any) {
-      console.error("Create team error:", e);
-      setError(e?.message || (typeof e === "string" ? e : "Could not create team."));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handleSoloRegister = async () => {
-    const currentUser = requireOnboardedUser();
-    if (!currentUser || !event) return;
-    if (event.fee > 0) {
-      setPendingAction("solo");
-      setPaymentModalOpen(true);
       return;
     }
-    await executeSoloRegister(currentUser);
+    setBusy(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const message = await action();
+      await refresh();
+      setSuccess(message);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Something went wrong.");
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const handleCreateTeam = async () => {
-    const currentUser = requireOnboardedUser();
-    if (!currentUser || !event) return;
+  const handleSoloRegister = () =>
+    runAction(async () => {
+      await registerSolo(event.id);
+      return "You're registered! Your QR ticket is ready below and in My Events.";
+    });
+
+  const handleCreateTeam = () => {
     if (!teamName.trim()) return setError("Give your team a name.");
-
-    // Validate teammates entered
-    for (let i = 0; i < teammates.length; i++) {
-      const t = teammates[i];
-      if (!t.name.trim()) {
-        return setError(`Please enter the full name for Teammate #${i + 2}.`);
-      }
-      if (!t.email.trim() || !t.email.includes("@")) {
-        return setError(`Please enter a valid college email for Teammate #${i + 2}.`);
-      }
-    }
-
-    if (event.fee > 0) {
-      setPendingAction("team_create");
-      setPaymentModalOpen(true);
-      return;
-    }
-    await executeCreateTeam(currentUser);
+    return runAction(async () => {
+      const { team } = await createTeam(event.id, teamName.trim());
+      setTeamName("");
+      return `Team "${team.name}" created. Share join code ${team.join_code} with your teammates.`;
+    });
   };
 
-  const handlePaymentSuccess = async () => {
-    setPaymentModalOpen(false);
-    const currentUser = user;
-    if (!currentUser) return;
-    if (pendingAction === "solo") {
-      await executeSoloRegister(currentUser);
-    } else if (pendingAction === "team_create") {
-      await executeCreateTeam(currentUser);
-    }
-    setPendingAction(null);
-  };
-
-  const handleJoinTeam = async () => {
-    const currentUser = requireOnboardedUser();
-    if (!currentUser) return;
+  const handleJoinTeam = () => {
     if (!joinCodeInput.trim()) return setError("Enter a join code.");
-    setBusy(true);
-    setError(null);
-    try {
-      const { registration } = await joinTeam(event.id, currentUser.id, joinCodeInput.trim());
+    return runAction(async () => {
+      const { team } = await joinTeam(joinCodeInput.trim());
       setJoinCodeInput("");
-      await refresh();
-      notifyRegistrationConfirmed(event, currentUser, registration).then(setNotice);
-    } catch (e: any) {
-      console.error("Join team error:", e);
-      setError(e?.message || (typeof e === "string" ? e : "Could not join that team."));
-    } finally {
-      setBusy(false);
-    }
+      return `You joined team "${team.name}". You're registered!`;
+    });
   };
 
-  const saved = event ? isBookmarked(event.id) : false;
+  const copyJoinCode = (code: string) => {
+    navigator.clipboard?.writeText(code).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
       <div
         className="relative rounded-2xl p-6 sm:p-8"
-        style={{
-          background: `linear-gradient(135deg, hsl(${event.banner_hue} 70% 20%), hsl(${event.banner_hue} 70% 10%))`,
-        }}
+        style={{ background: `linear-gradient(135deg, hsl(${hue} 70% 20%), hsl(${hue} 70% 10%))` }}
       >
         <div className="flex items-center justify-between">
           <StatusPill label={event.category} tone="coral" />
@@ -321,14 +182,14 @@ export const EventDetailPage: React.FC = () => {
           </button>
         </div>
         <h1 className="mt-3 font-display text-3xl font-extrabold sm:text-4xl">{event.title}</h1>
-        <p className="mt-2 text-cream/80">{event.tagline}</p>
-        <p className="mt-1 text-sm text-muted">
-          Hosted by {event.club_name} · {event.college}
+        <p className="mt-2 text-sm text-cream/80">
+          Hosted by {event.organizer_name}
+          {event.organizer_college && ` · ${event.organizer_college}`}
         </p>
       </div>
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <InfoTile icon={Building2} label="College" value={`${event.college}, ${event.city}`} />
+        <InfoTile icon={Building2} label="College" value={event.organizer_college || "—"} />
         <InfoTile
           icon={MapPin}
           label="Venue"
@@ -343,172 +204,98 @@ export const EventDetailPage: React.FC = () => {
             </button>
           }
         />
-        <InfoTile icon={CalendarDays} label="When" value={formatDateRange(event.start_at, event.end_at)} />
+        <InfoTile icon={CalendarDays} label="When" value={formatEventDate(event.event_date)} />
         <InfoTile icon={Users} label="Participation" value={formatTeamSize(event.team_min, event.team_max)} />
       </div>
 
       <div className="mt-8 grid gap-8 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2 min-w-0">
-          {/* Tab navigation */}
           <div className="flex items-center gap-2 border-b border-border pb-1 overflow-x-auto scrollbar-none">
-            <button
-              type="button"
-              onClick={() => setActiveTab("overview")}
-              className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 border-b-2 px-3.5 py-2.5 text-xs sm:text-sm font-semibold transition-colors ${
-                activeTab === "overview"
-                  ? "border-coral text-coral"
-                  : "border-transparent text-muted hover:text-cream"
-              }`}
-            >
-              Overview &amp; Rules
-            </button>
-            {isTeamEvent && (
+            {TABS.map(({ id: tabId, label, icon: Icon }) => (
               <button
+                key={tabId}
                 type="button"
-                onClick={() => setActiveTab("teammates")}
+                onClick={() => setActiveTab(tabId)}
                 className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 border-b-2 px-3.5 py-2.5 text-xs sm:text-sm font-semibold transition-colors ${
-                  activeTab === "teammates"
-                    ? "border-coral text-coral"
+                  activeTab === tabId
+                    ? tabId === "winners"
+                      ? "border-amber-400 text-amber-400"
+                      : "border-coral text-coral"
                     : "border-transparent text-muted hover:text-cream"
                 }`}
               >
-                <UserPlus className="h-4 w-4" />
-                Find Teammates
+                {Icon && <Icon className="h-4 w-4" />}
+                {label}
               </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setActiveTab("announcements")}
-              className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 border-b-2 px-3.5 py-2.5 text-xs sm:text-sm font-semibold transition-colors ${
-                activeTab === "announcements"
-                  ? "border-coral text-coral"
-                  : "border-transparent text-muted hover:text-cream"
-              }`}
-            >
-              <Megaphone className="h-4 w-4" />
-              Announcements
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("qna")}
-              className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 border-b-2 px-3.5 py-2.5 text-xs sm:text-sm font-semibold transition-colors ${
-                activeTab === "qna"
-                  ? "border-coral text-coral"
-                  : "border-transparent text-muted hover:text-cream"
-              }`}
-            >
-              <MessageSquare className="h-4 w-4" />
-              Q&amp;A Forum
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveTab("winners")}
-              className={`flex items-center gap-1.5 whitespace-nowrap shrink-0 border-b-2 px-3.5 py-2.5 text-xs sm:text-sm font-semibold transition-colors ${
-                activeTab === "winners"
-                  ? "border-amber-400 text-amber-400"
-                  : "border-transparent text-muted hover:text-cream"
-              }`}
-            >
-              <Trophy className="h-4 w-4" />
-              Winners &amp; Results
-            </button>
+            ))}
           </div>
 
-          {/* Tab Content */}
           {activeTab === "overview" && (
-            <div className="space-y-8">
-              <section>
-                <h2 className="font-display text-xl font-semibold">About this event</h2>
-                <p className="mt-3 whitespace-pre-line text-cream/80 leading-relaxed">{event.description}</p>
-              </section>
-              {event.rules.length > 0 && (
-                <section>
-                  <h2 className="font-display text-xl font-semibold">Rules &amp; regulations</h2>
-                  <ul className="mt-3 space-y-2">
-                    {event.rules.map((rule, i) => (
-                      <li key={i} className="flex gap-2 text-sm text-cream/75">
-                        <span className="text-coral font-bold">{i + 1}.</span>
-                        {rule}
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              )}
-            </div>
+            <section>
+              <h2 className="font-display text-xl font-semibold">About this event</h2>
+              <p className="mt-3 whitespace-pre-line text-cream/80 leading-relaxed">{event.description}</p>
+            </section>
           )}
-
-          {activeTab === "teammates" && isTeamEvent && <TeammatesTab eventId={event.id} />}
-
-          {activeTab === "announcements" && (
-            <EventAnnouncementsTab
-              eventId={event.id}
-              isOrganizer={event.created_by === user?.id || user?.role === "organizer"}
-            />
-          )}
-
-          {activeTab === "qna" && (
-            <EventQnATab
-              eventId={event.id}
-              isOrganizer={event.created_by === user?.id || user?.role === "organizer"}
-            />
-          )}
-
-          {activeTab === "winners" && (
-            <EventWinnersTab
-              eventId={event.id}
-              isOrganizer={event.created_by === user?.id || user?.role === "organizer"}
-            />
-          )}
+          {activeTab === "announcements" && <EventAnnouncementsTab eventId={event.id} isOrganizer={isEventOrganizer} />}
+          {activeTab === "qna" && <EventQnATab eventId={event.id} isOrganizer={isEventOrganizer} />}
+          {activeTab === "winners" && <EventWinnersTab eventId={event.id} isOrganizer={isEventOrganizer} />}
         </div>
 
         <aside className="w-full rounded-2xl border border-border bg-surface p-5 lg:sticky lg:top-24 lg:h-fit">
           <div className="flex items-center justify-between">
             <span className="font-display text-2xl font-bold">{formatFee(event.fee)}</span>
-            {event.fee > 0 && <span className="text-xs text-muted">per {isTeamEvent ? "team" : "ticket"}</span>}
+            {event.fee > 0 && <span className="text-xs text-muted">per person · no online payment</span>}
           </div>
 
-          {seats && (
-            <div className="mt-3 flex items-center gap-2 text-xs text-muted">
-              <Ticket className="h-3.5 w-3.5" />
-              {Math.max(seats.capacity - seats.confirmed, 0)} of {seats.capacity} spots left
-              {seats.waitlisted > 0 && ` · ${seats.waitlisted} waitlisted`}
-            </div>
-          )}
-
+          <div className="mt-3 flex items-center gap-2 text-xs text-muted">
+            <Ticket className="h-3.5 w-3.5" />
+            {spotsLeft} of {event.capacity} spots left
+          </div>
           <div className="mt-2 flex items-center gap-2 text-xs text-muted">
             <Clock className="h-3.5 w-3.5" />
-            Registration {deadlinePassed ? "closed" : `closes in ${timeUntil(event.registration_deadline)}`}
+            Registration {closed ? "closed" : `open · ${timeUntil(event.registration_deadline)}`}
           </div>
 
           <div className="mt-5 border-t border-border pt-5">
+            {success && (
+              <div className="mb-4 flex items-start gap-2 rounded-xl border border-success/30 bg-success/10 p-3 text-xs text-success">
+                <CheckCircle2 className="h-4 w-4 shrink-0" />
+                <span>{success}</span>
+              </div>
+            )}
+
             {myRegistration ? (
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="h-5 w-5 text-success" />
                   <span className="font-medium">You're registered</span>
                 </div>
-                <StatusPill
-                  label={myRegistration.status}
-                  tone={registrationTone(myRegistration.status)}
-                />
-                {notice && (
-                  <div className="rounded-xl border border-border bg-surface-2 p-3 text-xs">
-                    <p className="font-semibold text-cream">
-                      {notice.attempted
-                        ? notice.error
-                          ? "Notification alert"
-                          : "✓ Confirmation notification dispatched!"
-                        : "Notification not sent"}
+                <div className="flex flex-wrap gap-2">
+                  <StatusPill label={myRegistration.status} tone="success" />
+                  {myRegistration.checked_in_at && <StatusPill label="Checked in" tone="success" />}
+                </div>
+
+                {myRegistration.team && (
+                  <div className="rounded-xl border border-coral/30 bg-coral/5 p-3 text-xs space-y-2">
+                    <p className="text-muted">
+                      Team <span className="font-semibold text-cream">"{myRegistration.team.name}"</span> · join code
                     </p>
-                    <p className="mt-1 text-muted">
-                      {notice.attempted
-                        ? notice.error
-                          ? `Delivery issue: ${notice.error}`
-                          : `Sent to ${[notice.recipientEmail, notice.recipientPhone].filter(Boolean).join(" & ")} (${notice.channels.join(", ")}).`
-                        : `No email/SMS provider is configured on the server yet, so nothing was sent to ${[notice.recipientEmail, notice.recipientPhone].filter(Boolean).join(" & ")}. Your ticket is available below.`}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <span className="flex-1 rounded-lg border border-coral/40 bg-ink px-3 py-1.5 text-center font-mono text-base font-black tracking-widest text-coral">
+                        {myRegistration.team.join_code}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => copyJoinCode(myRegistration.team!.join_code)}
+                        className="flex items-center gap-1 rounded-lg border border-border bg-surface-2 px-2.5 py-1.5 font-semibold text-cream hover:border-coral/50"
+                      >
+                        {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+                        {copied ? "Copied" : "Copy"}
+                      </button>
+                    </div>
                   </div>
                 )}
+
                 <button
                   type="button"
                   onClick={() =>
@@ -517,7 +304,7 @@ export const EventDetailPage: React.FC = () => {
                       registrationId: myRegistration.id,
                       attendeeName: user?.name || "Participant",
                       attendeeEmail: user?.email,
-                      attendeePhone: user?.phone,
+                      teamName: myRegistration.team?.name,
                     })
                   }
                   className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-border bg-surface-2 py-2.5 text-center text-sm font-semibold text-cream hover:border-coral/50 transition-colors"
@@ -530,255 +317,112 @@ export const EventDetailPage: React.FC = () => {
                   className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-amber-500/40 bg-amber-950/20 py-2.5 text-center text-sm font-semibold text-amber-300 hover:bg-amber-950/40 transition-colors"
                 >
                   <Award className="h-4 w-4 text-amber-400" />
-                  {myRegistration.checked_in_at ? "Download Certificate (PNG)" : "Preview Certificate (PNG)"}
+                  {myRegistration.checked_in_at ? "Certificate (demo)" : "Preview certificate (demo)"}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setOdModalOpen(true)}
-                  className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-border bg-surface-2 py-2.5 text-center text-sm font-semibold text-cream hover:border-coral/50 transition-colors"
-                >
-                  <FileText className="h-4 w-4 text-coral" /> Official OD Attendance Slip
-                </button>
-                {myRegistration.team_id && (
+                {myRegistration.team && (
                   <button
                     type="button"
                     onClick={() => setTeamModalOpen(true)}
                     className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-coral/40 bg-coral/10 py-2.5 text-center text-sm font-bold text-coral hover:bg-coral/20 transition-colors"
                   >
-                    <Users className="h-4 w-4" /> My Team &amp; WhatsApp Invite
+                    <Users className="h-4 w-4" /> My Team
                   </button>
                 )}
-                <Link
-                  to="/dashboard"
-                  className="block rounded-xl bg-coral py-2.5 text-center text-sm font-semibold text-ink"
-                >
+                <Link to="/dashboard" className="block rounded-xl bg-coral py-2.5 text-center text-sm font-semibold text-ink">
                   View my ticket
                 </Link>
               </div>
-            ) : (
-              <div className="space-y-4">
-                <button
-                  type="button"
-                  onClick={() => setCertModalOpen(true)}
-                  className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-950/15 py-2 text-xs font-semibold text-amber-300 hover:bg-amber-950/30 transition-colors"
-                >
-                  <Award className="h-3.5 w-3.5 text-amber-400" />
-                  Preview Participation Certificate
-                </button>
-
-                {deadlinePassed ? (
-                  <p className="text-sm text-muted">Registration for this event has closed.</p>
-                ) : !isTeamEvent ? (
-                  <button
-                    onClick={handleSoloRegister}
-                    disabled={busy}
-                    className="w-full rounded-xl bg-coral py-2.5 text-sm font-semibold text-ink transition-transform hover:scale-[1.02] disabled:opacity-60"
+            ) : user?.role === "organizer" ? (
+              <div className="space-y-3 text-sm text-muted">
+                <p>Registration is for student accounts.</p>
+                {isEventOrganizer && (
+                  <Link
+                    to={`/organizer/events/${event.id}`}
+                    className="flex items-center justify-center gap-1.5 rounded-xl bg-coral py-2.5 text-sm font-semibold text-ink"
                   >
-                    {busy ? "Registering..." : "Register"}
-                  </button>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="flex rounded-xl border border-border p-1 text-xs">
-                      <button
-                        onClick={() => setMode("create")}
-                        className={`flex-1 rounded-lg py-1.5 font-medium ${mode === "create" ? "bg-coral text-ink" : "text-cream/70"}`}
-                      >
-                        Create team
-                      </button>
-                      <button
-                        onClick={() => setMode("join")}
-                        className={`flex-1 rounded-lg py-1.5 font-medium ${mode === "join" ? "bg-coral text-ink" : "text-cream/70"}`}
-                      >
-                        Join with code
-                      </button>
-                    </div>
-                    {mode === "create" ? (
-                      <div className="space-y-3.5">
-                        {/* Team Name */}
-                        <div>
-                          <label className="block text-[11px] font-bold uppercase tracking-wider text-muted mb-1">
-                            Team Name *
-                          </label>
-                          <input
-                            required
-                            value={teamName}
-                            onChange={(e) => setTeamName(e.target.value)}
-                            placeholder="e.g. CyberVellore or NeuralCraft"
-                            className="w-full rounded-xl border border-border bg-ink px-3.5 py-2 text-sm text-cream focus:border-coral focus:outline-none"
-                          />
-                        </div>
-
-                        {/* Team Size Selector */}
-                        <div className="rounded-xl border border-border bg-surface-2/60 p-3 space-y-2">
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-bold text-cream flex items-center gap-1.5">
-                              <Users className="h-3.5 w-3.5 text-coral" /> Total Participants
-                            </span>
-                            <span className="text-[11px] text-muted">
-                              {event.team_min || 2} - {event.team_max || 4} Members
-                            </span>
-                          </div>
-
-                          <div className="flex items-center gap-1.5 pt-0.5">
-                            {Array.from(
-                              { length: Math.max(1, (event.team_max || 4) - Math.max(2, event.team_min || 2) + 1) },
-                              (_, i) => Math.max(2, event.team_min || 2) + i
-                            ).map((size) => (
-                              <button
-                                key={size}
-                                type="button"
-                                onClick={() => handleSetTeamSize(size)}
-                                className={`flex-1 rounded-lg py-1.5 text-xs font-bold transition-all ${
-                                  teamSize === size
-                                    ? "bg-coral text-ink shadow-md"
-                                    : "border border-border bg-ink text-muted hover:text-cream"
-                                }`}
-                              >
-                                {size} Members
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Attached Profiles Section */}
-                        <div className="space-y-2.5">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[11px] font-bold uppercase tracking-wider text-muted">
-                              Attached Profiles ({1 + teammates.length})
-                            </span>
-                            <span className="text-[10px] text-coral font-medium">All members registered</span>
-                          </div>
-
-                          {/* Member 1: Leader (You) */}
-                          <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 p-3 text-xs space-y-1">
-                            <div className="flex items-center justify-between">
-                              <span className="font-bold text-amber-300 flex items-center gap-1.5">
-                                <Crown className="h-3.5 w-3.5 text-amber-400" /> Member 1: Leader (You)
-                              </span>
-                              <span className="rounded-full bg-amber-400/20 px-2 py-0.2 text-[9px] font-bold text-amber-300">
-                                Leader
-                              </span>
-                            </div>
-                            <p className="font-semibold text-cream">{user?.name || "Your Profile"}</p>
-                            <p className="text-[11px] text-muted">{user?.email} · {user?.college || "VIT Vellore"}</p>
-                          </div>
-
-                          {/* Teammates Profiles */}
-                          {teammates.map((teammate, idx) => (
-                            <div
-                              key={idx}
-                              className="rounded-xl border border-border bg-surface-2 p-3 text-xs space-y-2"
-                            >
-                              <div className="flex items-center justify-between">
-                                <span className="font-bold text-cream flex items-center gap-1.5">
-                                  <UserCheck className="h-3.5 w-3.5 text-coral" /> Member {idx + 2} Profile
-                                </span>
-                                {teamSize > (event.team_min || 2) && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRemoveTeammate(idx)}
-                                    className="text-muted hover:text-red-400 p-0.5 rounded transition-colors"
-                                    title="Remove member"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </button>
-                                )}
-                              </div>
-
-                              <div className="space-y-1.5">
-                                <input
-                                  required
-                                  value={teammate.name}
-                                  onChange={(e) => updateTeammate(idx, "name", e.target.value)}
-                                  placeholder="Full Name *"
-                                  className="w-full rounded-lg border border-border bg-ink px-3 py-1.5 text-xs text-cream focus:border-coral focus:outline-none"
-                                />
-                                <input
-                                  required
-                                  type="email"
-                                  value={teammate.email}
-                                  onChange={(e) => updateTeammate(idx, "email", e.target.value)}
-                                  placeholder="College Email Address *"
-                                  className="w-full rounded-lg border border-border bg-ink px-3 py-1.5 text-xs text-cream focus:border-coral focus:outline-none"
-                                />
-                                <div className="grid grid-cols-2 gap-1.5">
-                                  <input
-                                    value={teammate.phone || ""}
-                                    onChange={(e) => updateTeammate(idx, "phone", e.target.value)}
-                                    placeholder="Phone (optional)"
-                                    className="w-full rounded-lg border border-border bg-ink px-2.5 py-1.5 text-[11px] text-cream focus:border-coral focus:outline-none"
-                                  />
-                                  <input
-                                    value={teammate.reg_no || ""}
-                                    onChange={(e) => updateTeammate(idx, "reg_no", e.target.value)}
-                                    placeholder="Reg No. (e.g. 25BCE0703)"
-                                    className="w-full rounded-lg border border-border bg-ink px-2.5 py-1.5 text-[11px] text-cream focus:border-coral focus:outline-none"
-                                  />
-                                </div>
-                                <input
-                                  value={teammate.college || ""}
-                                  onChange={(e) => updateTeammate(idx, "college", e.target.value)}
-                                  placeholder="College / Institution"
-                                  className="w-full rounded-lg border border-border bg-ink px-3 py-1.5 text-[11px] text-cream focus:border-coral focus:outline-none"
-                                />
-                              </div>
-                            </div>
-                          ))}
-
-                          {/* Quick Add Member button */}
-                          {teamSize < (event.team_max || 4) && (
-                            <button
-                              type="button"
-                              onClick={handleAddTeammate}
-                              className="w-full py-2 rounded-xl border border-dashed border-coral/40 bg-coral/5 hover:bg-coral/10 text-xs font-semibold text-coral flex items-center justify-center gap-1.5 transition-colors"
-                            >
-                              <Plus className="h-3.5 w-3.5" /> Add Member {teamSize + 1}
-                            </button>
-                          )}
-                        </div>
-
-                        {/* Project Idea */}
-                        <div>
-                          <label className="block text-[11px] font-bold uppercase tracking-wider text-muted mb-1">
-                            Team Project Idea / Pitch (Optional)
-                          </label>
-                          <textarea
-                            value={projectIdea}
-                            onChange={(e) => setProjectIdea(e.target.value)}
-                            rows={2}
-                            placeholder="Describe what your team will build or the problem statement..."
-                            className="w-full rounded-xl border border-border bg-ink px-3.5 py-2 text-xs text-cream focus:border-coral focus:outline-none resize-none placeholder:text-muted"
-                          />
-                        </div>
-
-                        <button
-                          onClick={handleCreateTeam}
-                          disabled={busy}
-                          className="w-full rounded-xl bg-coral py-2.5 text-sm font-bold text-ink hover:scale-[1.02] transition-transform disabled:opacity-60 shadow-lg shadow-coral/20"
-                        >
-                          {busy ? "Registering team..." : `Register Team (${1 + teammates.length} Members)`}
-                        </button>
-                      </div>
-                    ) : (
-                      <>
-                        <input
-                          value={joinCodeInput}
-                          onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
-                          placeholder="e.g. 7QX2KP"
-                          className="w-full rounded-lg border border-border bg-ink px-3 py-2 text-sm uppercase tracking-widest focus:border-coral focus:outline-none"
-                        />
-                        <button
-                          onClick={handleJoinTeam}
-                          disabled={busy}
-                          className="w-full rounded-xl bg-coral py-2.5 text-sm font-semibold text-ink disabled:opacity-60"
-                        >
-                          {busy ? "Joining..." : "Join team"}
-                        </button>
-                      </>
-                    )}
-                  </div>
+                    <Settings className="h-4 w-4" /> Manage this event
+                  </Link>
                 )}
               </div>
+            ) : closed ? (
+              <p className="text-sm text-muted">Registration for this event has closed.</p>
+            ) : spotsLeft === 0 ? (
+              <p className="text-sm text-muted">This event is full.</p>
+            ) : !teamEvent ? (
+              <button
+                onClick={handleSoloRegister}
+                disabled={busy}
+                className="w-full rounded-xl bg-coral py-2.5 text-sm font-semibold text-ink transition-transform hover:scale-[1.02] disabled:opacity-60"
+              >
+                {busy ? "Registering..." : "Register"}
+              </button>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex rounded-xl border border-border p-1 text-xs">
+                  <button
+                    onClick={() => setMode("create")}
+                    className={`flex-1 rounded-lg py-1.5 font-medium ${mode === "create" ? "bg-coral text-ink" : "text-cream/70"}`}
+                  >
+                    Create team
+                  </button>
+                  <button
+                    onClick={() => setMode("join")}
+                    className={`flex-1 rounded-lg py-1.5 font-medium ${mode === "join" ? "bg-coral text-ink" : "text-cream/70"}`}
+                  >
+                    Join with code
+                  </button>
+                </div>
+                <p className="text-[11px] text-muted">
+                  Teams of {event.team_min}-{event.team_max}. Every member signs up for their own ShowUp account and
+                  joins with the team's code.
+                </p>
+                {mode === "create" ? (
+                  <>
+                    <input
+                      value={teamName}
+                      onChange={(e) => setTeamName(e.target.value)}
+                      placeholder="Team name, e.g. NeuralCraft"
+                      maxLength={100}
+                      className="w-full rounded-xl border border-border bg-ink px-3.5 py-2 text-sm text-cream focus:border-coral focus:outline-none"
+                    />
+                    <button
+                      onClick={handleCreateTeam}
+                      disabled={busy}
+                      className="w-full rounded-xl bg-coral py-2.5 text-sm font-bold text-ink hover:scale-[1.02] transition-transform disabled:opacity-60 shadow-lg shadow-coral/20"
+                    >
+                      {busy ? "Creating team..." : "Create team & register"}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <input
+                      value={joinCodeInput}
+                      onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
+                      placeholder="e.g. 7QX2KP"
+                      maxLength={10}
+                      className="w-full rounded-lg border border-border bg-ink px-3 py-2 text-sm uppercase tracking-widest focus:border-coral focus:outline-none"
+                    />
+                    <button
+                      onClick={handleJoinTeam}
+                      disabled={busy}
+                      className="w-full rounded-xl bg-coral py-2.5 text-sm font-semibold text-ink disabled:opacity-60"
+                    >
+                      {busy ? "Joining..." : "Join team"}
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+
+            {!myRegistration && (
+              <button
+                type="button"
+                onClick={() => setCertModalOpen(true)}
+                className="mt-4 flex w-full items-center justify-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-950/15 py-2 text-xs font-semibold text-amber-300 hover:bg-amber-950/30 transition-colors"
+              >
+                <Award className="h-3.5 w-3.5 text-amber-400" />
+                Preview participation certificate (demo)
+              </button>
             )}
             {error && <p className="mt-3 text-xs text-danger">{error}</p>}
             <div className="mt-4 border-t border-border pt-4">
@@ -788,48 +432,15 @@ export const EventDetailPage: React.FC = () => {
         </aside>
       </div>
 
-      {event && user && (
-        <PaymentModal
-          isOpen={paymentModalOpen}
-          onClose={() => {
-            setPaymentModalOpen(false);
-            setPendingAction(null);
-          }}
-          onSuccess={handlePaymentSuccess}
-          event={event}
-          attendeeName={user.name}
-          attendeeEmail={user.email}
-          attendeePhone={user.phone}
-          isTeam={pendingAction === "team_create"}
-        />
-      )}
-
-      {event && (
-        <CertificateModal
-          isOpen={certModalOpen}
-          onClose={() => setCertModalOpen(false)}
-          event={event}
-          attendeeName={user?.name || "Participant"}
-          attendeeCollege={user?.college || event.college}
-          registrationId={myRegistration?.id}
-          checkedIn={!!myRegistration?.checked_in_at}
-        />
-      )}
-
-      {event && (
-        <ODLetterModal
-          isOpen={odModalOpen}
-          onClose={() => setOdModalOpen(false)}
-          event={event}
-          attendeeName={user?.name || "Participant"}
-          registrationNumber={user?.reg_no || "25BCE0703"}
-          department={user?.branch || "Computer Science and Engineering"}
-          academicYear={user?.year || "2nd Year / B.Tech"}
-          collegeName={user?.college || event.college}
-          registrationId={myRegistration?.id}
-          checkedIn={!!myRegistration?.checked_in_at}
-        />
-      )}
+      <CertificateModal
+        isOpen={certModalOpen}
+        onClose={() => setCertModalOpen(false)}
+        event={event}
+        attendeeName={user?.name || "Participant"}
+        attendeeCollege={user?.college || undefined}
+        registrationId={myRegistration?.id}
+        checkedIn={!!myRegistration?.checked_in_at}
+      />
 
       {myRegistration?.team_id && (
         <TeamHubModal
@@ -837,17 +448,10 @@ export const EventDetailPage: React.FC = () => {
           onClose={() => setTeamModalOpen(false)}
           teamId={myRegistration.team_id}
           currentUserId={user?.id}
-          onTeamUpdated={refresh}
         />
       )}
 
-      {event && (
-        <EventLocationModal
-          isOpen={locationModalOpen}
-          onClose={() => setLocationModalOpen(false)}
-          event={event}
-        />
-      )}
+      <EventLocationModal isOpen={locationModalOpen} onClose={() => setLocationModalOpen(false)} event={event} />
     </div>
   );
 };

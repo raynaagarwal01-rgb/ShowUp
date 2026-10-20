@@ -1,31 +1,14 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { api, ApiError, getToken, setToken, TOKEN_KEY } from "../lib/api";
-import type { Profile, Role } from "../types";
-
-interface SignUpDetails {
-  name: string;
-  role: Role;
-  college?: string;
-  branch?: string;
-  year?: string;
-  phone?: string;
-}
+import { ApiError, getMe, getToken, login, setToken, signup, TOKEN_KEY, type SignupInput } from "../lib/api";
+import type { User } from "../types";
 
 interface AuthContextType {
-  user: Profile | null;
+  user: User | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: string | null; profile: Profile | null }>;
-  signUp: (
-    email: string,
-    password: string,
-    details: SignUpDetails,
-  ) => Promise<{ error: string | null; profile: Profile | null }>;
-  signOut: () => Promise<void>;
-  updateProfile: (patch: Partial<Profile>) => Promise<{ error: string | null }>;
-  /** Emails a single-use reset link to /reset-password?token=... */
-  requestPasswordReset: (email: string) => Promise<{ error: string | null }>;
-  /** Redeems the token from that link, sets the new password, and signs in. */
-  resetPassword: (token: string, newPassword: string) => Promise<{ error: string | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: string | null; user: User | null }>;
+  signUp: (input: SignupInput) => Promise<{ error: string | null; user: User | null }>;
+  /** Logging out just forgets the token — JWTs are not stored on the server. */
+  signOut: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -33,29 +16,24 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const errorMessage = (e: unknown): string =>
   e instanceof Error ? e.message : "Something went wrong. Please try again.";
 
-interface SessionResponse {
-  token: string;
-  user: Profile;
-}
-
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<Profile | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
 
+    // On page load, turn a saved token back into the signed-in user.
     const restoreSession = async () => {
       if (!getToken()) {
         if (!cancelled) setUser(null);
         return;
       }
       try {
-        const { user: me } = await api<{ user: Profile }>("/auth/me");
+        const { user: me } = await getMe();
         if (!cancelled) setUser(me);
       } catch (e) {
-        // An expired/revoked token is discarded; a network blip keeps it so the
-        // next load can try again.
+        // An expired token is discarded; a network blip keeps it for next time.
         if (e instanceof ApiError && e.status === 401) setToken(null);
         if (!cancelled) setUser(null);
       }
@@ -77,111 +55,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const startSession = ({ token, user: profile }: SessionResponse) => {
-    setToken(token);
-    setUser(profile);
-  };
-
-  const signIn = async (
-    email: string,
-    password: string,
-  ): Promise<{ error: string | null; profile: Profile | null }> => {
+  const signIn = async (email: string, password: string) => {
     try {
-      const session = await api<SessionResponse>("/auth/login", {
-        method: "POST",
-        body: { email, password },
-      });
-      startSession(session);
-      return { error: null, profile: session.user };
+      const session = await login(email, password);
+      setToken(session.token);
+      setUser(session.user);
+      return { error: null, user: session.user };
     } catch (e) {
-      return { error: errorMessage(e), profile: null };
+      return { error: errorMessage(e), user: null };
     }
   };
 
-  const signUp = async (
-    email: string,
-    password: string,
-    details: SignUpDetails,
-  ): Promise<{ error: string | null; profile: Profile | null }> => {
-    if (password.length < 6) {
-      return { error: "Password must be at least 6 characters.", profile: null };
-    }
+  const signUp = async (input: SignupInput) => {
+    if (input.password.length < 6) return { error: "Password must be at least 6 characters.", user: null };
     try {
-      const session = await api<SessionResponse>("/auth/signup", {
-        method: "POST",
-        body: { email, password, ...details },
-      });
-      startSession(session);
-      return { error: null, profile: session.user };
+      const session = await signup(input);
+      setToken(session.token);
+      setUser(session.user);
+      return { error: null, user: session.user };
     } catch (e) {
-      return { error: errorMessage(e), profile: null };
+      return { error: errorMessage(e), user: null };
     }
   };
 
-  const signOut = async (): Promise<void> => {
-    try {
-      await api("/auth/logout", { method: "POST", body: {} });
-    } catch {
-      // Even if the server can't be reached, sign out locally.
-    }
+  const signOut = () => {
     setToken(null);
     setUser(null);
   };
 
-  const updateProfile = async (patch: Partial<Profile>): Promise<{ error: string | null }> => {
-    if (!user) return { error: "Not signed in." };
-    try {
-      const { user: updated } = await api<{ user: Profile }>("/auth/profile", {
-        method: "PATCH",
-        body: patch,
-      });
-      setUser(updated);
-      return { error: null };
-    } catch (e) {
-      return { error: errorMessage(e) };
-    }
-  };
-
-  const requestPasswordReset = async (email: string): Promise<{ error: string | null }> => {
-    try {
-      await api("/auth/forgot", { method: "POST", body: { email } });
-      return { error: null };
-    } catch (e) {
-      return { error: errorMessage(e) };
-    }
-  };
-
-  const resetPassword = async (token: string, newPassword: string): Promise<{ error: string | null }> => {
-    if (newPassword.length < 6) {
-      return { error: "Password must be at least 6 characters." };
-    }
-    try {
-      const session = await api<SessionResponse>("/auth/reset", {
-        method: "POST",
-        body: { token, password: newPassword },
-      });
-      startSession(session);
-      return { error: null };
-    } catch (e) {
-      return { error: errorMessage(e) };
-    }
-  };
-
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        signIn,
-        signUp,
-        signOut,
-        updateProfile,
-        requestPasswordReset,
-        resetPassword,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut }}>{children}</AuthContext.Provider>
   );
 };
 
