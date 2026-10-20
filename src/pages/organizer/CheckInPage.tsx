@@ -2,8 +2,9 @@ import React, { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Html5Qrcode } from "html5-qrcode";
 import { ArrowLeft, CheckCircle2, KeyRound, XCircle } from "lucide-react";
-import { checkIn, getEvent, listEventRegistrants } from "../../lib/db";
-import type { EventRecord, RegistrantView } from "../../types";
+import { checkIn, getEvent } from "../../lib/api";
+import type { EventRecord } from "../../types";
+import { parseTicketCode } from "../../lib/format";
 
 type Feedback = { kind: "success" | "error"; message: string } | null;
 
@@ -22,24 +23,21 @@ export const CheckInPage: React.FC = () => {
     getEvent(id).then(setEvent);
   }, [id]);
 
-  const handleResult = async (registrationId: string) => {
+  // The server decides whether the ticket is valid: it must belong to this
+  // event (and organizer), be confirmed, and not already be checked in.
+  const handleResult = async (scanned: string) => {
     if (!id || busyRef.current) return;
     busyRef.current = true;
     try {
-      const registrants: RegistrantView[] = await listEventRegistrants(id);
-      const match = registrants.find((r) => r.id === registrationId.trim());
-      if (!match) {
-        setFeedback({ kind: "error", message: "That ticket doesn't belong to this event." });
-      } else if (match.status === "cancelled") {
-        setFeedback({ kind: "error", message: `${match.profile.name}'s registration was cancelled.` });
-      } else if (match.checked_in_at) {
-        setFeedback({ kind: "error", message: `${match.profile.name} is already checked in.` });
+      const registrationId = parseTicketCode(scanned);
+      if (!registrationId) {
+        setFeedback({ kind: "error", message: "That isn't a ShowUp ticket." });
       } else {
-        await checkIn(match.id);
-        setFeedback({ kind: "success", message: `${match.profile.name} checked in ✓` });
+        const { name } = await checkIn(registrationId, Number(id));
+        setFeedback({ kind: "success", message: `${name} checked in ✓` });
       }
-    } catch {
-      setFeedback({ kind: "error", message: "Couldn't read that ticket." });
+    } catch (e) {
+      setFeedback({ kind: "error", message: e instanceof Error ? e.message : "Couldn't read that ticket." });
     } finally {
       setTimeout(() => {
         busyRef.current = false;
@@ -135,13 +133,13 @@ export const CheckInPage: React.FC = () => {
 
       <form onSubmit={handleManualSubmit} className="mt-6 rounded-2xl border border-border bg-surface p-4">
         <p className="flex items-center gap-1.5 text-xs font-medium text-cream/70">
-          <KeyRound className="h-3.5 w-3.5" /> No camera? Paste the ticket ID instead
+          <KeyRound className="h-3.5 w-3.5" /> No camera? Type the ticket number instead
         </p>
         <div className="mt-2 flex gap-2">
           <input
             value={manualId}
             onChange={(e) => setManualId(e.target.value)}
-            placeholder="reg_..."
+            placeholder="e.g. 42 or SHOWUP-REG-42"
             className="flex-1 rounded-lg border border-border bg-ink px-3 py-2 text-sm focus:border-coral focus:outline-none"
           />
           <button type="submit" className="rounded-lg bg-coral px-4 py-2 text-sm font-semibold text-ink">

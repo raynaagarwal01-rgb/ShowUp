@@ -1,143 +1,129 @@
-export type Role = "student" | "organizer" | "admin";
+// Shapes of the JSON the API returns. Each one mirrors a MySQL table (or a
+// JOIN of tables) from sql/schema.sql. Dates arrive as ISO strings.
 
-export interface Profile {
-  id: string;
-  email: string;
+export type Role = "student" | "organizer";
+
+/** users table (without password_hash). */
+export interface User {
+  id: number;
   name: string;
+  email: string;
   role: Role;
-  state?: string;
-  city?: string;
-  college?: string;
-  branch?: string;
-  year?: string;
-  phone?: string;
-  reg_no?: string;
-  bio?: string;
-  github?: string;
-  linkedin?: string;
+  college: string | null;
+  reg_no: string | null;
+  created_at: string;
 }
 
-export type EventCategory =
-  | "Hackathon"
-  | "Workshop"
-  | "Competition"
-  | "Cultural"
-  | "Talk";
+export type EventCategory = "Hackathon" | "Workshop" | "Competition" | "Cultural" | "Talk";
 
-export type EventScope = "internal" | "external" | "both";
-
-export interface EventRecord {
-  id: string;
-  club_id: string;
-  club_name: string;
+/** The fields an organizer fills in when creating or editing an event. */
+export interface EventInput {
   title: string;
-  tagline: string;
   description: string;
-  rules: string[];
   category: EventCategory;
-  scope: EventScope;
-  state: string;
-  city: string;
-  college: string;
   venue: string;
-  start_at: string;
-  end_at: string;
+  event_date: string;
   registration_deadline: string;
   capacity: number;
   fee: number;
   team_min: number;
   team_max: number;
-  banner_hue: number;
-  status: "published" | "draft";
-  created_by: string;
 }
 
-export type RegistrationStatus = "confirmed" | "waitlisted" | "cancelled";
+/** events table + organizer name/college (JOIN users) + confirmed count. */
+export interface EventRecord extends EventInput {
+  id: number;
+  organizer_id: number;
+  organizer_name: string;
+  organizer_college: string | null;
+  created_at: string;
+  /** COUNT of confirmed registrations — present on /api/events responses. */
+  registered_count?: number;
+}
 
+export type RegistrationStatus = "confirmed" | "cancelled";
+
+/** registrations table. */
 export interface Registration {
-  id: string;
-  event_id: string;
-  user_id: string;
-  team_id: string | null;
+  id: number;
+  user_id: number;
+  event_id: number;
+  team_id: number | null;
   status: RegistrationStatus;
   checked_in_at: string | null;
-  created_at: string;
+  registered_at: string;
 }
 
-export interface Team {
-  id: string;
-  event_id: string;
-  name: string;
-  join_code: string;
-  created_by: string;
-  leader_id?: string;
-  member_ids: string[];
-  project_idea?: string;
+/** A row of GET /api/my-registrations. */
+export interface MyRegistration extends Registration {
+  event: EventRecord;
+  team: { id: number; name: string; join_code: string; leader_id: number } | null;
 }
 
-export interface TeammateInput {
+/** A row of GET /api/events/:id/registrations (organizer view). */
+export interface Participant {
+  id: number;
+  user_id: number;
+  team_id: number | null;
+  status: RegistrationStatus;
+  checked_in_at: string | null;
+  registered_at: string;
   name: string;
   email: string;
-  phone?: string;
-  college?: string;
-  reg_no?: string;
-  branch?: string;
+  college: string | null;
+  reg_no: string | null;
+  team_name: string | null;
+  join_code: string | null;
+  leader_id: number | null;
 }
 
-export interface RegistrationWithEvent extends Registration {
-  event: EventRecord;
-  team?: Team;
+export interface TeamMember {
+  id: number;
+  name: string;
+  college: string | null;
+  joined_at: string;
 }
 
-export interface RegistrantView extends Registration {
-  profile: Profile;
-  team?: Team;
+/** teams table + its members (team_members JOIN users). */
+export interface Team {
+  id: number;
+  event_id: number;
+  name: string;
+  join_code: string;
+  leader_id: number;
+  created_at: string;
+  members: TeamMember[];
+}
+
+/** GET /api/teams/:id also includes a little of the event. */
+export interface TeamDetails extends Team {
+  event_title: string;
+  team_min: number;
+  team_max: number;
 }
 
 export interface Announcement {
-  id: string;
-  event_id: string;
+  id: number;
+  event_id: number;
   title: string;
   content: string;
-  author_name: string;
-  is_urgent: boolean;
   created_at: string;
 }
 
 export interface EventQuestion {
-  id: string;
-  event_id: string;
-  user_id: string | null;
+  id: number;
+  event_id: number;
+  user_id: number;
   user_name: string;
   question: string;
   answer: string | null;
-  answered_by: string | null;
-  answered_at: string | null;
   created_at: string;
 }
 
 export interface EventWinner {
-  id: string;
-  event_id: string;
+  id: number;
+  event_id: number;
   position: number;
-  winner_title: string;
-  team_or_participant_name: string;
-  college: string;
-  prize_amount: string;
-  project_title: string;
-  project_link: string;
-  announced_by: string;
-  created_at: string;
-}
-
-export interface TeammateListing {
-  id: string;
-  event_id: string;
-  user_id: string;
-  user_name: string;
-  user_college: string;
-  looking_for: string;
-  message: string;
-  contact: string;
-  created_at: string;
+  winner_name: string;
+  prize: string | null;
 }

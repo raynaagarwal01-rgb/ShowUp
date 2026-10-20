@@ -7,12 +7,12 @@ const FEATURES = [
   {
     icon: Ticket,
     title: "Register once, reuse everywhere",
-    body: "Your profile carries over to every club's event — no retyping your name and phone number on the tenth Google Form of the semester.",
+    body: "Your profile carries over to every club's event — no retyping your name and college on the tenth Google Form of the semester.",
   },
   {
     icon: Users2,
     title: "Solo or team, built in",
-    body: "Create a team and share a join code, or register solo. Capacity and waitlisting are handled automatically for both.",
+    body: "Create a team and share a join code, or register solo. Seats are counted per person, so events never overfill.",
   },
   {
     icon: QrCode,

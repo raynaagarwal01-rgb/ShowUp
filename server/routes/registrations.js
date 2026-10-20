@@ -1,288 +1,161 @@
 import { Router } from "express";
-import { query, tx } from "../db.js";
-import { requireAuth } from "../auth.js";
-import { mapEvent, mapProfile, mapRegistration } from "../mappers.js";
-import { getVisibleEvent, loadTeam, loadTeams, seatStats } from "../queries.js";
-import {
-  badRequest,
-  conflict,
-  forbidden,
-  isDuplicateKey,
-  joinCode,
-  newId,
-  normalizeEmail,
-  notFound,
-  optionalString,
-  requireString,
-} from "../util.js";
+import { pool, transaction } from "../db.js";
+import { requireAuth, requireOrganizer, requireStudent } from "../auth.js";
+import { HttpError, idParam } from "../helpers.js";
 
 export const registrationsRouter = Router();
 
-/** Insert a registration, or — since a person has at most one registration per
- * event — replace their previous one (this is what the app always did). The
- * existing row id is kept so an already-issued QR ticket stays valid. */
-export async function upsertRegistration(conn, { eventId, userId, teamId, status }) {
-  await query(
-    `INSERT INTO registrations (id, event_id, user_id, team_id, status, checked_in_at, created_at)
-     VALUES (?, ?, ?, ?, ?, NULL, UTC_TIMESTAMP(3)) AS incoming
-     ON DUPLICATE KEY UPDATE
-       team_id = incoming.team_id, status = incoming.status,
-       checked_in_at = NULL, created_at = incoming.created_at`,
-    [newId("reg"), eventId, userId, teamId, status],
-    conn,
+// --- Shared steps (also used by routes/teams.js) --------------------------------
+// Every registration path runs inside a transaction and starts by locking the
+// event row with SELECT ... FOR UPDATE. Two people registering for the same
+// event at the same moment therefore run one after the other, so the seat
+// count can't be exceeded.
+
+/** Locks the event row and checks that registration is still open. */
+export async function lockOpenEvent(conn, eventId) {
+  const [[event]] = await conn.query("SELECT * FROM events WHERE id = ? FOR UPDATE", [eventId]);
+  if (!event) throw new HttpError(404, "Event not found.");
+  if (new Date(event.registration_deadline) < new Date()) {
+    throw new HttpError(400, "Registration for this event has closed.");
+  }
+  return event;
+}
+
+/** Returns the user's earlier (cancelled) registration if there is one, and
+ * rejects a duplicate confirmed registration. */
+export async function findPreviousRegistration(conn, userId, eventId) {
+  const [[existing]] = await conn.query(
+    "SELECT id, status FROM registrations WHERE user_id = ? AND event_id = ?",
+    [userId, eventId],
   );
-  const [row] = await query(
-    "SELECT * FROM registrations WHERE event_id = ? AND user_id = ?",
-    [eventId, userId],
-    conn,
+  if (existing?.status === "confirmed") throw new HttpError(409, "You're already registered for this event.");
+  return existing ?? null;
+}
+
+/** Capacity counts people: every confirmed row, solo or team member. */
+export async function ensureSeatAvailable(conn, event) {
+  const [[{ taken }]] = await conn.query(
+    "SELECT COUNT(*) AS taken FROM registrations WHERE event_id = ? AND status = 'confirmed'",
+    [event.id],
   );
+  if (taken >= event.capacity) throw new HttpError(409, "Sorry, this event is full.");
+}
+
+/** Inserts the registration, or re-activates a cancelled one. UNIQUE(user_id,
+ * event_id) allows only one row per person per event, so re-registering
+ * updates that row instead of inserting a second one. */
+export async function saveRegistration(conn, { userId, eventId, teamId, previous }) {
+  if (previous) {
+    await conn.query(
+      `UPDATE registrations
+          SET status = 'confirmed', team_id = ?, checked_in_at = NULL, registered_at = CURRENT_TIMESTAMP
+        WHERE id = ?`,
+      [teamId, previous.id],
+    );
+    return previous.id;
+  }
+  const [result] = await conn.query(
+    "INSERT INTO registrations (user_id, event_id, team_id, status) VALUES (?, ?, ?, 'confirmed')",
+    [userId, eventId, teamId],
+  );
+  return result.insertId;
+}
+
+export async function getRegistration(conn, id) {
+  const [[row]] = await conn.query("SELECT * FROM registrations WHERE id = ?", [id]);
   return row;
 }
 
-// --- Read paths --------------------------------------------------------------
+// --- Routes ------------------------------------------------------------------------
 
-registrationsRouter.get("/events/:id/my-registration", requireAuth, async (req, res) => {
-  const [row] = await query(
-    "SELECT * FROM registrations WHERE event_id = ? AND user_id = ? AND status <> 'cancelled'",
-    [req.params.id, req.user.id],
-  );
-  res.json(row ? mapRegistration(row) : null);
+// POST /api/events/:id/register — solo events only (team events use /teams)
+registrationsRouter.post("/events/:id/register", requireAuth, requireStudent, async (req, res) => {
+  const eventId = idParam(req.params.id);
+  const registration = await transaction(async (conn) => {
+    const event = await lockOpenEvent(conn, eventId);
+    if (event.team_max > 1) throw new HttpError(400, "This is a team event — create a team or join one with a code.");
+    const previous = await findPreviousRegistration(conn, req.user.id, event.id);
+    await ensureSeatAvailable(conn, event);
+    const id = await saveRegistration(conn, { userId: req.user.id, eventId: event.id, teamId: null, previous });
+    return getRegistration(conn, id);
+  });
+  res.status(201).json(registration);
 });
 
-/** Registrations of `userId`, each with its event (and team). You can read your
- * own; an organizer additionally sees other people's registrations for events
- * they created — the same rule the old row-level-security policy expressed. */
-export async function registrationsWithEvents(userId, viewerId) {
-  const rows = await query(
-    `SELECT r.* FROM registrations r
-       JOIN events e ON e.id = r.event_id
-      WHERE r.user_id = ? AND r.status <> 'cancelled'
-        AND (r.user_id = ? OR e.created_by = ?)
-      ORDER BY r.created_at DESC`,
-    [userId, viewerId, viewerId],
-  );
-  if (!rows.length) return [];
-  const events = await query("SELECT * FROM events WHERE id IN (?)", [[...new Set(rows.map((r) => r.event_id))]]);
-  const eventById = new Map(events.map((e) => [e.id, mapEvent(e)]));
-  const teams = await loadTeams(rows.map((r) => r.team_id));
-  return rows.map((r) => ({
-    ...mapRegistration(r),
-    event: eventById.get(r.event_id),
-    team: r.team_id ? teams.get(r.team_id) : undefined,
-  }));
-}
-
-registrationsRouter.get("/users/:id/registrations", requireAuth, async (req, res) => {
-  res.json(await registrationsWithEvents(req.params.id, req.user.id));
-});
-
-registrationsRouter.get("/events/:id/registrants", requireAuth, async (req, res) => {
-  const rows = await query(
-    `SELECT r.*,
-            p.id AS p_id, p.email AS p_email, p.name AS p_name, p.role AS p_role, p.state AS p_state,
-            p.city AS p_city, p.college AS p_college, p.branch AS p_branch, p.year AS p_year,
-            p.phone AS p_phone, p.reg_no AS p_reg_no, p.bio AS p_bio, p.github AS p_github,
-            p.linkedin AS p_linkedin
+// GET /api/my-registrations — the signed-in user's confirmed registrations,
+// each with its event, organizer and (if any) team.
+registrationsRouter.get("/my-registrations", requireAuth, async (req, res) => {
+  const [rows] = await pool.query(
+    `SELECT r.id, r.user_id, r.event_id, r.team_id, r.status, r.checked_in_at, r.registered_at,
+            e.organizer_id, e.title, e.description, e.category, e.venue, e.event_date,
+            e.registration_deadline, e.capacity, e.fee, e.team_min, e.team_max, e.created_at,
+            u.name AS organizer_name, u.college AS organizer_college,
+            t.name AS team_name, t.join_code, t.leader_id
        FROM registrations r
-       JOIN events e   ON e.id = r.event_id
-       JOIN profiles p ON p.id = r.user_id
+       JOIN events e ON e.id = r.event_id
+       JOIN users u  ON u.id = e.organizer_id
        LEFT JOIN teams t ON t.id = r.team_id
-      WHERE r.event_id = ? AND r.status <> 'cancelled'
-        AND (e.created_by = ? OR r.user_id = ?)
-      ORDER BY r.created_at ASC, (t.created_by = r.user_id) DESC, r.user_id ASC`,
-    [req.params.id, req.user.id, req.user.id],
+      WHERE r.user_id = ? AND r.status = 'confirmed'
+      ORDER BY e.event_date ASC`,
+    [req.user.id],
   );
-  const teams = await loadTeams(rows.map((r) => r.team_id));
+
+  // Reshape each flat row into { ...registration, event: {...}, team: {...} }.
   res.json(
     rows.map((r) => ({
-      ...mapRegistration(r),
-      profile: mapProfile({
-        id: r.p_id,
-        email: r.p_email,
-        name: r.p_name,
-        role: r.p_role,
-        state: r.p_state,
-        city: r.p_city,
-        college: r.p_college,
-        branch: r.p_branch,
-        year: r.p_year,
-        phone: r.p_phone,
-        reg_no: r.p_reg_no,
-        bio: r.p_bio,
-        github: r.p_github,
-        linkedin: r.p_linkedin,
-      }),
-      team: r.team_id ? teams.get(r.team_id) : undefined,
+      id: r.id,
+      user_id: r.user_id,
+      event_id: r.event_id,
+      team_id: r.team_id,
+      status: r.status,
+      checked_in_at: r.checked_in_at,
+      registered_at: r.registered_at,
+      event: {
+        id: r.event_id, organizer_id: r.organizer_id, organizer_name: r.organizer_name,
+        organizer_college: r.organizer_college, title: r.title, description: r.description,
+        category: r.category, venue: r.venue, event_date: r.event_date,
+        registration_deadline: r.registration_deadline, capacity: r.capacity, fee: r.fee,
+        team_min: r.team_min, team_max: r.team_max, created_at: r.created_at,
+      },
+      team: r.team_id ? { id: r.team_id, name: r.team_name, join_code: r.join_code, leader_id: r.leader_id } : null,
     })),
   );
 });
 
-// --- Registering ---------------------------------------------------------------
-
-registrationsRouter.post("/events/:id/register", requireAuth, async (req, res) => {
-  const registration = await tx(async (conn) => {
-    // Locking the event row serialises concurrent sign-ups for the same event,
-    // so the seat count we read below can't change under us.
-    const event = await getVisibleEvent(req.params.id, req.user, conn, { lock: true });
-
-    const [existing] = await query(
-      "SELECT * FROM registrations WHERE event_id = ? AND user_id = ? FOR UPDATE",
-      [event.id, req.user.id],
-      conn,
+// DELETE /api/registrations/:id — cancel (by the participant or the event's
+// organizer). The row is kept with status 'cancelled'; if the person was in a
+// team they leave it, and the team is deleted if nobody is left.
+registrationsRouter.delete("/registrations/:id", requireAuth, async (req, res) => {
+  const id = idParam(req.params.id);
+  await transaction(async (conn) => {
+    const [[reg]] = await conn.query(
+      `SELECT r.*, e.organizer_id FROM registrations r JOIN events e ON e.id = r.event_id WHERE r.id = ?`,
+      [id],
     );
-    if (existing && existing.status !== "cancelled") return existing;
-
-    const stats = await seatStats(event.id, conn, event.capacity);
-    return upsertRegistration(conn, {
-      eventId: event.id,
-      userId: req.user.id,
-      teamId: null,
-      status: stats.full ? "waitlisted" : "confirmed",
-    });
-  });
-  res.status(201).json(mapRegistration(registration));
-});
-
-/** Find a teammate's account by email, or create a placeholder for them. A
- * placeholder has no password, so it can't be signed into — the person claims
- * it later through "Forgot password", which proves they own the email. */
-async function findOrCreateTeammate(conn, t) {
-  const email = t.email.trim().toLowerCase();
-  const [existing] = await query("SELECT id FROM profiles WHERE email = ?", [email], conn);
-  if (existing) return existing.id;
-
-  const id = newId();
-  await query(
-    `INSERT INTO profiles (id, email, password_hash, name, role, phone, college, reg_no, branch)
-     VALUES (?, ?, NULL, ?, 'student', ?, ?, ?, ?)`,
-    [
-      id,
-      email,
-      t.name.trim().slice(0, 255),
-      optionalString(t.phone, 50),
-      optionalString(t.college, 255) ?? "VIT Vellore",
-      optionalString(t.reg_no, 50),
-      optionalString(t.branch, 255) ?? "Engineering",
-    ],
-    conn,
-  );
-  return id;
-}
-
-registrationsRouter.post("/events/:id/teams", requireAuth, async (req, res) => {
-  const teamName = requireString(req.body.teamName, "Team name", 255);
-  const projectIdea = optionalString(req.body.projectIdea, 5000);
-  const teammates = Array.isArray(req.body.teammates) ? req.body.teammates.slice(0, 50) : [];
-
-  const { teamId, registration } = await tx(async (conn) => {
-    const event = await getVisibleEvent(req.params.id, req.user, conn, { lock: true });
-    const stats = await seatStats(event.id, conn, event.capacity);
-    const status = stats.full ? "waitlisted" : "confirmed";
-
-    // Insert the team, retrying with a fresh join code if one collides.
-    const teamId = newId("team");
-    for (let attempt = 0; ; attempt++) {
-      try {
-        await query(
-          "INSERT INTO teams (id, event_id, name, join_code, project_idea, created_by) VALUES (?, ?, ?, ?, ?, ?)",
-          [teamId, event.id, teamName, joinCode(), projectIdea, req.user.id],
-          conn,
-        );
-        break;
-      } catch (err) {
-        if (!isDuplicateKey(err) || attempt >= 5) throw err;
-      }
-    }
-
-    const memberIds = [req.user.id];
-    for (const t of teammates) {
-      if (!t?.name?.trim() || !t?.email?.trim()) continue;
-      let memberId;
-      try {
-        normalizeEmail(t.email);
-        memberId = await findOrCreateTeammate(conn, t);
-      } catch (err) {
-        if (err.status === 400) throw badRequest(`"${t.email}" is not a valid email address.`);
-        throw err;
-      }
-      if (!memberIds.includes(memberId)) memberIds.push(memberId);
-    }
-
-    let leaderRegistration;
-    for (const userId of memberIds) {
-      await query("INSERT INTO team_members (team_id, user_id) VALUES (?, ?)", [teamId, userId], conn);
-      const reg = await upsertRegistration(conn, { eventId: event.id, userId, teamId, status });
-      if (userId === req.user.id) leaderRegistration = reg;
-    }
-    return { teamId, registration: leaderRegistration };
-  });
-
-  res.status(201).json({ team: await loadTeam(teamId), registration: mapRegistration(registration) });
-});
-
-registrationsRouter.post("/events/:id/teams/join", requireAuth, async (req, res) => {
-  const code = String(req.body.code ?? "").trim().toUpperCase();
-
-  const { teamId, registration } = await tx(async (conn) => {
-    const event = await getVisibleEvent(req.params.id, req.user, conn);
-    const [team] = await query(
-      "SELECT * FROM teams WHERE event_id = ? AND join_code = ? FOR UPDATE",
-      [event.id, code],
-      conn,
-    );
-    if (!team) throw notFound("No team found with that join code for this event.");
-
-    const members = await query("SELECT user_id FROM team_members WHERE team_id = ?", [team.id], conn);
-    if (members.some((m) => m.user_id === req.user.id)) throw conflict("You're already on this team.");
-    if (members.length >= event.team_max) throw conflict("This team is already full.");
-
-    await query("INSERT INTO team_members (team_id, user_id) VALUES (?, ?)", [team.id, req.user.id], conn);
-    const reg = await upsertRegistration(conn, {
-      eventId: event.id,
-      userId: req.user.id,
-      teamId: team.id,
-      status: "confirmed",
-    });
-    return { teamId: team.id, registration: reg };
-  });
-
-  res.status(201).json({ team: await loadTeam(teamId), registration: mapRegistration(registration) });
-});
-
-// --- Cancelling, waitlist promotion, check-in ------------------------------------
-
-registrationsRouter.post("/registrations/:id/cancel", requireAuth, async (req, res) => {
-  await tx(async (conn) => {
-    const [reg] = await query(
-      `SELECT r.*, e.created_by AS event_owner, e.capacity
-         FROM registrations r JOIN events e ON e.id = r.event_id
-        WHERE r.id = ? FOR UPDATE`,
-      [req.params.id],
-      conn,
-    );
-    if (!reg) throw notFound("Registration not found.");
-    if (reg.user_id !== req.user.id && reg.event_owner !== req.user.id) {
-      throw forbidden("You can only cancel your own registration.");
+    if (!reg) throw new HttpError(404, "Registration not found.");
+    if (reg.user_id !== req.user.id && reg.organizer_id !== req.user.id) {
+      throw new HttpError(403, "You can only cancel your own registration.");
     }
     if (reg.status === "cancelled") return;
 
-    await query("UPDATE registrations SET status = 'cancelled' WHERE id = ?", [reg.id], conn);
+    await conn.query("SELECT id FROM events WHERE id = ? FOR UPDATE", [reg.event_id]);
+    await conn.query("UPDATE registrations SET status = 'cancelled', team_id = NULL WHERE id = ?", [reg.id]);
 
-    // Only a freed *confirmed* seat can be handed to the waitlist. Promote in
-    // sign-up order while there's room.
-    if (reg.status === "confirmed") {
-      await query("SELECT id FROM events WHERE id = ? FOR UPDATE", [reg.event_id], conn);
-      const stats = await seatStats(reg.event_id, conn, reg.capacity);
-      const room = reg.capacity - stats.confirmed;
-      if (room > 0) {
-        await query(
-          `UPDATE registrations SET status = 'confirmed'
-            WHERE id IN (SELECT id FROM (
-              SELECT id FROM registrations
-               WHERE event_id = ? AND status = 'waitlisted'
-               ORDER BY created_at ASC LIMIT ?) AS next_up)`,
-          [reg.event_id, room],
-          conn,
+    if (reg.team_id) {
+      await conn.query("DELETE FROM team_members WHERE team_id = ? AND user_id = ?", [reg.team_id, reg.user_id]);
+      const [[{ remaining }]] = await conn.query(
+        "SELECT COUNT(*) AS remaining FROM team_members WHERE team_id = ?",
+        [reg.team_id],
+      );
+      if (remaining === 0) {
+        await conn.query("DELETE FROM teams WHERE id = ?", [reg.team_id]);
+      } else {
+        // If the leader left, the earliest remaining member becomes leader.
+        await conn.query(
+          `UPDATE teams
+              SET leader_id = (SELECT user_id FROM team_members WHERE team_id = ? ORDER BY joined_at, user_id LIMIT 1)
+            WHERE id = ? AND leader_id = ?`,
+          [reg.team_id, reg.team_id, reg.user_id],
         );
       }
     }
@@ -290,17 +163,51 @@ registrationsRouter.post("/registrations/:id/cancel", requireAuth, async (req, r
   res.json({ ok: true });
 });
 
-registrationsRouter.post("/registrations/:id/check-in", requireAuth, async (req, res) => {
-  const [reg] = await query(
-    `SELECT r.id, e.created_by AS event_owner
-       FROM registrations r JOIN events e ON e.id = r.event_id
-      WHERE r.id = ?`,
-    [req.params.id],
-  );
-  if (!reg) throw notFound("Registration not found.");
-  if (reg.event_owner !== req.user.id) throw forbidden("Only the event's organizer can check people in.");
+// GET /api/events/:id/registrations — the participant list, for the event's organizer
+registrationsRouter.get("/events/:id/registrations", requireAuth, requireOrganizer, async (req, res) => {
+  const eventId = idParam(req.params.id);
+  const [[event]] = await pool.query("SELECT organizer_id FROM events WHERE id = ?", [eventId]);
+  if (!event) throw new HttpError(404, "Event not found.");
+  if (event.organizer_id !== req.user.id) throw new HttpError(403, "Only this event's organizer can see its participants.");
 
-  await query("UPDATE registrations SET checked_in_at = UTC_TIMESTAMP(3) WHERE id = ?", [reg.id]);
-  const [row] = await query("SELECT * FROM registrations WHERE id = ?", [reg.id]);
-  res.json(mapRegistration(row));
+  const [rows] = await pool.query(
+    `SELECT r.id, r.user_id, r.team_id, r.status, r.checked_in_at, r.registered_at,
+            u.name, u.email, u.college, u.reg_no,
+            t.name AS team_name, t.join_code, t.leader_id
+       FROM registrations r
+       JOIN users u ON u.id = r.user_id
+       LEFT JOIN teams t ON t.id = r.team_id
+      WHERE r.event_id = ? AND r.status = 'confirmed'
+      ORDER BY t.name IS NULL, t.name, r.registered_at`,
+    [eventId],
+  );
+  res.json(rows);
+});
+
+// POST /api/registrations/:id/check-in  { event_id }
+// Only the event's organizer, only confirmed and not-yet-checked-in tickets.
+registrationsRouter.post("/registrations/:id/check-in", requireAuth, requireOrganizer, async (req, res) => {
+  const id = idParam(req.params.id);
+  const [[reg]] = await pool.query(
+    `SELECT r.id, r.event_id, r.status, r.checked_in_at, e.organizer_id, u.name
+       FROM registrations r
+       JOIN events e ON e.id = r.event_id
+       JOIN users u  ON u.id = r.user_id
+      WHERE r.id = ?`,
+    [id],
+  );
+  if (!reg || reg.organizer_id !== req.user.id) throw new HttpError(404, "That ticket isn't for one of your events.");
+  if (req.body.event_id && Number(req.body.event_id) !== reg.event_id) {
+    throw new HttpError(400, "That ticket belongs to a different event.");
+  }
+  if (reg.status !== "confirmed") throw new HttpError(409, `${reg.name}'s registration was cancelled.`);
+  if (reg.checked_in_at) throw new HttpError(409, `${reg.name} is already checked in.`);
+
+  // The WHERE clause repeats the rule, so two scanners can't check in twice.
+  const [result] = await pool.query(
+    "UPDATE registrations SET checked_in_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'confirmed' AND checked_in_at IS NULL",
+    [id],
+  );
+  if (result.affectedRows === 0) throw new HttpError(409, `${reg.name} is already checked in.`);
+  res.json({ ok: true, name: reg.name });
 });

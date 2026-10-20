@@ -1,10 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ArrowUpDown, Bookmark, Building2, Calendar, MapPin, Map as MapIcon, Search, SlidersHorizontal, X } from "lucide-react";
-import { listEvents } from "../lib/db";
+import { ArrowUpDown, Bookmark, Building2, Calendar, Search, SlidersHorizontal, X } from "lucide-react";
+import { listEvents } from "../lib/api";
 import type { EventCategory, EventRecord } from "../types";
 import { EventCard } from "../components/EventCard";
-import { INDIA_STATES } from "../lib/indiaStates";
-import { citiesForState, INDIA_CITIES_BY_STATE } from "../lib/indiaCities";
 import { useBookmarks } from "../lib/bookmarks";
 
 const CATEGORIES: Array<EventCategory | "All"> = [
@@ -31,8 +29,6 @@ export const EventsPage: React.FC = () => {
   const [events, setEvents] = useState<EventRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
-  const [state, setState] = useState("");
-  const [city, setCity] = useState("");
   const [college, setCollege] = useState(ALL_COLLEGES);
   const [category, setCategory] = useState<EventCategory | "All">("All");
   const { bookmarkedIds } = useBookmarks();
@@ -50,63 +46,15 @@ export const EventsPage: React.FC = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  // Every state/city in India is selectable, not just ones with events yet —
-  // picking one with nothing on yet just shows "0 events", which is honest.
-  // The current city is folded in too, so a custom ("Other") city an
-  // organizer typed in still has a matching <option> to render against.
-  const citiesInState = useMemo(() => {
-    if (state) {
-      const curated = citiesForState(state);
-      const fromEvents = events.filter((e) => e.state === state).map((e) => e.city);
-      const extra = city && !curated.includes(city) && !fromEvents.includes(city) ? [city] : [];
-      return distinctSorted([...curated, ...fromEvents, ...extra]);
-    }
-    // When "All States" is selected, provide all curated cities in India + all event cities
-    const allCurated = Object.values(INDIA_CITIES_BY_STATE).flat();
-    const fromEvents = events.map((e) => e.city);
-    const extra = city && !allCurated.includes(city) && !fromEvents.includes(city) ? [city] : [];
-    return distinctSorted([...allCurated, ...fromEvents, ...extra]);
-  }, [state, events, city]);
-
-  // Colleges matching the selected state/city, or all colleges if browsing nationwide
-  const collegesInCity = useMemo(() => {
-    let list = events;
-    if (state) {
-      list = list.filter((e) => e.state === state);
-    }
-    if (city) {
-      list = list.filter((e) => e.city === city);
-    }
-    return distinctSorted(list.map((e) => e.college));
-  }, [events, state, city]);
-
-  const handleStateChange = (newState: string) => {
-    setState(newState);
-    setCity("");
-    setCollege(ALL_COLLEGES);
-  };
-
-  const handleCityChange = (newCity: string) => {
-    setCity(newCity);
-    if (!state && newCity) {
-      const foundState = Object.entries(INDIA_CITIES_BY_STATE).find(([, cities]) =>
-        cities.includes(newCity)
-      )?.[0];
-      if (foundState) {
-        setState(foundState);
-      }
-    }
-    setCollege(ALL_COLLEGES);
-  };
+  // Colleges come from each event's organizer (users.college via the JOIN).
+  const colleges = useMemo(
+    () => distinctSorted(events.map((e) => e.organizer_college).filter((c): c is string => Boolean(c))),
+    [events],
+  );
 
   const filtered = useMemo(() => {
     const list = events.filter((e) => {
-      if (college !== ALL_COLLEGES) {
-        if (e.college !== college) return false;
-      } else {
-        if (state && e.state !== state) return false;
-        if (city && e.city !== city) return false;
-      }
+      if (college !== ALL_COLLEGES && e.organizer_college !== college) return false;
       if (category !== "All" && e.category !== category) return false;
       if (price === "free" && e.fee > 0) return false;
       if (price === "paid" && e.fee === 0) return false;
@@ -114,53 +62,30 @@ export const EventsPage: React.FC = () => {
       if (team === "team" && e.team_max <= 1) return false;
       if (fromDate) {
         const fromTime = new Date(fromDate + "T00:00:00").getTime();
-        const eventEnd = e.end_at ? new Date(e.end_at).getTime() : new Date(e.start_at).getTime();
-        if (eventEnd < fromTime) return false;
+        if (new Date(e.event_date).getTime() < fromTime) return false;
       }
       if (toDate) {
         const toTime = new Date(toDate + "T23:59:59").getTime();
-        const eventStart = e.start_at ? new Date(e.start_at).getTime() : 0;
-        if (eventStart > toTime) return false;
+        if (new Date(e.event_date).getTime() > toTime) return false;
       }
       if (showSavedOnly && !bookmarkedIds.includes(e.id)) return false;
       if (query.trim()) {
         const q = query.toLowerCase();
-        const haystack = `${e.title} ${e.club_name} ${e.college} ${e.tagline}`.toLowerCase();
+        const haystack = `${e.title} ${e.organizer_name} ${e.organizer_college ?? ""} ${e.description}`.toLowerCase();
         if (!haystack.includes(q)) return false;
       }
       return true;
     });
 
     return list.sort((a, b) => {
-      if (sortBy === "date_asc") {
-        const timeA = a.start_at ? new Date(a.start_at).getTime() : 0;
-        const timeB = b.start_at ? new Date(b.start_at).getTime() : 0;
-        return timeA - timeB;
-      }
-      if (sortBy === "date_desc") {
-        const timeA = a.start_at ? new Date(a.start_at).getTime() : 0;
-        const timeB = b.start_at ? new Date(b.start_at).getTime() : 0;
-        return timeB - timeA;
-      }
-      if (sortBy === "deadline_asc") {
-        const ddlA = a.registration_deadline ? new Date(a.registration_deadline).getTime() : 0;
-        const ddlB = b.registration_deadline ? new Date(b.registration_deadline).getTime() : 0;
-        return ddlA - ddlB;
-      }
-      return 0;
+      const time = (iso: string) => new Date(iso).getTime();
+      if (sortBy === "date_desc") return time(b.event_date) - time(a.event_date);
+      if (sortBy === "deadline_asc") return time(a.registration_deadline) - time(b.registration_deadline);
+      return time(a.event_date) - time(b.event_date);
     });
-  }, [events, state, city, college, category, price, team, query, sortBy, fromDate, toDate, showSavedOnly, bookmarkedIds]);
+  }, [events, college, category, price, team, query, sortBy, fromDate, toDate, showSavedOnly, bookmarkedIds]);
 
-  const scopeLabel =
-    college !== ALL_COLLEGES
-      ? `at ${college}`
-      : city && state
-      ? `in ${city}, ${state}`
-      : city
-      ? `in ${city}`
-      : state
-      ? `in ${state}`
-      : "across India";
+  const scopeLabel = college !== ALL_COLLEGES ? `at ${college}` : "across all colleges";
   const dateLabel =
     fromDate && toDate
       ? ` between ${new Date(fromDate + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short" })} and ${new Date(toDate + "T00:00:00").toLocaleDateString(undefined, { day: "numeric", month: "short" })}`
@@ -202,36 +127,6 @@ export const EventsPage: React.FC = () => {
 
       <div className="mt-6 flex flex-col gap-3">
         <div className="flex flex-col gap-2 sm:flex-row">
-          <div className="relative sm:w-44">
-            <MapIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-coral" />
-            <select
-              value={state}
-              onChange={(e) => handleStateChange(e.target.value)}
-              className="w-full appearance-none rounded-xl border border-coral/40 bg-surface py-2.5 pl-9 pr-3 text-sm font-medium text-cream focus:border-coral focus:outline-none cursor-pointer"
-            >
-              <option value="">All States (India)</option>
-              {INDIA_STATES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="relative sm:w-44">
-            <MapPin className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-coral" />
-            <select
-              value={city}
-              onChange={(e) => handleCityChange(e.target.value)}
-              className="w-full appearance-none rounded-xl border border-coral/40 bg-surface py-2.5 pl-9 pr-3 text-sm font-medium text-cream focus:border-coral focus:outline-none cursor-pointer"
-            >
-              <option value="">{state ? `All Cities (${state})` : "All Cities"}</option>
-              {citiesInState.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
           <div className="relative sm:w-56">
             <Building2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-coral" />
             <select
@@ -240,7 +135,7 @@ export const EventsPage: React.FC = () => {
               className="w-full appearance-none rounded-xl border border-coral/40 bg-surface py-2.5 pl-9 pr-3 text-sm font-medium text-cream focus:border-coral focus:outline-none"
             >
               <option value={ALL_COLLEGES}>{ALL_COLLEGES}</option>
-              {collegesInCity.map((c) => (
+              {colleges.map((c) => (
                 <option key={c} value={c}>
                   {c}
                 </option>
@@ -252,7 +147,7 @@ export const EventsPage: React.FC = () => {
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search events or clubs"
+              placeholder="Search events, clubs or colleges"
               className="w-full rounded-xl border border-border bg-surface py-2.5 pl-9 pr-3 text-sm text-cream placeholder:text-muted focus:border-coral focus:outline-none"
             />
           </div>
@@ -364,7 +259,7 @@ export const EventsPage: React.FC = () => {
         ) : filtered.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-border py-16 text-center">
             <p className="text-cream/80">No events match those filters.</p>
-            <p className="mt-1 text-sm text-muted">Try a different state, city, or college.</p>
+            <p className="mt-1 text-sm text-muted">Try a different category, college, or date range.</p>
           </div>
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

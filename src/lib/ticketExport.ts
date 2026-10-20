@@ -1,13 +1,12 @@
 import QRCode from "qrcode";
 import type { EventRecord } from "../types";
-import { formatDateRange } from "./format";
+import { bannerHue, formatEventDate, ticketCode } from "./format";
 
 interface ExportTicketParams {
   event: EventRecord;
-  registrationId: string;
+  registrationId: number;
   attendeeName: string;
   attendeeEmail?: string;
-  attendeePhone?: string;
   teamName?: string;
 }
 
@@ -16,7 +15,6 @@ export async function downloadTicketImage({
   registrationId,
   attendeeName,
   attendeeEmail = "",
-  attendeePhone = "",
   teamName = "",
 }: ExportTicketParams): Promise<void> {
   const width = 800;
@@ -32,7 +30,9 @@ export async function downloadTicketImage({
   ctx.fillRect(0, 0, width, height);
 
   // Top header banner with gradient
-  const hue = event.banner_hue || 210;
+  const hue = bannerHue(event);
+  const code = ticketCode(registrationId);
+  const college = event.organizer_college || "";
   const grad = ctx.createLinearGradient(0, 0, width, 240);
   grad.addColorStop(0, `hsl(${hue}, 75%, 26%)`);
   grad.addColorStop(1, `hsl(${hue}, 70%, 14%)`);
@@ -46,9 +46,9 @@ export async function downloadTicketImage({
 
   ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
   ctx.font = "bold 14px sans-serif";
-  ctx.fillText("OFFICIAL EVENT PASS", width - 210, 50);
+  ctx.fillText("EVENT PASS", width - 140, 50);
 
-  // Category & City badges
+  // Category badge
   ctx.fillStyle = "rgba(0, 0, 0, 0.35)";
   ctx.beginPath();
   ctx.roundRect(40, 80, 120, 30, 15);
@@ -57,13 +57,6 @@ export async function downloadTicketImage({
   ctx.font = "bold 13px sans-serif";
   ctx.textAlign = "center";
   ctx.fillText(event.category.toUpperCase(), 100, 100);
-
-  ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
-  ctx.beginPath();
-  ctx.roundRect(175, 80, 120, 30, 15);
-  ctx.fill();
-  ctx.fillStyle = "#ffffff";
-  ctx.fillText(event.city.toUpperCase(), 235, 100);
 
   // Event Title (Wrap text if needed)
   ctx.textAlign = "left";
@@ -78,7 +71,7 @@ export async function downloadTicketImage({
 
   ctx.font = "16px sans-serif";
   ctx.fillStyle = "rgba(255, 255, 255, 0.8)";
-  ctx.fillText(`${event.club_name} · ${event.college}`.slice(0, 65), 40, 200);
+  ctx.fillText([event.organizer_name, college].filter(Boolean).join(" · ").slice(0, 65), 40, 200);
 
   // Ticket details body
   const bodyY = 270;
@@ -103,7 +96,7 @@ export async function downloadTicketImage({
   ctx.fillText("CONTACT", 420, bodyY + 45);
   ctx.fillStyle = "#ffffff";
   ctx.font = "16px sans-serif";
-  ctx.fillText((attendeeEmail || attendeePhone || "Verified Student").slice(0, 32), 420, bodyY + 73);
+  ctx.fillText((attendeeEmail || "Participant").slice(0, 32), 420, bodyY + 73);
 
   // Divider
   ctx.strokeStyle = "rgba(255, 255, 255, 0.1)";
@@ -118,7 +111,7 @@ export async function downloadTicketImage({
   ctx.fillText("DATE & TIME", 60, bodyY + 145);
   ctx.fillStyle = "#ffffff";
   ctx.font = "bold 18px sans-serif";
-  ctx.fillText(formatDateRange(event.start_at, event.end_at), 60, bodyY + 175);
+  ctx.fillText(formatEventDate(event.event_date), 60, bodyY + 175);
 
   // Venue
   ctx.fillStyle = "#a89fb3";
@@ -128,7 +121,7 @@ export async function downloadTicketImage({
   ctx.font = "16px sans-serif";
   ctx.fillText(event.venue.slice(0, 60), 60, bodyY + 252);
   ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
-  ctx.fillText(event.college.slice(0, 60), 60, bodyY + 278);
+  ctx.fillText(college.slice(0, 60), 60, bodyY + 278);
 
   // Team info if present
   if (teamName) {
@@ -146,7 +139,7 @@ export async function downloadTicketImage({
   ctx.fillText("TICKET PASS ID", 420, bodyY + 145);
   ctx.fillStyle = "#ff6b47";
   ctx.font = "bold 16px monospace";
-  ctx.fillText(registrationId, 420, bodyY + 175);
+  ctx.fillText(code, 420, bodyY + 175);
 
   // QR Code container
   const qrBoxY = 780;
@@ -160,7 +153,7 @@ export async function downloadTicketImage({
 
   // Render high-res QR code
   try {
-    const qrDataUrl = await QRCode.toDataURL(registrationId, {
+    const qrDataUrl = await QRCode.toDataURL(code, {
       width: 180,
       margin: 1,
       color: { dark: "#120d18", light: "#ffffff" },
@@ -182,12 +175,11 @@ export async function downloadTicketImage({
     ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
     ctx.font = "14px sans-serif";
     ctx.fillText("Present this QR code to organizers at the entrance.", 270, qrBoxY + 105);
-    ctx.fillText("Valid college / VIT ID card is mandatory for entry.", 270, qrBoxY + 130);
-    ctx.fillText("Works completely offline without active internet.", 270, qrBoxY + 155);
+    ctx.fillText("Carry your college ID card.", 270, qrBoxY + 130);
 
     ctx.fillStyle = "#ff6b47";
     ctx.font = "bold 13px monospace";
-    ctx.fillText(`Pass #${registrationId.slice(0, 20)}...`, 270, qrBoxY + 190);
+    ctx.fillText(`Ticket ${code}`, 270, qrBoxY + 175);
   } catch (err) {
     console.error("Failed to generate QR on ticket canvas:", err);
   }

@@ -1,6 +1,6 @@
 ================================================================================
-SHOWUP - CAMPUS EVENT DISCOVERY & REGISTRATION ECOSYSTEM
-PROJECT SUBMISSION FOR GOOGLE DRIVE (CLAUDE CODE EVALUATION)
+SHOWUP - CAMPUS EVENT DISCOVERY & REGISTRATION (DBMS PROJECT)
+PROJECT SUBMISSION SUMMARY
 ================================================================================
 
 STUDENT INFORMATION:
@@ -11,68 +11,92 @@ STUDENT INFORMATION:
 - Academic Year: 2025-2026
 
 PRIMARY LINKS:
-1. Live Production Website:
-   https://showup-campus.vercel.app
-
-2. graVITas '26 Official Events Hub (VIT Vellore 56+ Events):
-   https://showup-campus.vercel.app/fests/gravitas26
-
-3. GitHub Repository:
+1. GitHub Repository:
    https://github.com/raynaagarwal01-rgb/ShowUp
 
-4. Google Drive Submission Folder:
+2. Google Drive Submission Folder:
    https://drive.google.com/drive/folders/1NqCytuNS5DiaBu40F68yNv-zc6RESz7v
 
-================================================================================
-GENERATED SUBMISSION DOCUMENTS (SAVED ON DESKTOP & C:\feastify):
-================================================================================
-1. SHOWUP_PROJECT_SUBMISSION_RAYNA_AGARWAL.pdf (Print-ready PDF report, 205 KB)
-2. SHOWUP_PROJECT_SUBMISSION_RAYNA_AGARWAL.html (Interactive web report, 24 KB)
-3. SHOWUP_PROJECT_SUBMISSION_RAYNA_AGARWAL.md (Comprehensive Markdown doc, 17 KB)
+3. Hosted frontend (Vercel, static hosting only):
+   https://showup-campus.vercel.app
+   The Express + MySQL backend runs locally - see "HOW TO RUN" below.
 
 ================================================================================
-COMPLETE FEATURE HIGHLIGHTS:
+SUBMISSION DOCUMENTS (in the repository root):
 ================================================================================
-1. Dedicated graVITas '26 Hub (/fests/gravitas26):
-   - Real-time countdown timer to Day 1 (Sep 26, 2026).
-   - 3-Day timeline breakdown (Day 1, Day 2, Day 3) with category filters across 56 official VIT events.
-   - Guidelines for On-Duty (OD) approval, verified certificates, and hostel stays.
+1. SHOWUP_PROJECT_SUBMISSION_RAYNA_AGARWAL.pdf  (PDF report)
+2. SHOWUP_PROJECT_SUBMISSION_RAYNA_AGARWAL.html (web version)
+3. SHOWUP_PROJECT_SUBMISSION_RAYNA_AGARWAL.md   (Markdown version)
+4. README.md                                    (setup, schema, ER diagram, queries)
 
-2. Automated 1080p Participation Certificate Generator:
-   - High-resolution (1920x1080) client-side canvas synthesis with zero backend dependencies.
-   - ShowUp Official Gold Seal of Merit, ornate borders, and embedded cryptographic verification QR codes.
-   - Pre-check-in watermark preview with automated post-check-in unlock.
+================================================================================
+ARCHITECTURE:
+================================================================================
+React + TypeScript (Vite)  ->  Node.js + Express API  ->  MySQL 8
+- All data is stored in MySQL; the browser never talks to the database.
+- Plain SQL through mysql2 with ? placeholders (no ORM).
+- Passwords hashed with bcrypt; login with a JWT signed by JWT_SECRET.
+- No email/SMS services, no payment gateway, no Supabase/Firebase.
 
-3. Interactive Event Destination Maps & Campus Distance:
-   - "View on Map" modal on every event card and detail page showing exact distance from campus landmarks.
-   - 1-click turn-by-turn routing button opening Google Maps directly.
+================================================================================
+DATABASE: 8 TABLES, 12 FOREIGN KEYS
+================================================================================
+1. users           (id PK, name, email UNIQUE, password_hash, role, college, reg_no, created_at)
+2. events          (id PK, organizer_id FK->users, title, description, category, venue,
+                    event_date, registration_deadline, capacity, fee, team_min, team_max, created_at)
+3. teams           (id PK, event_id FK->events, name, join_code UNIQUE, leader_id FK->users, created_at)
+4. team_members    (team_id FK->teams, user_id FK->users, joined_at; PRIMARY KEY(team_id, user_id))
+5. registrations   (id PK, user_id FK->users, event_id FK->events, team_id FK->teams NULL,
+                    status 'confirmed'/'cancelled', checked_in_at, registered_at;
+                    UNIQUE(user_id, event_id))
+6. announcements   (id PK, event_id FK->events, title, content, created_at)
+7. event_questions (id PK, event_id FK->events, user_id FK->users, question, answer NULL, created_at)
+8. event_winners   (id PK, event_id FK->events, position, winner_name, prize NULL)
 
-4. Per-Event Teammate Finder:
-   - Dedicated matchmaking tab on hackathons and team competitions for solo students to post required skills (Frontend, AI/ML, UI/UX) and connect via WhatsApp.
+DBMS concepts shown: primary keys (incl. composite), foreign keys with CASCADE /
+SET NULL, one-to-many and many-to-many relationships, CRUD, INNER and LEFT JOIN,
+COUNT / GROUP BY / HAVING, UNIQUE / NOT NULL / CHECK constraints, and
+transactions with SELECT ... FOR UPDATE row locks.
 
-5. Student Portfolio & Public Profile (/profile & /u/:userId):
-   - Shareable student profile showcasing verified ShowUp credentials, competition wins, and bio.
-   - 1-click "Add to LinkedIn Profile" integration with prefilled certification IDs (SUP-XXXXXX).
+================================================================================
+FEATURES:
+================================================================================
+1.  Event directory with search, category / college / price / solo-team /
+    date filters, sorting and local bookmarks.
+2.  Event detail page with venue map & distance, seats left, deadline,
+    calendar export (Google Calendar / .ics).
+3.  Solo registration with server-side deadline, capacity and duplicate checks.
+4.  Team registration: create a team, get a 6-character join code, teammates
+    sign up and join with the code.
+5.  QR tickets (SHOWUP-REG-<id>) and downloadable PNG passes.
+6.  Organizer QR check-in (camera or typed ticket number).
+7.  Announcements, Q&A (organizer answers) and Winners tabs.
+8.  Organizer studio: create / edit / delete events, participants by team,
+    CSV export.
+9.  Profile page with registration and attendance summary.
+10. Participation certificate image - DEMO feature, not an official or
+    verifiable certificate.
+The event fee is informational only; there is no payment processing.
 
-6. Secure Event Access & Return Redirects:
-   - Event discovery and detail pages protected behind student authentication.
-   - Unauthenticated visitors receive an educational prompt and are redirected back immediately upon login.
+================================================================================
+HOW TO RUN (Node 20+, MySQL 8.0.16+):
+================================================================================
+  npm install
+  cp .env.example .env     (set DB_USER, DB_PASSWORD and a long random JWT_SECRET)
+  npm run db:reset         (local only: creates the 8 tables and loads sample data)
+  npm run dev              (website on http://localhost:5173)
 
-7. Live Event Announcements & Urgent Alerts:
-   - Organizer broadcast composer with priority "URGENT ALERT" badge styling and real-time feed.
+Demo accounts (password: password123)
+  Organizer: codecell@showup.local
+  Students:  ananya@showup.local, rohan@showup.local (team NeuralCraft, code NC8821),
+             priya@showup.local, vikram@showup.local, sameer@showup.local
 
-8. Per-Event Student Discussion & Q&A Forum:
-   - Live question thread with verified "Answered by Organizer" badges.
-
-9. Online UPI & Card Payment Gateway:
-   - Seamless checkout modal supporting Google Pay, PhonePe, Paytm, and dynamic QR Scan.
-
-10. Offline Photo Passes (PNG):
-   - High-contrast 800x1080 entry pass saved directly to smartphone gallery with door QR code.
-
-11. Organizer OD CSV Export:
-   - 13-column academic spreadsheet for university On-Duty authorization.
-
-12. Calendar Integration:
-   - 1-click sync to Google Calendar and standard Apple/Outlook (.ics).
+================================================================================
+TESTING:
+================================================================================
+- 83 automated API checks against a local MySQL 8 database, all passing
+  (auth, event CRUD, solo and team registration, capacity, cancellation,
+  check-in, permissions, cascading deletes, concurrent registration).
+- Browser walkthrough of the student and organizer flows.
+- npm run build (TypeScript + Vite) completes without errors.
 ================================================================================

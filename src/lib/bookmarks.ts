@@ -1,36 +1,30 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
-const STORAGE_KEY = "feastify_bookmarks";
+// Bookmarks are a per-browser convenience, so they live in localStorage
+// rather than in MySQL.
+const STORAGE_KEY = "showup_bookmarks";
 
-function readStorage(): string[] {
+function readStorage(): number[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed.filter((x) => typeof x === "number") : [];
   } catch {
     return [];
   }
 }
 
-function writeStorage(ids: string[]): void {
+function writeStorage(ids: number[]): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(ids));
-    window.dispatchEvent(new CustomEvent("feastify_bookmarks_changed"));
+    window.dispatchEvent(new CustomEvent("showup_bookmarks_changed"));
   } catch {
     // Ignore storage quota errors
   }
 }
 
-export function getBookmarkedIds(): string[] {
-  return readStorage();
-}
-
-export function isEventBookmarked(id: string): boolean {
-  return readStorage().includes(id);
-}
-
-export function toggleBookmark(id: string): boolean {
+export function toggleBookmark(id: number): boolean {
   const current = readStorage();
   const exists = current.includes(id);
   const updated = exists ? current.filter((x) => x !== id) : [...current, id];
@@ -39,21 +33,21 @@ export function toggleBookmark(id: string): boolean {
 }
 
 export function useBookmarks() {
-  const [bookmarkedIds, setBookmarkedIds] = useState<string[]>(readStorage);
+  const [bookmarkedIds, setBookmarkedIds] = useState<number[]>(readStorage);
 
   useEffect(() => {
     const handler = () => setBookmarkedIds(readStorage());
-    window.addEventListener("feastify_bookmarks_changed", handler);
+    window.addEventListener("showup_bookmarks_changed", handler);
     window.addEventListener("storage", handler);
     return () => {
-      window.removeEventListener("feastify_bookmarks_changed", handler);
+      window.removeEventListener("showup_bookmarks_changed", handler);
       window.removeEventListener("storage", handler);
     };
   }, []);
 
   return {
     bookmarkedIds,
-    isBookmarked: (id: string) => bookmarkedIds.includes(id),
+    isBookmarked: (id: number) => bookmarkedIds.includes(id),
     toggleBookmark,
   };
 }

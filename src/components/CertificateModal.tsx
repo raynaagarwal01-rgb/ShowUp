@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Award, CheckCircle, Download, ShieldCheck, X } from "lucide-react";
+import { Award, CheckCircle, Download, Info, X } from "lucide-react";
 import type { EventRecord } from "../types";
 import {
   downloadCertificateImage,
@@ -12,7 +12,7 @@ interface CertificateModalProps {
   event: EventRecord;
   attendeeName: string;
   attendeeCollege?: string;
-  registrationId?: string;
+  registrationId?: number;
   checkedIn?: boolean;
 }
 
@@ -38,8 +38,8 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
     generateCertificateDataUrl({
       event,
       attendeeName: attendeeName || "Participant",
-      attendeeCollege: attendeeCollege || event.college,
-      registrationId: registrationId || "SAMPLE-2026",
+      attendeeCollege,
+      registrationId,
       isPreview: !checkedIn,
     })
       .then((url) => {
@@ -65,8 +65,8 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
       await downloadCertificateImage({
         event,
         attendeeName: attendeeName || "Participant",
-        attendeeCollege: attendeeCollege || event.college,
-        registrationId: registrationId || "SAMPLE-2026",
+        attendeeCollege,
+        registrationId,
         isPreview: !checkedIn,
       });
     } catch (e) {
@@ -87,10 +87,10 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
             </div>
             <div>
               <h2 className="font-display text-lg font-semibold text-cream">
-                ShowUp Verified Credential
+                Participation Certificate (demo)
               </h2>
               <p className="text-xs text-muted">
-                Official 1920x1080 High-Resolution Participation Certificate
+                A 1920x1080 image generated in your browser
               </p>
             </div>
           </div>
@@ -107,17 +107,17 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
         <div className="border-b border-border bg-surface-2/60 px-6 py-2.5 flex items-center justify-between text-xs">
           {checkedIn ? (
             <div className="flex items-center gap-1.5 text-emerald-400 font-medium">
-              <ShieldCheck className="h-4 w-4" />
-              Verified Attendance: Full Certificate unlocked and authenticated.
+              <CheckCircle className="h-4 w-4" />
+              You were checked in at this event, so the watermark is removed.
             </div>
           ) : (
             <div className="flex items-center gap-1.5 text-amber-400 font-medium">
               <Award className="h-4 w-4" />
-              Certificate Preview: The official unwatermarked credential unlocks upon event check-in.
+              Preview: the watermark is removed after the organizer checks you in.
             </div>
           )}
           <span className="text-[11px] text-muted hidden sm:inline">
-            Credential ID: FST-{(registrationId || "SAMPLE").slice(0, 8).toUpperCase()}
+            {registrationId ? `Registration #${registrationId}` : "Sample"}
           </span>
         </div>
 
@@ -126,7 +126,7 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
           {generating ? (
             <div className="space-y-3 text-center py-12">
               <div className="inline-block h-8 w-8 animate-spin rounded-full border-2 border-coral border-t-transparent" />
-              <p className="text-xs text-muted">Rendering cryptographic certificate canvas...</p>
+              <p className="text-xs text-muted">Drawing certificate...</p>
             </div>
           ) : dataUrl ? (
             <div className="relative group w-full rounded-xl overflow-hidden border border-border shadow-2xl bg-black">
@@ -146,8 +146,8 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
         {/* Modal Footer */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-surface-2/40 px-6 py-4">
           <div className="text-xs text-muted flex items-center gap-2">
-            <CheckCircle className="h-4 w-4 text-coral" />
-            Suitable for LinkedIn, portfolios, and academic OD submissions.
+            <Info className="h-4 w-4 text-coral" />
+            Demo feature — not an official or verifiable certificate.
           </div>
 
           <div className="flex items-center gap-3">
@@ -165,7 +165,7 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({
               className="flex items-center gap-2 rounded-xl bg-coral px-5 py-2 text-xs font-bold text-ink hover:opacity-90 disabled:opacity-50 shadow-md shadow-coral/10 transition-all"
             >
               <Download className="h-4 w-4" />
-              {downloading ? "Exporting PNG..." : "Download HD Certificate (PNG)"}
+              {downloading ? "Exporting PNG..." : "Download certificate (PNG)"}
             </button>
           </div>
         </div>

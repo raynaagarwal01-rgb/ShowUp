@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import { LayoutDashboard, LogOut, Menu, X } from "lucide-react";
 import { Logo } from "./Logo";
 import { useAuth } from "../context/AuthContext";
@@ -11,13 +11,13 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 
 export const Navbar: React.FC = () => {
   const { user, signOut } = useAuth();
-  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
 
-  const handleSignOut = async () => {
-    await signOut();
-    setOpen(false);
-    navigate("/");
+  // Forget the token, then reload on the home page (a full page load, so the
+  // current page's sign-in guard can't redirect to /login first).
+  const handleSignOut = () => {
+    signOut();
+    window.location.assign("/");
   };
 
   return (
@@ -31,18 +31,20 @@ export const Navbar: React.FC = () => {
           <NavLink to="/events" className={navLinkClass}>
             Events
           </NavLink>
-          {user?.role === "organizer" || user?.role === "admin" ? (
+          {user?.role === "organizer" ? (
             <NavLink to="/organizer" className={navLinkClass}>
               Organizer Studio
             </NavLink>
           ) : null}
           {user ? (
             <>
-              <NavLink to="/dashboard" className={navLinkClass}>
-                My Events
-              </NavLink>
+              {user.role === "student" && (
+                <NavLink to="/dashboard" className={navLinkClass}>
+                  My Events
+                </NavLink>
+              )}
               <NavLink to="/profile" className={navLinkClass}>
-                Portfolio
+                Profile
               </NavLink>
             </>
           ) : null}
@@ -53,7 +55,7 @@ export const Navbar: React.FC = () => {
             <>
               <span className="text-sm text-muted">
                 Hi, {user.name.split(" ")[0]}
-                {user.city && <span className="text-cream/40"> · {user.city}</span>}
+                {user.college && <span className="text-cream/40"> · {user.college}</span>}
               </span>
               <button
                 onClick={handleSignOut}
@@ -92,20 +94,22 @@ export const Navbar: React.FC = () => {
             <NavLink to="/events" className={navLinkClass} onClick={() => setOpen(false)}>
               Events
             </NavLink>
-            {user?.role === "organizer" || user?.role === "admin" ? (
+            {user?.role === "organizer" ? (
               <NavLink to="/organizer" className={navLinkClass} onClick={() => setOpen(false)}>
                 Organizer Studio
               </NavLink>
             ) : null}
             {user ? (
               <>
-                <NavLink to="/dashboard" className={navLinkClass} onClick={() => setOpen(false)}>
-                  <span className="flex items-center gap-1.5">
-                    <LayoutDashboard className="h-4 w-4" /> My Events
-                  </span>
-                </NavLink>
+                {user.role === "student" && (
+                  <NavLink to="/dashboard" className={navLinkClass} onClick={() => setOpen(false)}>
+                    <span className="flex items-center gap-1.5">
+                      <LayoutDashboard className="h-4 w-4" /> My Events
+                    </span>
+                  </NavLink>
+                )}
                 <NavLink to="/profile" className={navLinkClass} onClick={() => setOpen(false)}>
-                  My Portfolio
+                  My Profile
                 </NavLink>
               </>
             ) : null}

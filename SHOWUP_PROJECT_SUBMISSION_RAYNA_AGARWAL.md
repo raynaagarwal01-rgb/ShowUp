@@ -1,203 +1,339 @@
-# ShowUp — Comprehensive Project Submission Document
+# ShowUp — Project Submission Document (DBMS Project)
 
 **Student Name:** Rayna Agarwal  
 **Registration Number:** 25BCE0703  
 **Institution:** Vellore Institute of Technology (VIT), Vellore  
 **Department:** Computer Science & Engineering (CSE)  
-**Live Production Website:** [https://showup-campus.vercel.app](https://showup-campus.vercel.app)  
-**Official graVITas '26 Events Hub:** [https://showup-campus.vercel.app/fests/gravitas26](https://showup-campus.vercel.app/fests/gravitas26)  
 **GitHub Repository:** [https://github.com/raynaagarwal01-rgb/ShowUp](https://github.com/raynaagarwal01-rgb/ShowUp)  
 **Google Drive Submission Folder:** [https://drive.google.com/drive/folders/1NqCytuNS5DiaBu40F68yNv-zc6RESz7v](https://drive.google.com/drive/folders/1NqCytuNS5DiaBu40F68yNv-zc6RESz7v)  
-**Submission Date:** September 2026  
+**Hosted frontend (Vercel):** [https://showup-campus.vercel.app](https://showup-campus.vercel.app) — static hosting only; the Express + MySQL backend runs locally (see Section 8)  
+**Submission Date:** October 2026  
 
 ---
 
 ## 1. Executive Summary & Problem Solved
 
-At universities like **VIT Vellore**, thousands of students actively participate in technical hackathons, coding contests, robotics competitions, technical workshops, and cultural fests across major festivals such as **graVITas** and **Riviera**. However, campus event participation has historically been hampered by fragmented registration processes:
-- Registrations are scattered across dozens of individual Google Forms, WhatsApp groups, and external Unstop links.
-- Students miss deadlines, lose team secret codes, and miss urgent organizer announcements.
-- Getting official **On-Duty (OD) attendance permission** requires tedious physical paperwork and verification signatures.
-- Participation certificates often take weeks to be manually emailed and lack cryptographic proof of authenticity.
-- Students struggle to locate campus venues or calculate walking distances between academic blocks (Anna Auditorium, Technology Tower, SJT, TT, MB).
+At universities like **VIT Vellore**, students take part in hackathons, workshops, competitions and cultural events, but registration is scattered across Google Forms, WhatsApp groups and external links. Students miss deadlines, lose team codes and miss organizer updates; organizers keep attendance on paper.
 
-**ShowUp** solves this entire lifecycle through an end-to-end, production-grade event operating system:
-1. **Unified Event Directory & Search:** Multi-attribute filtering (category, campus internal vs national external, date ranges, price, and bookmarks).
-2. **Dedicated graVITas '26 Hub:** Live countdown timer to Day 1, 3-day timeline breakdown, and 56+ synchronized official VIT events.
-3. **Protected Event Access:** Authentication security protecting events behind verified student login with smart return redirects.
-4. **Instant Event Destination Mapping:** Integrated Google Maps navigation modal next to every event venue with real-time campus distance calculation.
-5. **Per-Event Teammate Finder:** Live board on every hackathon allowing students to post required skills (Frontend, Backend, AI/ML) and connect via WhatsApp.
-6. **Simulated Online UPI & Card Gateway:** Realistic checkout modal supporting GPay, PhonePe, Paytm, and dynamic QR scan with zero convenience fee.
-7. **Offline Entry Passes (800x1080 PNG):** High-contrast entry pass saved directly to mobile gallery with scannable door QR code.
-8. **Automated 1080p Participation Certificates:** High-resolution (1920x1080) client-side canvas generation with official gold seal of merit and cryptographic verification QR code.
-9. **Student Portfolio & Public Credentials (`/u/:userId`):** Shareable student resume with verified ShowUp credentials, competition trophies, and 1-click **Add to LinkedIn Profile** button.
-10. **Organizer Studio & Live Door Scanner:** Real-time check-in using webcam QR decoding, registrant management, and 13-column academic OD CSV export.
+**ShowUp** is one website for the whole event lifecycle: students browse events from different colleges, register solo or as a team, and get a QR ticket; organizers create events, see participants, post announcements, answer questions, publish winners and check people in by scanning tickets.
+
+It is built as a **DBMS project**: every piece of data lives in a **MySQL 8 database of 8 tables**, accessed through **plain SQL** (no ORM) from a small **Node.js + Express** API. The React website looks feature-rich, but the database and backend are deliberately simple enough to explain table by table and query by query.
+
+**Key features**
+
+1. **Event directory** — search, category / college / price / solo-team / date filters, sorting and locally saved bookmarks.
+2. **Event detail page** — overview, venue map and distance, live seats left, deadline countdown, calendar export.
+3. **Solo registration** — with server-side checks for deadline, capacity and duplicates.
+4. **Team registration** — create a team, receive a 6-character join code, teammates sign up and join with the code.
+5. **QR tickets** — every registration gets a ticket (`SHOWUP-REG-<id>`), viewable in My Events and downloadable as a PNG pass.
+6. **QR check-in** — organizers scan tickets with a camera (or type the number); attendance is stored in the database.
+7. **Announcements, Q&A and Winners tabs** — organizer updates, student questions with organizer answers, and a results podium.
+8. **Organizer studio** — create, edit and delete events, participant list grouped by team, CSV export.
+9. **Participation certificate (demo)** — a PNG drawn in the browser, watermarked until the student is checked in. It is a demo feature, not an official or verifiable certificate.
+
+The event fee is **informational only** — there is no payment processing.
 
 ---
 
-## 2. Complete Page-by-Page & Button-by-Button Breakdown
+## 2. Page-by-Page Guide
 
 ### Page 1: Landing Page (`/`)
-- **Logo ("ShowUp")**: Features the brand new coral-to-amber gradient upward arrow badge (`ArrowUpRight`) with a pulsating emerald live indicator dot. Clicking returns to the home page from anywhere.
-- **"Browse events" Button**: Directs students to the event discovery directory (`/events`). If the user is not signed in, it safely routes to `/login?redirect=/events` with an educational banner.
-- **"Host an event" Button**: Accessible to event managers and club leads, directing to the Organizer Studio (`/organizer`) or signup wizard.
-- **Feature Showcase Tiles**:
-  - *Register once, reuse everywhere:* Highlights persistent student profiles.
-  - *Solo or team, built in:* Highlights secret join codes and automated capacity limits.
-  - *QR check-in at the door:* Highlights phone camera scanning and offline passes.
-  - *One dashboard, not two portals:* Highlights unified student & organizer management.
-- **Navbar Links**:
-  - `Events`: One-click navigation to campus event directory.
-  - `Organizer Studio`: Visible to club organizers and faculty convenors.
-  - `My Events`: Quick-access student tickets and registration dashboard.
-  - `Portfolio`: Opens personal credential showcase and portfolio editor.
-  - `Sign in` / `Get started` / `Sign out`: Role-based authentication controls.
+- **Logo** — returns to the home page from anywhere.
+- **"Browse events"** — opens the event directory (`/events`); signed-out visitors are sent to log in first and brought back afterwards.
+- **"Host an event"** — opens sign-up so a club can create an organizer account.
+- **Feature tiles** — register once, solo or team, QR check-in, one dashboard.
+- **Navbar** — `Events`, `Organizer Studio` (organizers), `My Events` (students), `Profile`, `Sign in` / `Get started` / `Sign out`.
 
----
+### Page 2: Sign Up & Log In (`/signup`, `/login`)
+- Sign up as a **Student** or **Club organizer** with name, email, password, and optionally college and registration number.
+- Passwords are stored only as **bcrypt hashes**; logging in returns a **JWT** that the browser sends with each request.
+- **Sign out** deletes the token from the browser.
 
-### Page 2: Event Directory & Discovery (`/events`)
-*Protected by verified student authentication.*
-- **Keyword Search Bar**: Instant real-time filtering as you type, matching title, club name, venue, description, or university.
-- **Scope Segmented Control (`All` / `Internal` / `External`)**:
-  - `All`: Displays all registered events nationwide.
-  - `Internal`: Filters events restricted exclusively to VIT students.
-  - `External`: Filters open inter-college events welcoming outstation universities.
-- **Category Filter Pills**: Quick-filter toggles for `Hackathon`, `Workshop`, `Competition`, `Cultural`, and `Talk`.
-- **"Saved (count)" Wishlist Pill**: One-click filter isolating only the events saved by the student.
-- **Date Range Pickers (`From` and `To`)**: Allows students to filter events happening during specific weekends or festival days.
-- **Sort Dropdown**: Options for "Soonest first", "Latest first", "Fee: Free first", "Fee: Low to High", and "Fee: High to Low".
-- **"Reset all filters" Button**: Clears all active filters, searches, and date boundaries with one click.
-- **Event Card Controls**:
-  - **Bookmark Ribbon (Heart/Bookmark icon)**: Instant save/unsave to local wishlist without page reloads.
-  - **"View on Map" / MapPin Button**: Opens the destination map modal showing venue location, walking distance from campus gate, and direct Google Maps routing.
-  - **Event Card Click**: Navigates into the full event details and registration page (`/events/:id`).
+### Page 3: Event Directory (`/events`)
+- **Search bar** — matches event title, organizer, college and description.
+- **College dropdown** — colleges come from each event's organizer (a JOIN with `users`).
+- **Category pills** — Hackathon, Workshop, Competition, Cultural, Talk; plus **Saved** (bookmarks stored in the browser).
+- **Price** (any / free / paid), **Solo or team**, **date range** and **sort** (soonest, latest, deadline).
+- **Event cards** — category, seats left (from a `COUNT` in SQL), venue with **Map & Distance**, team size, date, deadline, fee and a bookmark button.
 
----
+### Page 4: Event Details & Registration (`/events/:id`)
+- **Info tiles** — college, venue (with **Map & How Far**), date and time, participation (solo or team size).
+- **Tabs**
+    1. **Overview** — the event description and rules.
+    2. **Announcements** — notices posted by the event's organizer.
+    3. **Q&A** — signed-in students ask questions; only the event's organizer can answer.
+    4. **Winners & Results** — 1st/2nd/3rd podium and special mentions entered by the organizer.
+- **Registration panel**
+    - Solo events: **Register**.
+    - Team events: **Create team** (enter a team name → get a join code) or **Join with code**.
+    - Success is shown directly on the page — no email or SMS.
+    - Once registered: status badge, team join code with **Copy**, **Download Pass (PNG)**, **Certificate (demo)**, **My Team**, **View my ticket**.
+    - **Add to calendar** — Google Calendar link or `.ics` download.
 
-### Page 3: Event Details & Registration (`/events/:id`)
-*Interactive multi-tab participation center.*
-- **Venue & Destination Map Action**: Next to the venue address, clicking the map pin launches the directions modal with turn-by-turn routing to Anna Auditorium, Technology Tower, etc.
-- **Interactive Tabs**:
-  1. **"Overview & Rules" Tab**: Displays full event briefing, prerequisites, team size requirements, and numbered contest regulations.
-  2. **"Announcements" Tab**: Real-time broadcast notice feed from the event organizers with glowing `URGENT ALERT` badges for schedule or room changes.
-  3. **"Teammate Finder" Tab**: Dedicated peer-matching board where solo participants post open team slots, specify required skills (Frontend, ML, UI/UX), and connect via direct WhatsApp chat.
-  4. **"Q&A Forum" Tab**: Discussion thread allowing students to ask questions and view verified organizer answers flagged with the green shield badge (*"Answered by Organizer"*).
-  5. **"Winners & Trophies" Tab**: Post-event podium displaying 1st Place Grand Champion and Runners-Up with project demo links and authenticated jury stamps.
-- **Sidebar Registration Controls**:
-  - **Solo Event**: "Register Now" button (opens the ShowUp Demo UPI modal if `fee > 0`, or registers immediately if free).
-  - **Team Event**: Segmented control between `Create team` (enter team name and get a 6-character secret join code) and `Join with code` (enter code from team lead).
-  - **"Preview Official Participation Certificate"**: Opens the certificate canvas modal to inspect the pre-check-in certificate layout.
-- **Confirmed Registration State**:
-  - Status badge (`Confirmed` / `Waitlisted`).
-  - **"Download Pass (PNG)" Button**: Exports the 800x1080 high-contrast door ticket to smartphone gallery.
-  - **"Download Certificate (PNG)" Button**: Renders and downloads the 1920x1080 participation certificate.
-  - **"Add to Calendar" Dropdown**: Generates Google Calendar event or downloads `.ics` for Apple/Outlook.
-  - **"View my ticket" Button**: Navigates to `/dashboard`.
+### Page 5: My Events (`/dashboard`)
+- Every event the student is registered for, with team name and join code.
+- **Show ticket** — the QR code for check-in; **Download Pass (PNG)**.
+- **My Team** — members, leader, open slots, join code and a copyable invite message.
+- **Certificate**, **Add to calendar**, **Map & Distance**.
+- **Cancel (X)** — cancels the registration (with confirmation) and frees the seat.
 
----
-
-### Page 4: Dedicated graVITas '26 Events Hub (`/fests/gravitas26`)
-- **Neon Hero Showcase**: Fest countdown header for VIT Vellore's annual international tech fest.
-- **Real-Time Countdown Clock**: Displays live ticking countdown in Days, Hours, Minutes, and Seconds until Day 1 (September 26, 2026).
-- **Festival Perks Grid**:
-  - *Official OD Letter:* For university attendance authorization.
-  - *ShowUp Verified Cert:* Instant cryptographic QR-verified credentials.
-  - *56+ Official Events:* Synchronized from Unstop and VIT clubs.
-- **Schedule Timeline Switcher**:
-  - `All 3 Days (56)`
-  - `Day 1 · Sep 26 (Fri)`
-  - `Day 2 · Sep 27 (Sat)`
-  - `Day 3 · Sep 28 (Sun)`
-- **Filters**: "Teams Only" and "Free Entry" toggles, plus category pills.
-- **Attendee Guidelines Accordion**: Details on OD attendance slips, digital certificate validation, Anna Auditorium & TT check-in desks, and hostel accommodation.
-
----
-
-### Page 5: Student Dashboard / My Events (`/dashboard`)
-- **My Registrations Section**: Complete list of all events the student has signed up for.
-- **"Show / Hide Ticket" Button**: Toggles full-screen scannable door QR code.
-- **"Download Offline Pass (PNG)" Button**: Generates offline entry pass.
-- **"Certificate" Button**: Launches the cryptographic certificate modal with pre-check-in watermark or unlocked post-check-in verification seal.
-- **"Add to Calendar" Dropdown**: Synchronizes the event schedule with personal devices.
-- **"Cancel Registration" (X Icon)**: Self-service registration cancellation that immediately frees up capacity for waitlisted students.
-
----
-
-### Page 6: Student Portfolio & Public Profile (`/profile` & `/u/:userId`)
-- **Shareable Public URL**: Instant portfolio link (e.g. `showup-campus.vercel.app/u/rayna-25bce0703`).
-- **"Edit Portfolio" Button**: Opens the modal to update bio, university, graduation year, skills tags, GitHub profile, LinkedIn profile, and website.
-- **"Copy Profile Link" Button**: Copies the verified public profile link to the clipboard with visual confirmation.
-- **Verified ShowUp Credentials Grid**: Displays every registered event with unique cryptographic certificate ID (`SUP-XXXXXX`).
-- **"Add to LinkedIn" Button**: 1-click URL generator that pre-fills the LinkedIn Certification Form with name, issuing authority ("ShowUp Credentials"), and credential ID.
-- **"OD Slip" Button**: Downloads the official On-Duty attendance letter.
-
----
+### Page 6: Profile (`/profile`)
+- Account details from the `users` table (name, email, role, college, registration number, member since).
+- Summary counts — registered events, events attended (checked in), teams; for organizers, events hosted and total participants.
 
 ### Page 7: Organizer Studio (`/organizer`)
-- **Analytics KPIs**: Live tiles showing Total Events Hosted, Total Registrations, Total Revenue Collected (₹), and Door Check-in Rate (%).
-- **"Create Event" Button**: Opens the multi-step event publication wizard (`/organizer/new`).
-- **"Manage Registrants" Button**: Opens the attendee management table.
-- **"Door Check-in Scanner" Button**: Launches the camera QR scanner for door check-in.
+- All events created by the organizer with confirmed participants vs capacity.
+- Buttons per event: **Registrants & Teams**, **Check-in**, **Edit**, **Delete** (with confirmation).
+- **New event** — form with title, description, category, venue, date and time, registration deadline, capacity, fee, minimum and maximum team size.
+
+### Page 8: Participants (`/organizer/events/:id`)
+- KPI cards — confirmed participants, spots left, teams formed, checked in.
+- **By team** view — each team with its join code, members, leader badge, check-in status and a "needs N more" warning for teams below the minimum size.
+- **All participants** table — ticket number, name, email, college and registration number, team, status, check-in.
+- **Search** and **Export participants (CSV)**.
+
+### Page 9: QR Check-in (`/organizer/events/:id/checkin`)
+- Camera scanner (`html5-qrcode`) reads the ticket QR code.
+- Manual entry — type `42` or `SHOWUP-REG-42`.
+- The server only accepts tickets for **this organizer's event** that are **confirmed** and **not already checked in**; the participant's name is shown on success.
+
+### Page 10: Campus Map (`/campus-map`)
+- A clickable map of VIT Vellore buildings with floor directories and the events held at each venue (runs in the browser).
 
 ---
 
-### Page 8: Organizer Registrant Management & OD Export (`/organizer/events/:id`)
-- **Attendee Management Table**: Lists all registrants with Name, Email, Phone, College, Registration Number, Team Name, and Check-in status.
-- **Search Bar**: Filters attendees in real time by name, email, or team.
-- **"Export OD CSV" Button**: Generates a university-standard 13-column CSV spreadsheet formatted for the Student Welfare Office (SWO) containing student details, event dates, venues, and timestamps.
+## 3. Database Design
 
----
+### 3.1 The 8 tables
 
-### Page 9: Door QR Check-in Scanner (`/organizer/events/:id/checkin`)
-- **Camera Viewfinder**: Live phone camera or laptop webcam feed utilizing `html5-qrcode` to scan participant tickets in under 200 milliseconds.
-- **Manual Ticket ID Fallback Input**: Allows organizers to type in ticket codes if the participant's phone screen is cracked or battery is low.
-- **Immediate Audio-Visual Feedback**: Green confirmation checkmark with attendee name, college, and team name upon successful door admission.
-
----
-
-## 3. Tools & Technologies Breakdown: Who, Why & How
-
-| Technology / Tool | Who Created It | Why It Was Chosen | How It Is Used in ShowUp |
+| # | Table | Columns | Keys & constraints |
 | :--- | :--- | :--- | :--- |
-| **React 19** | Meta / Open Source | Component-driven architecture, declarative rendering, and fast virtual DOM updates. | Powers all dynamic user interfaces, interactive tab switchers, modals, forms, and client routing. |
-| **TypeScript 6** | Microsoft | Compile-time static type safety; prevents null-pointer exceptions and ensures strict contracts. | Strictly types all models (`EventRecord`, `Registration`, `Profile`, `Announcement`, `EventQuestion`, `EventWinner`). |
-| **Vite 8** | Evan You & Vite Team | Instant dev-server startup via native ES modules and high-speed production bundling with Rollup. | Compiles, bundles, and tree-shakes the entire frontend into optimized minified chunks in under 1 second. |
-| **Tailwind CSS v4** | Tailwind Labs | Utility-first styling with zero CSS file bloat and built-in responsive design primitives. | Implements the custom dark-mode theme palette (`bg-ink`, `bg-surface`, `text-coral`, `bg-surface-2`). |
-| **Lucide React** | Lucide Project | Lightweight, accessible, consistent modern vector icons. | Renders all interactive icons (upward logo, navigation pills, calendar, map pin, QR pass, awards). |
-| **HTML5 Canvas 2D API** | W3C Web Standard | Client-side 2D hardware-accelerated graphic rendering without server dependencies. | Synthesizes 1920x1080 participation certificates and 800x1080 offline door passes in ~80ms in the browser. |
-| **node-qrcode** | Soldair / Open Source | Fast cryptographic QR matrix generation from arbitrary text payloads. | Generates dynamic entrance QR codes and simulated UPI payment strings. |
-| **html5-qrcode** | Minhaz / Open Source | Robust client-side camera stream reader and QR decoder. | Powers the door check-in camera scanner in the Organizer Studio. |
-| **Supabase (PostgreSQL 15)** | Supabase Inc. | Cloud relational database with Row Level Security (RLS) and real-time APIs. | Persists events, registrations, teams, profiles, announcements, questions, and competition winners. |
-| **Supabase Edge Functions** | Deno / Supabase | Low-latency serverless TypeScript execution at the edge. | Handles automated confirmation dispatch for email (Resend) and SMS (Fast2SMS/Twilio). |
-| **Vercel Edge Cloud** | Guillermo Rauch / Vercel | Global CDN with atomic rolling deployments, zero configuration, and instant SSL. | Hosts the production platform at `showup-campus.vercel.app` with instant Git deployment. |
-| **GitHub** | Chris Wanstrath / Microsoft | Distributed version control, branch management, and CI triggers. | Tracks codebase history at `github.com/raynaagarwal01-rgb/ShowUp` and triggers automated Vercel deploys. |
+| 1 | `users` | id, name, email, password_hash, role, college, reg_no, created_at | PK id; email UNIQUE NOT NULL; role ENUM('student','organizer') |
+| 2 | `events` | id, organizer_id, title, description, category, venue, event_date, registration_deadline, capacity, fee, team_min, team_max, created_at | PK id; FK organizer_id → users; CHECK capacity > 0, fee ≥ 0, team_max ≥ team_min ≥ 1 |
+| 3 | `teams` | id, event_id, name, join_code, leader_id, created_at | PK id; FK event_id → events; FK leader_id → users; join_code UNIQUE; UNIQUE(event_id, name) |
+| 4 | `team_members` | team_id, user_id, joined_at | composite PK (team_id, user_id); FKs → teams, users |
+| 5 | `registrations` | id, user_id, event_id, team_id, status, checked_in_at, registered_at | PK id; FKs → users, events, teams (team_id may be NULL); UNIQUE(user_id, event_id); status ENUM('confirmed','cancelled') |
+| 6 | `announcements` | id, event_id, title, content, created_at | PK id; FK event_id → events |
+| 7 | `event_questions` | id, event_id, user_id, question, answer, created_at | PK id; FKs → events, users; answer NULL until answered |
+| 8 | `event_winners` | id, event_id, position, winner_name, prize | PK id; FK event_id → events; CHECK position ≥ 1 |
+
+The full `CREATE TABLE` statements are in `sql/schema.sql`.
+
+### 3.2 ER diagram
+
+```mermaid
+erDiagram
+    users ||--o{ events : "organizes"
+    users ||--o{ registrations : "registers"
+    events ||--o{ registrations : "has"
+    events ||--o{ teams : "has"
+    users ||--o{ teams : "leads"
+    teams ||--o{ team_members : "has"
+    users ||--o{ team_members : "is in"
+    teams |o--o{ registrations : "groups"
+    events ||--o{ announcements : "has"
+    events ||--o{ event_questions : "has"
+    users ||--o{ event_questions : "asks"
+    events ||--o{ event_winners : "has"
+```
+
+### 3.3 Foreign keys
+
+| Foreign key | References | Meaning | On delete |
+| :--- | :--- | :--- | :--- |
+| `events.organizer_id` | `users.id` | organizer who created the event (one user → many events) | CASCADE |
+| `teams.event_id` | `events.id` | event the team competes in (one event → many teams) | CASCADE |
+| `teams.leader_id` | `users.id` | student who created the team | CASCADE |
+| `team_members.team_id` | `teams.id` | many-to-many link users ↔ teams | CASCADE |
+| `team_members.user_id` | `users.id` | many-to-many link users ↔ teams | CASCADE |
+| `registrations.user_id` | `users.id` | who registered (many-to-many users ↔ events) | CASCADE |
+| `registrations.event_id` | `events.id` | which event | CASCADE |
+| `registrations.team_id` | `teams.id` | the team, NULL for solo | SET NULL |
+| `announcements.event_id` | `events.id` | event the notice belongs to | CASCADE |
+| `event_questions.event_id` | `events.id` | event being asked about | CASCADE |
+| `event_questions.user_id` | `users.id` | student who asked | CASCADE |
+| `event_winners.event_id` | `events.id` | event the result is for | CASCADE |
+
+Because of the cascades, `DELETE FROM events WHERE id = ?` removes the event's teams, team members, registrations, announcements, questions and winners in one statement.
+
+### 3.4 DBMS concepts demonstrated
+
+| Concept | Where |
+| :--- | :--- |
+| Primary keys | `INT AUTO_INCREMENT PRIMARY KEY` on 7 tables; composite `PRIMARY KEY(team_id, user_id)` |
+| Foreign keys | 12 foreign keys (table above) |
+| One-to-many | users → events; events → teams, announcements, questions, winners |
+| Many-to-many | users ↔ teams via `team_members`; users ↔ events via `registrations` |
+| CRUD | events: INSERT, SELECT, UPDATE, DELETE |
+| INNER JOIN | events ⋈ users (organizer name); event_questions ⋈ users (asker name) |
+| LEFT JOIN | events ⟕ registrations (events with no registrations still listed); registrations ⟕ teams (solo rows) |
+| COUNT / GROUP BY | seats taken per event; check-ins per event; team sizes |
+| UNIQUE / NOT NULL / CHECK | email, join_code, (user_id, event_id), (event_id, name); capacity, fee, team size, position |
+| Transactions & row locks | register, create team, join team, cancel: `START TRANSACTION … SELECT … FOR UPDATE … COMMIT` |
+
+### 3.5 Example SQL queries
+
+Seats taken per event (INNER JOIN + LEFT JOIN + COUNT + GROUP BY) — the query behind the event list:
+
+```sql
+SELECT e.id, e.title, u.name AS organizer, e.capacity,
+       COUNT(r.id) AS registered
+  FROM events e
+  JOIN users u ON u.id = e.organizer_id
+  LEFT JOIN registrations r ON r.event_id = e.id AND r.status = 'confirmed'
+ GROUP BY e.id
+ ORDER BY e.event_date;
+```
+
+A team and its members (many-to-many through `team_members`):
+
+```sql
+SELECT t.name AS team, t.join_code, u.name AS member, (u.id = t.leader_id) AS is_leader
+  FROM teams t
+  JOIN team_members tm ON tm.team_id = t.id
+  JOIN users u ON u.id = tm.user_id
+ WHERE t.join_code = 'NC8821';
+```
+
+Attendance per event:
+
+```sql
+SELECT e.title, COUNT(*) AS confirmed, COUNT(r.checked_in_at) AS checked_in
+  FROM registrations r
+  JOIN events e ON e.id = r.event_id
+ WHERE r.status = 'confirmed'
+ GROUP BY e.id, e.title;
+```
+
+Teams below the minimum size (GROUP BY + HAVING):
+
+```sql
+SELECT e.title, t.name, COUNT(tm.user_id) AS members, e.team_min
+  FROM teams t
+  JOIN events e ON e.id = t.event_id
+  JOIN team_members tm ON tm.team_id = t.id
+ GROUP BY t.id, e.title, t.name, e.team_min
+HAVING COUNT(tm.user_id) < e.team_min;
+```
+
+### 3.6 What happens in the database
+
+**Solo registration** (`POST /api/events/:id/register`), in one transaction:
+
+1. `SELECT * FROM events WHERE id = ? FOR UPDATE` — lock the event row so simultaneous registrations for the same event run one after another.
+2. Reject if the registration deadline has passed or it is a team event.
+3. Reject if the student already has a confirmed registration (`UNIQUE(user_id, event_id)` is the database backstop).
+4. `SELECT COUNT(*) … WHERE event_id = ? AND status = 'confirmed'` — reject if the event is full.
+5. `INSERT INTO registrations …` (or `UPDATE` a previously cancelled row back to confirmed).
+6. `COMMIT`. The registration id becomes the QR ticket `SHOWUP-REG-<id>`.
+
+**Team registration**
+
+- *Create team* — lock the event row, check deadline / duplicate / capacity, then `INSERT` into `teams` (random unique join code), `team_members` (leader) and `registrations` (leader).
+- *Join with code* — find the team by `join_code`, lock its event row, check the team has fewer than `team_max` members and a seat is free, then `INSERT` into `team_members` and `registrations`.
+- Every member has their **own registration and QR ticket**, so capacity counts people. Each teammate signs up with their own account — no placeholder accounts are created.
+
+**Cancellation** sets `status = 'cancelled'` (the row is kept as history), which frees the seat. A cancelling team member leaves the team; an empty team is deleted, and if the leader leaves, the earliest remaining member becomes leader.
+
+**Check-in** — `UPDATE registrations SET checked_in_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'confirmed' AND checked_in_at IS NULL`, allowed only for the event's organizer.
 
 ---
 
-## 4. Key Architectural & Functional Innovations
+## 4. API Endpoints
 
-1. **Dual-Mode Persistence Architecture (Cloud & Offline Fallback)**:
-   - When configured with Supabase credentials, ShowUp synchronizes in real time with cloud PostgreSQL.
-   - If offline or unconfigured, the application seamlessly activates the client-side `demoStorage` engine, allowing complete testing (signup, event creation, registration, payment simulation, check-in) directly inside the browser.
-2. **Client-Side High-Resolution Certificate Synthesis**:
-   - Rather than relying on heavy server-side PDF clusters (Puppeteer), ShowUp renders publication-grade 1920x1080 certificates with gold seals, filigree borders, and embedded verification QR codes directly in the browser in under 80 milliseconds.
-3. **Turn-by-Turn Venue Mapping & Campus Distance**:
-   - Every event card and detail page includes direct location mapping, showing the student exact distance from campus landmarks and 1-click routing into Google Maps.
-4. **Standardized Academic OD Slip & CSV Exporters**:
-   - Built specifically to satisfy university attendance criteria at institutions like VIT Vellore, eliminating registration ambiguity for external and internal hackathons.
+| Method & path | Who | What it does in SQL |
+| :--- | :--- | :--- |
+| `POST /api/auth/signup` | anyone | INSERT INTO users (bcrypt hash) |
+| `POST /api/auth/login` | anyone | SELECT user by email, compare bcrypt hash, return JWT |
+| `GET /api/auth/me` | signed in | SELECT user by id |
+| `GET /api/events` | anyone | events ⋈ users ⟕ registrations, COUNT … GROUP BY |
+| `GET /api/events/:id` | anyone | same, for one event |
+| `POST /api/events` | organizer | INSERT INTO events |
+| `PUT /api/events/:id` | event owner | UPDATE events |
+| `DELETE /api/events/:id` | event owner | DELETE FROM events (cascades) |
+| `POST /api/events/:id/register` | student | transaction: lock, count, INSERT registration |
+| `GET /api/my-registrations` | signed in | registrations ⋈ events ⋈ users ⟕ teams |
+| `DELETE /api/registrations/:id` | participant or organizer | transaction: mark cancelled, team clean-up |
+| `GET /api/events/:id/registrations` | event owner | registrations ⋈ users ⟕ teams |
+| `POST /api/registrations/:id/check-in` | event owner | UPDATE checked_in_at |
+| `POST /api/events/:id/teams` | student | transaction: INSERT team, member, registration |
+| `POST /api/teams/join` | student | transaction: INSERT member, registration |
+| `GET /api/teams/:id` | team member or organizer | team_members ⋈ users |
+| `GET` / `POST /api/events/:id/announcements` | anyone / event owner | SELECT / INSERT announcements |
+| `GET` / `POST /api/events/:id/questions` | anyone / signed in | SELECT questions ⋈ users / INSERT question |
+| `PUT /api/questions/:id/answer` | event owner | UPDATE event_questions SET answer |
+| `GET` / `POST /api/events/:id/winners` | anyone / event owner | SELECT / INSERT event_winners |
 
 ---
 
-## 5. Submission & Verification Summary
+## 5. Tools & Technologies
 
-- **Live Production URL:** [https://showup-campus.vercel.app](https://showup-campus.vercel.app)
-- **graVITas '26 Hub:** [https://showup-campus.vercel.app/fests/gravitas26](https://showup-campus.vercel.app/fests/gravitas26)
+| Technology | Why it was chosen | How it is used in ShowUp |
+| :--- | :--- | :--- |
+| **MySQL 8** | Relational database with foreign keys, constraints and transactions | Stores all 8 tables; enforces keys, CHECKs and cascades |
+| **Node.js + Express 5** | Small, widely taught web framework | REST API in five route files (`server/routes/`) |
+| **mysql2** | MySQL driver with `?` placeholders (prevents SQL injection) | Every query is written as plain SQL |
+| **bcryptjs** | Standard password hashing | Hashes passwords at sign-up; compares at login |
+| **jsonwebtoken (JWT)** | Stateless login tokens, no sessions table | Signed with `JWT_SECRET`, expires after 7 days |
+| **React 19 + TypeScript** | Component-based UI with type checking | All pages, tabs, forms and modals |
+| **Vite 8** | Fast dev server and production build | Builds the frontend into `dist/`, proxies `/api` in development |
+| **Tailwind CSS v4** | Utility-first styling | The dark coral theme used across the site |
+| **qrcode / html5-qrcode** | QR generation and camera scanning in the browser | Tickets, PNG passes and the check-in scanner |
+| **HTML5 Canvas** | Draws images without a server | PNG entry pass and the demo certificate |
+| **Lucide React** | Consistent icon set | Icons throughout the UI |
+| **GitHub** | Version control | Code history at `github.com/raynaagarwal01-rgb/ShowUp` |
+
+---
+
+## 6. Simplification: What Changed
+
+An earlier version of ShowUp grew too large for a DBMS project (10+ tables, external services, many unused fields). It was simplified to the design above.
+
+- **Removed tables:** `profiles` (replaced by the smaller `users`), `sessions`, `password_resets`, `teammate_listings`. Ids changed from text/UUIDs to `INT AUTO_INCREMENT`.
+- **Removed columns:** user state/city/branch/year/phone/bio/GitHub/LinkedIn; event club name, tagline, rules list, scope, location fields, end time, banner colour, draft status; team project idea; announcement urgency; extra winner details.
+- **Removed services:** Supabase, Resend email, Twilio / Fast2SMS / 2Factor SMS, WhatsApp notifications, Unstop/graVITas sync scripts.
+- **Removed features:** forgot/reset password, onboarding step, teammate finder, waitlist, simulated UPI payment checkout, OD attendance letter, graVITas fest hub page, public "verified" portfolio and LinkedIn credential links, organizer sample-event generator.
+- **Kept and simplified:** team creation and joining with codes, QR tickets and check-in, announcements, Q&A, winners, calendar export, bookmarks, maps, CSV export, and a clearly labelled demo certificate.
+
+---
+
+## 7. Testing
+
+The simplified application was tested against a local MySQL 8 database:
+
+- **API tests (83 checks, all passing):** sign-up/login/token validation, event CRUD and ownership checks, solo registration, deadline / capacity / duplicate rules, team create and join (including full teams and team members counting towards capacity), cancellation and leader hand-over, QR check-in rules, announcements / Q&A / winners permissions, and cascading deletes. Five students registering at the same moment for a one-seat event resulted in exactly one registration, confirming the row lock.
+- **Browser walkthrough:** sign-up, joining a team by code, asking a question, viewing the QR ticket, solo registration, logout; organizer studio, participant list, manual check-in, answering a question and creating an event.
+- `npm run build` (TypeScript check + Vite build) completes without errors.
+
+---
+
+## 8. Running the Project
+
+Requirements: **Node 20+** and **MySQL 8.0.16+**.
+
+```bash
+npm install
+cp .env.example .env     # set DB_USER, DB_PASSWORD and a long random JWT_SECRET
+npm run db:reset         # local only: creates the 8 tables and loads sample data
+npm run dev              # API on :3001, website on http://localhost:5173
+```
+
+Demo accounts (password `password123`): organizer `codecell@showup.local`; students `ananya@showup.local`, `rohan@showup.local` (team NeuralCraft, join code `NC8821`), `priya@showup.local`, `vikram@showup.local`, `sameer@showup.local`.
+
+The SQL files can also be run with the MySQL client or Workbench: `sql/schema.sql` (tables), `sql/seed.sql` (sample data), `sql/reset.sql` (drops the tables — local development only).
+
+---
+
+## 9. Submission Summary
+
 - **GitHub Repository:** [https://github.com/raynaagarwal01-rgb/ShowUp](https://github.com/raynaagarwal01-rgb/ShowUp)
-- **Submission Documents:**
-  - `SHOWUP_PROJECT_SUBMISSION_RAYNA_AGARWAL.pdf` (High-resolution PDF report)
-  - `SHOWUP_PROJECT_SUBMISSION_RAYNA_AGARWAL.html` (Interactive web document)
-  - `SHOWUP_PROJECT_SUBMISSION_RAYNA_AGARWAL.md` (Markdown document)
-  - `PROJECT_SUBMISSION_LINKS_AND_SUMMARY.txt` (Text summary)
+- **Google Drive Folder:** [https://drive.google.com/drive/folders/1NqCytuNS5DiaBu40F68yNv-zc6RESz7v](https://drive.google.com/drive/folders/1NqCytuNS5DiaBu40F68yNv-zc6RESz7v)
+- **Key files:** `sql/schema.sql`, `sql/seed.sql`, `server/routes/*.js`, `README.md`
+- **Submission documents:**
+    - `SHOWUP_PROJECT_SUBMISSION_RAYNA_AGARWAL.pdf` (PDF report)
+    - `SHOWUP_PROJECT_SUBMISSION_RAYNA_AGARWAL.html` (web version)
+    - `SHOWUP_PROJECT_SUBMISSION_RAYNA_AGARWAL.md` (Markdown version)
+    - `PROJECT_SUBMISSION_LINKS_AND_SUMMARY.txt` (text summary)
 
 ---
-*ShowUp · Built with Passion by Rayna Agarwal (25BCE0703) · VIT Vellore · September 2026*
+*ShowUp · Rayna Agarwal (25BCE0703) · VIT Vellore · October 2026*

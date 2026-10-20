@@ -1,37 +1,40 @@
+// MySQL connection pool. Every query in the app goes through `pool` using `?`
+// placeholders, so user input is never pasted into SQL text.
+import dotenv from "dotenv";
 import mysql from "mysql2/promise";
-import { config } from "./config.js";
 
-// timezone "Z": DATETIME columns hold UTC. mysql2 then reads them as UTC Dates
-// (which serialise to ISO strings) and writes Dates back out as UTC.
+dotenv.config({ quiet: true });
+
+export const dbConfig = {
+  host: process.env.DB_HOST || "127.0.0.1",
+  port: Number(process.env.DB_PORT || 3306),
+  user: process.env.DB_USER || "root",
+  password: process.env.DB_PASSWORD || "",
+  database: process.env.DB_NAME || "showup",
+};
+
 export const pool = mysql.createPool({
-  ...config.db,
-  waitForConnections: true,
+  ...dbConfig,
   connectionLimit: 10,
-  charset: "utf8mb4",
+  // Store and read every date as UTC so the browser can show it in local time.
   timezone: "Z",
 });
 
-// Column defaults like CURRENT_TIMESTAMP use the *session* time zone, so pin
-// every pooled connection to UTC to keep stored timestamps consistent.
 pool.pool.on("connection", (conn) => {
   conn.query("SET time_zone = '+00:00'");
 });
 
-/** Run a parameterised query and return the rows. Values always go through
- * `?` placeholders — never string-concatenate user input into SQL. */
-export async function query(sql, params = [], conn = pool) {
-  const [rows] = await conn.query(sql, params);
-  return rows;
-}
-
-/** Run `fn(conn)` inside a transaction; commits on success, rolls back on any
- * throw. Use SELECT ... FOR UPDATE inside for the check-then-write flows
- * (seat counts, team capacity) so concurrent requests can't oversell. */
-export async function tx(fn) {
+/**
+ * Runs `work(conn)` inside a transaction on one connection:
+ *   START TRANSACTION -> work -> COMMIT   (or ROLLBACK if anything throws)
+ * Used for registration, team create/join and cancellation, where several
+ * statements must succeed or fail together.
+ */
+export async function transaction(work) {
   const conn = await pool.getConnection();
   try {
     await conn.beginTransaction();
-    const result = await fn(conn);
+    const result = await work(conn);
     await conn.commit();
     return result;
   } catch (err) {

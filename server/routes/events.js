@@ -1,137 +1,109 @@
 import { Router } from "express";
-import { query } from "../db.js";
+import { pool } from "../db.js";
 import { requireAuth, requireOrganizer } from "../auth.js";
-import { mapEvent } from "../mappers.js";
-import { getVisibleEvent, seatStats } from "../queries.js";
-import { badRequest, forbidden, newId, notFound, parseDate, requireString } from "../util.js";
+import { HttpError, idParam, requireDate, requireInt, requireText } from "../helpers.js";
 
 export const eventsRouter = Router();
 
-const oneOf = (label, allowed) => (value) => {
-  if (!allowed.includes(value)) throw badRequest(`${label} must be one of: ${allowed.join(", ")}.`);
-  return value;
-};
+const CATEGORIES = ["Hackathon", "Workshop", "Competition", "Cultural", "Talk"];
 
-const integer = (label, { min, max = 2_147_483_647 }) => (value) => {
-  const n = Number(value);
-  if (!Number.isInteger(n) || n < min || n > max) {
-    throw badRequest(`${label} must be a whole number between ${min} and ${max}.`);
-  }
-  return n;
-};
+// Each event with its organizer (INNER JOIN users) and its number of confirmed
+// participants (LEFT JOIN registrations + COUNT + GROUP BY). LEFT JOIN keeps
+// events that have no registrations yet; COUNT(r.id) is 0 for them.
+const EVENT_SELECT = `
+  SELECT e.*,
+         u.name    AS organizer_name,
+         u.college AS organizer_college,
+         COUNT(r.id) AS registered_count
+    FROM events e
+    JOIN users u ON u.id = e.organizer_id
+    LEFT JOIN registrations r ON r.event_id = e.id AND r.status = 'confirmed'`;
 
-const text = (label, max) => (value) => requireString(value, label, max);
-const date = (label) => (value) => parseDate(value, label);
-
-const rules = (value) => {
-  if (!Array.isArray(value)) throw badRequest("Rules must be a list.");
-  const cleaned = value.map((r) => String(r).trim()).filter(Boolean).slice(0, 50);
-  return JSON.stringify(cleaned);
-};
-
-// column -> converter. Anything not listed here can't be written by a client
-// (in particular: id, created_by, created_at).
-const EVENT_FIELDS = {
-  club_id: text("Club id", 64),
-  club_name: text("Club name", 255),
-  title: text("Title", 255),
-  tagline: text("Tagline", 512),
-  description: text("Description", 20000),
-  rules,
-  category: text("Category", 50),
-  scope: oneOf("Scope", ["internal", "external", "both"]),
-  state: text("State", 100),
-  city: text("City", 100),
-  college: text("College", 255),
-  venue: text("Venue", 512),
-  start_at: date("Start time"),
-  end_at: date("End time"),
-  registration_deadline: date("Registration deadline"),
-  capacity: integer("Capacity", { min: 1 }),
-  fee: integer("Fee", { min: 0 }),
-  team_min: integer("Minimum team size", { min: 1, max: 1000 }),
-  team_max: integer("Maximum team size", { min: 1, max: 1000 }),
-  banner_hue: integer("Banner hue", { min: 0, max: 360 }),
-  status: oneOf("Status", ["draft", "published"]),
-};
-
-const REQUIRED_ON_CREATE = Object.keys(EVENT_FIELDS).filter(
-  (f) => !["team_min", "team_max", "banner_hue", "status", "fee"].includes(f),
-);
-const DEFAULTS_ON_CREATE = { fee: 0, team_min: 1, team_max: 1, banner_hue: 200, status: "published" };
-
-function convert(body, fields) {
-  const out = {};
-  for (const field of fields) {
-    if (body[field] === undefined) continue;
-    out[field] = EVENT_FIELDS[field](body[field]);
-  }
-  return out;
-}
-
-// Public: published events, soonest first.
-eventsRouter.get("/events", async (_req, res) => {
-  const rows = await query("SELECT * FROM events WHERE status = 'published' ORDER BY start_at ASC");
-  res.json(rows.map(mapEvent));
-});
-
-eventsRouter.get("/events/:id", async (req, res) => {
-  res.json(mapEvent(await getVisibleEvent(req.params.id, req.user)));
-});
-
-eventsRouter.get("/events/:id/stats", async (req, res) => {
-  res.json(await seatStats(req.params.id));
-});
-
-eventsRouter.post("/events", requireOrganizer, async (req, res) => {
-  for (const field of REQUIRED_ON_CREATE) {
-    if (req.body[field] === undefined || req.body[field] === null || req.body[field] === "") {
-      throw badRequest(`${field} is required.`);
-    }
-  }
-  const values = { ...DEFAULTS_ON_CREATE, ...convert(req.body, Object.keys(EVENT_FIELDS)) };
-  if (values.team_max < values.team_min) throw badRequest("Maximum team size can't be below the minimum.");
-
-  const id = newId("evt");
-  const columns = ["id", "created_by", ...Object.keys(values)];
-  await query(`INSERT INTO events (${columns.join(", ")}) VALUES (${columns.map(() => "?").join(", ")})`, [
-    id,
-    req.user.id,
-    ...Object.values(values),
-  ]);
-  const [row] = await query("SELECT * FROM events WHERE id = ?", [id]);
-  res.status(201).json(mapEvent(row));
-});
-
-async function ownedEvent(req) {
-  const [event] = await query("SELECT * FROM events WHERE id = ?", [req.params.id]);
-  if (!event) throw notFound("Event not found.");
-  if (event.created_by !== req.user.id) throw forbidden("Only the organizer who created this event can change it.");
+async function findEvent(id) {
+  const [[event]] = await pool.query(`${EVENT_SELECT} WHERE e.id = ? GROUP BY e.id`, [id]);
+  if (!event) throw new HttpError(404, "Event not found.");
   return event;
 }
 
-eventsRouter.patch("/events/:id", requireAuth, async (req, res) => {
-  const event = await ownedEvent(req);
-  const values = convert(req.body, Object.keys(EVENT_FIELDS));
-  const keys = Object.keys(values);
-  if (keys.length) {
-    const teamMin = values.team_min ?? event.team_min;
-    const teamMax = values.team_max ?? event.team_max;
-    if (teamMax < teamMin) throw badRequest("Maximum team size can't be below the minimum.");
-    await query(`UPDATE events SET ${keys.map((k) => `${k} = ?`).join(", ")} WHERE id = ?`, [
-      ...Object.values(values),
-      event.id,
-    ]);
+/** Validates the fields an organizer can set on an event. */
+function readEventBody(body) {
+  const event = {
+    title: requireText(body.title, "Title", 200),
+    description: requireText(body.description, "Description", 5000),
+    category: requireText(body.category, "Category", 50),
+    venue: requireText(body.venue, "Venue", 200),
+    event_date: requireDate(body.event_date, "Event date"),
+    registration_deadline: requireDate(body.registration_deadline, "Registration deadline"),
+    capacity: requireInt(body.capacity, "Capacity", 1, 100000),
+    fee: requireInt(body.fee ?? 0, "Fee", 0, 100000),
+    team_min: requireInt(body.team_min ?? 1, "Minimum team size", 1, 50),
+    team_max: requireInt(body.team_max ?? 1, "Maximum team size", 1, 50),
+  };
+  if (!CATEGORIES.includes(event.category)) throw new HttpError(400, `Category must be one of: ${CATEGORIES.join(", ")}.`);
+  if (event.team_max < event.team_min) throw new HttpError(400, "Maximum team size can't be below the minimum.");
+  if (event.registration_deadline > event.event_date) {
+    throw new HttpError(400, "The registration deadline must be before the event starts.");
   }
-  const [row] = await query("SELECT * FROM events WHERE id = ?", [event.id]);
-  res.json(mapEvent(row));
+  return event;
+}
+
+/** Loads an event and checks that the signed-in organizer created it. */
+async function findOwnEvent(req) {
+  const event = await findEvent(idParam(req.params.id));
+  if (event.organizer_id !== req.user.id) throw new HttpError(403, "Only the organizer who created this event can change it.");
+  return event;
+}
+
+// GET /api/events — every event, soonest first
+eventsRouter.get("/events", async (_req, res) => {
+  const [events] = await pool.query(`${EVENT_SELECT} GROUP BY e.id ORDER BY e.event_date ASC`);
+  res.json(events);
 });
 
-// Registrations, teams, announcements, questions, winners and teammate listings
-// all reference events with ON DELETE CASCADE, so this one statement removes
-// the whole tree.
-eventsRouter.delete("/events/:id", requireAuth, async (req, res) => {
-  const event = await ownedEvent(req);
-  await query("DELETE FROM events WHERE id = ?", [event.id]);
+// GET /api/events/:id
+eventsRouter.get("/events/:id", async (req, res) => {
+  res.json(await findEvent(idParam(req.params.id)));
+});
+
+// POST /api/events — organizers only
+eventsRouter.post("/events", requireAuth, requireOrganizer, async (req, res) => {
+  const e = readEventBody(req.body);
+  const [result] = await pool.query(
+    `INSERT INTO events (organizer_id, title, description, category, venue, event_date,
+                         registration_deadline, capacity, fee, team_min, team_max)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [req.user.id, e.title, e.description, e.category, e.venue, e.event_date,
+     e.registration_deadline, e.capacity, e.fee, e.team_min, e.team_max],
+  );
+  res.status(201).json(await findEvent(result.insertId));
+});
+
+// PUT /api/events/:id — only the organizer who created it
+eventsRouter.put("/events/:id", requireAuth, requireOrganizer, async (req, res) => {
+  const old = await findOwnEvent(req);
+  const e = readEventBody(req.body);
+  if (e.capacity < old.registered_count) {
+    throw new HttpError(400, `${old.registered_count} people are already registered, so capacity can't be lower than that.`);
+  }
+  if (old.registered_count > 0 && (e.team_max > 1) !== (old.team_max > 1)) {
+    throw new HttpError(400, "People have already registered, so the event can't switch between solo and team.");
+  }
+
+  await pool.query(
+    `UPDATE events
+        SET title = ?, description = ?, category = ?, venue = ?, event_date = ?,
+            registration_deadline = ?, capacity = ?, fee = ?, team_min = ?, team_max = ?
+      WHERE id = ?`,
+    [e.title, e.description, e.category, e.venue, e.event_date,
+     e.registration_deadline, e.capacity, e.fee, e.team_min, e.team_max, old.id],
+  );
+  res.json(await findEvent(old.id));
+});
+
+// DELETE /api/events/:id — ON DELETE CASCADE removes the event's teams,
+// team members, registrations, announcements, questions and winners too.
+eventsRouter.delete("/events/:id", requireAuth, requireOrganizer, async (req, res) => {
+  const event = await findOwnEvent(req);
+  await pool.query("DELETE FROM events WHERE id = ?", [event.id]);
   res.json({ ok: true });
 });
