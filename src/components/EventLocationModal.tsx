@@ -146,7 +146,7 @@ export const EventLocationModal: React.FC<EventLocationModalProps> = ({
                   {event.venue}
                 </h3>
                 <p className="text-xs text-muted">
-                  {event.college} · {event.city}, {event.state}
+                  {[event.organizer_name, event.organizer_college].filter(Boolean).join(" · ")}
                 </p>
               </div>
 

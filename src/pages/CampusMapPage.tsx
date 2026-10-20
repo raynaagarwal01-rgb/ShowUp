@@ -11,7 +11,7 @@ import {
   Navigation,
   Search,
 } from "lucide-react";
-import { listEvents } from "../lib/db";
+import { listEvents } from "../lib/api";
 import type { EventRecord } from "../types";
 
 interface CampusBuilding {
@@ -464,7 +464,7 @@ export const CampusMapPage: React.FC = () => {
                           {ev.title}
                         </div>
                         <div className="text-[11px] text-muted">
-                          {ev.category} · {ev.club_name}
+                          {ev.category} · {ev.organizer_name}
                         </div>
                       </div>
                       <ArrowRight className="h-4 w-4 text-muted group-hover:text-coral transition-transform group-hover:translate-x-0.5" />

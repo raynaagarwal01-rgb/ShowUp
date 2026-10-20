@@ -8,12 +8,11 @@
     "dev:client": "vite",
     "dev:server": "node --watch server/index.js",
     "start": "node server/index.js",
-    "db:init": "node server/migrate.js",
-    "db:seed": "node server/seed.js",
+    "db:init": "node server/run-sql.js schema.sql",
+    "db:seed": "node server/run-sql.js seed.sql",
+    "db:reset": "node server/run-sql.js reset.sql schema.sql seed.sql",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "sync:unstop": "node scripts/syncUnstop.js",
-    "sync:gravitas": "node scripts/syncGravitas.js",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -21,6 +20,7 @@
     "dotenv": "^18.0.3",
     "express": "^5.2.1",
     "html5-qrcode": "^2.3.8",
+    "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.47.0",
     "mysql2": "^3.24.4",
     "qrcode": "^1.5.4",

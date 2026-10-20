@@ -1,224 +1,132 @@
--- ==============================================================================
--- ShowUp MySQL schema
+-- =============================================================================
+-- ShowUp — MySQL 8 schema (8 tables)
 --
--- Plain MySQL 8.0+ — no Supabase. Run it with the mysql client:
---
+--   npm run db:init            (uses the DB_* settings in .env)
 --   mysql -u root -p < sql/schema.sql
 --
--- or through Node:  npm run db:init
+-- Every statement is CREATE ... IF NOT EXISTS, so this file never deletes data
+-- and is safe to re-run. To wipe a LOCAL development database and start over,
+-- see sql/reset.sql (npm run db:reset).
 --
--- The script is idempotent (CREATE ... IF NOT EXISTS), so it is safe to re-run.
--- All timestamps are stored as UTC DATETIME(3).
---
--- Access rules that Supabase enforced with row-level security now live in the
--- API layer (server/routes/*.js); the constraints below keep the data itself
--- consistent regardless of who talks to the database.
--- ==============================================================================
+-- Tables are created parent-first so every FOREIGN KEY points at a table that
+-- already exists:
+--   users -> events -> teams -> team_members -> registrations
+--         -> announcements -> event_questions -> event_winners
+-- =============================================================================
 
-CREATE DATABASE IF NOT EXISTS showup
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_0900_ai_ci;
-
+CREATE DATABASE IF NOT EXISTS showup CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 USE showup;
 
--- 1. Profiles ----------------------------------------------------------------
--- One row per person. This table also holds the login credential, replacing
--- Supabase's auth.users. password_hash is NULL for accounts that were created
--- on someone's behalf (e.g. a teammate added by a team leader) and have not
--- been claimed yet — those cannot sign in until the owner sets a password via
--- "Forgot password".
-CREATE TABLE IF NOT EXISTS profiles (
-  id            VARCHAR(64)  NOT NULL,
-  email         VARCHAR(255) NOT NULL,
-  password_hash VARCHAR(255) NULL,
-  name          VARCHAR(255) NOT NULL,
-  role          ENUM('student', 'organizer', 'admin') NOT NULL DEFAULT 'student',
-  state         VARCHAR(100) NULL,
-  city          VARCHAR(100) NULL,
-  college       VARCHAR(255) NULL,
-  branch        VARCHAR(255) NULL,
-  year          VARCHAR(50)  NULL,
-  phone         VARCHAR(50)  NULL,
-  reg_no        VARCHAR(50)  NULL,
-  bio           TEXT         NULL,
-  github        VARCHAR(255) NULL,
-  linkedin      VARCHAR(255) NULL,
-  created_at    DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (id),
-  UNIQUE KEY uq_profiles_email (email)   -- case-insensitive under this collation
-) ENGINE=InnoDB;
+-- 1. users ---------------------------------------------------------------------
+-- Students and organizers share one table; `role` tells them apart.
+CREATE TABLE IF NOT EXISTS users (
+  id            INT AUTO_INCREMENT PRIMARY KEY,
+  name          VARCHAR(100) NOT NULL,
+  email         VARCHAR(255) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,                      -- bcrypt hash, never the password
+  role          ENUM('student', 'organizer') NOT NULL DEFAULT 'student',
+  college       VARCHAR(150) NULL,
+  reg_no        VARCHAR(30)  NULL,
+  created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE = InnoDB;
 
--- 2. Login sessions (replaces Supabase Auth's JWT sessions) ------------------
--- Only a SHA-256 of the bearer token is stored, never the token itself.
-CREATE TABLE IF NOT EXISTS sessions (
-  token_hash CHAR(64)    NOT NULL,
-  user_id    VARCHAR(64) NOT NULL,
-  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  expires_at DATETIME(3) NOT NULL,
-  PRIMARY KEY (token_hash),
-  KEY idx_sessions_user (user_id),
-  KEY idx_sessions_expires (expires_at),
-  CONSTRAINT fk_sessions_user FOREIGN KEY (user_id) REFERENCES profiles (id) ON DELETE CASCADE
-) ENGINE=InnoDB;
-
--- 3. Password reset tokens (single-use, short-lived, hashed at rest) ---------
-CREATE TABLE IF NOT EXISTS password_resets (
-  token_hash CHAR(64)    NOT NULL,
-  user_id    VARCHAR(64) NOT NULL,
-  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  expires_at DATETIME(3) NOT NULL,
-  used_at    DATETIME(3) NULL,
-  PRIMARY KEY (token_hash),
-  KEY idx_password_resets_user (user_id),
-  CONSTRAINT fk_password_resets_user FOREIGN KEY (user_id) REFERENCES profiles (id) ON DELETE CASCADE
-) ENGINE=InnoDB;
-
--- 4. Events ------------------------------------------------------------------
+-- 2. events --------------------------------------------------------------------
+-- One organizer (users) has many events.
 CREATE TABLE IF NOT EXISTS events (
-  id                    VARCHAR(64)  NOT NULL,
-  club_id               VARCHAR(64)  NOT NULL,
-  club_name             VARCHAR(255) NOT NULL,
-  title                 VARCHAR(255) NOT NULL,
-  tagline               VARCHAR(512) NOT NULL,
+  id                    INT AUTO_INCREMENT PRIMARY KEY,
+  organizer_id          INT          NOT NULL,
+  title                 VARCHAR(200) NOT NULL,
   description           TEXT         NOT NULL,
-  rules                 JSON         NOT NULL,          -- array of strings (was text[])
   category              VARCHAR(50)  NOT NULL,
-  scope                 ENUM('internal', 'external', 'both') NOT NULL,
-  state                 VARCHAR(100) NOT NULL,
-  city                  VARCHAR(100) NOT NULL,
-  college               VARCHAR(255) NOT NULL,
-  venue                 VARCHAR(512) NOT NULL,
-  start_at              DATETIME(3)  NOT NULL,
-  end_at                DATETIME(3)  NOT NULL,
-  registration_deadline DATETIME(3)  NOT NULL,
-  capacity              INT          NOT NULL,
-  fee                   INT          NOT NULL DEFAULT 0,
+  venue                 VARCHAR(200) NOT NULL,
+  event_date            DATETIME     NOT NULL,
+  registration_deadline DATETIME     NOT NULL,
+  capacity              INT          NOT NULL,                -- max confirmed participants (people, not teams)
+  fee                   INT          NOT NULL DEFAULT 0,      -- informational only, no payments
   team_min              INT          NOT NULL DEFAULT 1,
-  team_max              INT          NOT NULL DEFAULT 1,
-  banner_hue            INT          NOT NULL DEFAULT 200,
-  status                ENUM('draft', 'published') NOT NULL DEFAULT 'published',
-  created_by            VARCHAR(64)  NOT NULL,
-  created_at            DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (id),
-  KEY idx_events_status_start (status, start_at),
-  KEY idx_events_city (state, city),
-  KEY idx_events_college (college),
-  KEY idx_events_creator (created_by),
-  CONSTRAINT fk_events_creator  FOREIGN KEY (created_by) REFERENCES profiles (id),
-  CONSTRAINT chk_events_capacity CHECK (capacity > 0),
-  CONSTRAINT chk_events_fee      CHECK (fee >= 0)
-) ENGINE=InnoDB;
+  team_max              INT          NOT NULL DEFAULT 1,      -- 1 = solo event
+  created_at            TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (organizer_id) REFERENCES users (id) ON DELETE CASCADE,
+  CHECK (capacity > 0),
+  CHECK (fee >= 0),
+  CHECK (team_min >= 1 AND team_max >= team_min)
+) ENGINE = InnoDB;
 
--- 5. Teams -------------------------------------------------------------------
+-- 3. teams ---------------------------------------------------------------------
+-- One event has many teams. join_code is unique across the whole site so a
+-- code alone identifies the team (POST /api/teams/join).
 CREATE TABLE IF NOT EXISTS teams (
-  id           VARCHAR(64)  NOT NULL,
-  event_id     VARCHAR(64)  NOT NULL,
-  name         VARCHAR(255) NOT NULL,
-  join_code    VARCHAR(16)  NOT NULL,
-  project_idea TEXT         NULL,
-  created_by   VARCHAR(64)  NOT NULL,                   -- the team leader
-  created_at   DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (id),
-  UNIQUE KEY uq_teams_event_code (event_id, join_code),
-  CONSTRAINT fk_teams_event   FOREIGN KEY (event_id)   REFERENCES events (id)   ON DELETE CASCADE,
-  CONSTRAINT fk_teams_creator FOREIGN KEY (created_by) REFERENCES profiles (id)
-) ENGINE=InnoDB;
+  id         INT AUTO_INCREMENT PRIMARY KEY,
+  event_id   INT          NOT NULL,
+  name       VARCHAR(100) NOT NULL,
+  join_code  VARCHAR(10)  NOT NULL UNIQUE,
+  leader_id  INT          NOT NULL,
+  created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (event_id, name),                                  -- no two teams with the same name in one event
+  FOREIGN KEY (event_id)  REFERENCES events (id) ON DELETE CASCADE,
+  FOREIGN KEY (leader_id) REFERENCES users (id)  ON DELETE CASCADE
+) ENGINE = InnoDB;
 
--- Team membership as a proper join table (was the uuid[] member_ids column).
+-- 4. team_members --------------------------------------------------------------
+-- Junction table: the many-to-many relationship between users and teams.
 CREATE TABLE IF NOT EXISTS team_members (
-  team_id   VARCHAR(64) NOT NULL,
-  user_id   VARCHAR(64) NOT NULL,
-  joined_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (team_id, user_id),
-  KEY idx_team_members_user (user_id),
-  CONSTRAINT fk_team_members_team FOREIGN KEY (team_id) REFERENCES teams (id)    ON DELETE CASCADE,
-  CONSTRAINT fk_team_members_user FOREIGN KEY (user_id) REFERENCES profiles (id) ON DELETE CASCADE
-) ENGINE=InnoDB;
+  team_id   INT       NOT NULL,
+  user_id   INT       NOT NULL,
+  joined_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (team_id, user_id),                           -- composite key: a person joins a team once
+  FOREIGN KEY (team_id) REFERENCES teams (id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE = InnoDB;
 
--- 6. Registrations -----------------------------------------------------------
--- One registration per person per event (the app always replaced an earlier
--- one; this makes the database enforce it).
+-- 5. registrations -------------------------------------------------------------
+-- Junction table between users and events (many-to-many). Every participant,
+-- including each team member, has their own row — so capacity is simply
+-- COUNT(*) of confirmed rows. The row id is printed in the QR ticket, and
+-- checked_in_at records attendance.
 CREATE TABLE IF NOT EXISTS registrations (
-  id            VARCHAR(64) NOT NULL,
-  event_id      VARCHAR(64) NOT NULL,
-  user_id       VARCHAR(64) NOT NULL,
-  team_id       VARCHAR(64) NULL,
-  status        ENUM('confirmed', 'waitlisted', 'cancelled') NOT NULL,
-  checked_in_at DATETIME(3) NULL,
-  created_at    DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (id),
-  UNIQUE KEY uq_registrations_event_user (event_id, user_id),
-  KEY idx_registrations_event (event_id, status),
-  KEY idx_registrations_user (user_id),
-  KEY idx_registrations_team (team_id),
-  CONSTRAINT fk_registrations_event FOREIGN KEY (event_id) REFERENCES events (id)   ON DELETE CASCADE,
-  CONSTRAINT fk_registrations_user  FOREIGN KEY (user_id)  REFERENCES profiles (id),
-  CONSTRAINT fk_registrations_team  FOREIGN KEY (team_id)  REFERENCES teams (id)    ON DELETE SET NULL
-) ENGINE=InnoDB;
+  id            INT AUTO_INCREMENT PRIMARY KEY,
+  user_id       INT NOT NULL,
+  event_id      INT NOT NULL,
+  team_id       INT NULL,                                   -- NULL for solo registrations
+  status        ENUM('confirmed', 'cancelled') NOT NULL DEFAULT 'confirmed',
+  checked_in_at DATETIME  NULL,
+  registered_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (user_id, event_id),                               -- no duplicate registrations
+  FOREIGN KEY (user_id)  REFERENCES users (id)  ON DELETE CASCADE,
+  FOREIGN KEY (event_id) REFERENCES events (id) ON DELETE CASCADE,
+  FOREIGN KEY (team_id)  REFERENCES teams (id)  ON DELETE SET NULL
+) ENGINE = InnoDB;
 
--- 7. Announcements -----------------------------------------------------------
+-- 6. announcements -------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS announcements (
-  id          VARCHAR(64)  NOT NULL,
-  event_id    VARCHAR(64)  NOT NULL,
-  title       VARCHAR(255) NOT NULL,
-  content     TEXT         NOT NULL,
-  author_name VARCHAR(255) NOT NULL,
-  is_urgent   BOOLEAN      NOT NULL DEFAULT FALSE,
-  created_at  DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (id),
-  KEY idx_announcements_event (event_id, created_at),
-  CONSTRAINT fk_announcements_event FOREIGN KEY (event_id) REFERENCES events (id) ON DELETE CASCADE
-) ENGINE=InnoDB;
+  id         INT AUTO_INCREMENT PRIMARY KEY,
+  event_id   INT          NOT NULL,
+  title      VARCHAR(150) NOT NULL,
+  content    TEXT         NOT NULL,
+  created_at TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (event_id) REFERENCES events (id) ON DELETE CASCADE
+) ENGINE = InnoDB;
 
--- 8. Event Q&A ---------------------------------------------------------------
--- user_id is NULL for guest questions.
+-- 7. event_questions -----------------------------------------------------------
+-- answer stays NULL until the event's organizer replies.
 CREATE TABLE IF NOT EXISTS event_questions (
-  id          VARCHAR(64)  NOT NULL,
-  event_id    VARCHAR(64)  NOT NULL,
-  user_id     VARCHAR(64)  NULL,
-  user_name   VARCHAR(255) NOT NULL,
-  question    TEXT         NOT NULL,
-  answer      TEXT         NULL,
-  answered_by VARCHAR(255) NULL,
-  answered_at DATETIME(3)  NULL,
-  created_at  DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (id),
-  KEY idx_event_questions_event (event_id, created_at),
-  CONSTRAINT fk_event_questions_event FOREIGN KEY (event_id) REFERENCES events (id)   ON DELETE CASCADE,
-  CONSTRAINT fk_event_questions_user  FOREIGN KEY (user_id)  REFERENCES profiles (id) ON DELETE SET NULL
-) ENGINE=InnoDB;
+  id         INT AUTO_INCREMENT PRIMARY KEY,
+  event_id   INT       NOT NULL,
+  user_id    INT       NOT NULL,
+  question   TEXT      NOT NULL,
+  answer     TEXT      NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (event_id) REFERENCES events (id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id)  REFERENCES users (id)  ON DELETE CASCADE
+) ENGINE = InnoDB;
 
--- 9. Winners -----------------------------------------------------------------
+-- 8. event_winners -------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS event_winners (
-  id                       VARCHAR(64)  NOT NULL,
-  event_id                 VARCHAR(64)  NOT NULL,
-  position                 INT          NOT NULL DEFAULT 1,
-  winner_title             VARCHAR(255) NOT NULL,
-  team_or_participant_name VARCHAR(255) NOT NULL,
-  college                  VARCHAR(255) NOT NULL DEFAULT 'VIT Vellore',
-  prize_amount             VARCHAR(255) NOT NULL DEFAULT '',
-  project_title            VARCHAR(255) NOT NULL DEFAULT '',
-  project_link             VARCHAR(512) NOT NULL DEFAULT '',
-  announced_by             VARCHAR(255) NOT NULL DEFAULT 'Event Organizing Committee',
-  created_at               DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (id),
-  KEY idx_event_winners_event (event_id, position),
-  CONSTRAINT fk_event_winners_event FOREIGN KEY (event_id) REFERENCES events (id) ON DELETE CASCADE
-) ENGINE=InnoDB;
-
--- 10. "Looking for teammates" listings ---------------------------------------
-CREATE TABLE IF NOT EXISTS teammate_listings (
-  id           VARCHAR(64)  NOT NULL,
-  event_id     VARCHAR(64)  NOT NULL,
-  user_id      VARCHAR(64)  NOT NULL,
-  user_name    VARCHAR(255) NOT NULL,
-  user_college VARCHAR(255) NOT NULL DEFAULT '',
-  looking_for  VARCHAR(512) NOT NULL,
-  message      TEXT         NOT NULL,
-  contact      VARCHAR(255) NOT NULL DEFAULT '',
-  created_at   DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-  PRIMARY KEY (id),
-  UNIQUE KEY uq_teammate_listings_event_user (event_id, user_id),
-  CONSTRAINT fk_teammate_listings_event FOREIGN KEY (event_id) REFERENCES events (id)   ON DELETE CASCADE,
-  CONSTRAINT fk_teammate_listings_user  FOREIGN KEY (user_id)  REFERENCES profiles (id) ON DELETE CASCADE
-) ENGINE=InnoDB;
+  id          INT AUTO_INCREMENT PRIMARY KEY,
+  event_id    INT          NOT NULL,
+  position    INT          NOT NULL,                         -- 1, 2, 3 ... (4+ = special mention)
+  winner_name VARCHAR(150) NOT NULL,
+  prize       VARCHAR(100) NULL,
+  FOREIGN KEY (event_id) REFERENCES events (id) ON DELETE CASCADE,
+  CHECK (position >= 1)
+) ENGINE = InnoDB;

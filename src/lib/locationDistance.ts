@@ -69,10 +69,11 @@ export const KNOWN_CITIES: Record<string, GeoCoordinates> = {
 };
 
 /**
- * Resolves destination coordinates for an event based on college, venue, or city.
+ * Resolves destination coordinates for an event from its organizer's college
+ * (the event's host) or its venue text. No external geocoding service is used.
  */
 export function getEventCoordinates(event: EventRecord): GeoCoordinates {
-  const collegeKey = event.college.toLowerCase().trim();
+  const collegeKey = (event.organizer_college || "").toLowerCase().trim();
   for (const [key, coords] of Object.entries(KNOWN_CAMPUSES)) {
     if (collegeKey.includes(key)) {
       return coords;
@@ -94,13 +95,14 @@ export function getEventCoordinates(event: EventRecord): GeoCoordinates {
     return { lat: 12.9692, lng: 79.1559, name: "VIT Vellore Campus" };
   }
 
-  const cityKey = event.city.toLowerCase().trim();
-  if (KNOWN_CITIES[cityKey]) {
-    return KNOWN_CITIES[cityKey];
+  for (const [key, coords] of Object.entries(KNOWN_CITIES)) {
+    if (venueLower.includes(key) || collegeKey.includes(key)) {
+      return coords;
+    }
   }
 
-  // Fallback default: Vellore / Central India
-  return { lat: 12.9692, lng: 79.1559, name: `${event.venue}, ${event.city}` };
+  // Fallback default: VIT Vellore
+  return { lat: 12.9692, lng: 79.1559, name: event.venue };
 }
 
 /**
@@ -191,7 +193,7 @@ export function getGoogleMapsDirectionsUrl(
   userCoords?: { lat: number; lng: number }
 ): string {
   const destinationQuery = encodeURIComponent(
-    `${event.venue}, ${event.college}, ${event.city}, ${event.state}`
+    [event.venue, event.organizer_college].filter(Boolean).join(", ")
   );
 
   if (userCoords) {
@@ -206,13 +208,12 @@ export function getGoogleMapsDirectionsUrl(
  * Checks if the event is situated at VIT Vellore
  */
 export function isVitVelloreEvent(event: EventRecord): boolean {
-  const text = `${event.college} ${event.venue} ${event.city}`.toLowerCase();
+  const text = `${event.organizer_college || ""} ${event.venue}`.toLowerCase();
   return (
     text.includes("vellore institute of technology") ||
     text.includes("vit vellore") ||
     text.includes("technology tower") ||
     text.includes("anna auditorium") ||
-    text.includes("sjt") ||
-    (event.city.toLowerCase() === "vellore" && text.includes("vit"))
+    text.includes("sjt")
   );
 }
