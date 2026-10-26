@@ -1,152 +1,127 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Html5Qrcode } from "html5-qrcode";
 import { ArrowLeft, CheckCircle2, KeyRound, XCircle } from "lucide-react";
 import { checkIn, getEvent } from "../../lib/api";
 import type { EventRecord } from "../../types";
+import { useAuth } from "../../context/AuthContext";
 import { parseTicketCode } from "../../lib/format";
 
 type Feedback = { kind: "success" | "error"; message: string } | null;
 
 export const CheckInPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
+  const userId = user?.id;
   const [event, setEvent] = useState<EventRecord | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<Feedback>(null);
   const [manualId, setManualId] = useState("");
+  const [processing, setProcessing] = useState(false);
   const [scannerReady, setScannerReady] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const scannerRef = useRef<Html5Qrcode | null>(null);
   const busyRef = useRef(false);
 
-  useEffect(() => {
+  const loadEvent = useCallback(async () => {
     if (!id) return;
-    getEvent(id).then(setEvent);
-  }, [id]);
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const loaded = await getEvent(id);
+      if (!loaded) throw new Error("Event not found.");
+      if (loaded.organizer_id !== userId) throw new Error("You can only check in attendees for your own events.");
+      setEvent(loaded);
+    } catch (err) {
+      setEvent(null);
+      setLoadError(err instanceof Error ? err.message : "Couldn't load this event.");
+    } finally {
+      setLoading(false);
+    }
+  }, [id, userId]);
 
-  // The server decides whether the ticket is valid: it must belong to this
-  // event (and organizer), be confirmed, and not already be checked in.
-  const handleResult = async (scanned: string) => {
-    if (!id || busyRef.current) return;
+  useEffect(() => { void loadEvent(); }, [loadEvent]);
+
+  const handleResult = useCallback(async (scanned: string): Promise<boolean> => {
+    if (!id || busyRef.current) return false;
     busyRef.current = true;
+    setProcessing(true);
     try {
       const registrationId = parseTicketCode(scanned);
-      if (!registrationId) {
-        setFeedback({ kind: "error", message: "That isn't a ShowUp ticket." });
-      } else {
-        const { name } = await checkIn(registrationId, Number(id));
-        setFeedback({ kind: "success", message: `${name} checked in ✓` });
-      }
-    } catch (e) {
-      setFeedback({ kind: "error", message: e instanceof Error ? e.message : "Couldn't read that ticket." });
+      if (!registrationId) throw new Error("That isn't a ShowUp ticket.");
+      const { name } = await checkIn(registrationId, Number(id));
+      setFeedback({ kind: "success", message: `${name} checked in.` });
+      return true;
+    } catch (err) {
+      setFeedback({ kind: "error", message: err instanceof Error ? err.message : "Couldn't read that ticket." });
+      return false;
     } finally {
-      setTimeout(() => {
+      window.setTimeout(() => {
         busyRef.current = false;
-      }, 1200);
+        setProcessing(false);
+      }, 900);
     }
-  };
-
-  useEffect(() => {
-    const containerId = "showup-qr-reader";
-    const scanner = new Html5Qrcode(containerId);
-    scannerRef.current = scanner;
-
-    let cancelled = false;
-    let runningScanner: Html5Qrcode | null = null;
-
-    scanner
-      .start(
-        { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 240, height: 240 } },
-        (decodedText) => handleResult(decodedText),
-        () => {
-          // per-frame "no QR found" callback — expected on almost every frame, nothing to surface
-        },
-      )
-      .then(() => {
-        if (cancelled) {
-          // effect already cleaned up (e.g. React StrictMode's double-invoke, or a fast
-          // navigation away) before the camera finished starting — stop it right away
-          // instead of leaving a stray camera stream running.
-          scanner.stop().then(() => scanner.clear()).catch(() => {});
-          return;
-        }
-        runningScanner = scanner;
-        setScannerReady(true);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setCameraError("Couldn't access a camera. You can still check people in manually below.");
-        }
-      });
-
-    return () => {
-      cancelled = true;
-      // html5-qrcode throws synchronously (not a rejected promise) when stop() is called
-      // on a scanner that never finished starting, so only stop one we know is running.
-      if (runningScanner) {
-        runningScanner.stop().then(() => runningScanner!.clear()).catch(() => {});
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const handleManualSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!event) return;
+    let cancelled = false;
+    let running: Html5Qrcode | null = null;
+    let scanner: Html5Qrcode;
+    try {
+      scanner = new Html5Qrcode("showup-qr-reader");
+    } catch {
+      setCameraError("Couldn't start the camera. Use manual check-in below.");
+      return;
+    }
+    scanner.start(
+      { facingMode: "environment" },
+      { fps: 10, qrbox: { width: 240, height: 240 } },
+      (value) => { void handleResult(value); },
+      () => {},
+    ).then(() => {
+      if (cancelled) {
+        void scanner.stop().then(() => scanner.clear()).catch(() => {});
+      } else {
+        running = scanner;
+        setScannerReady(true);
+      }
+    }).catch(() => {
+      if (!cancelled) setCameraError("Couldn't access a camera. Use manual check-in below.");
+    });
+    return () => {
+      cancelled = true;
+      if (running) void running.stop().then(() => running?.clear()).catch(() => {});
+    };
+  }, [event, handleResult]);
+
+  const handleManualSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (manualId.trim()) handleResult(manualId.trim());
-    setManualId("");
+    if (await handleResult(manualId.trim())) setManualId("");
   };
 
-  return (
-    <div className="mx-auto max-w-lg px-4 py-10 sm:px-6">
-      <Link to="/organizer" className="flex items-center gap-1.5 text-sm text-muted hover:text-cream">
-        <ArrowLeft className="h-4 w-4" /> Back to studio
-      </Link>
-      <h1 className="mt-3 font-display text-2xl font-bold">
-        Check-in{event ? ` · ${event.title}` : ""}
-      </h1>
-      <p className="mt-1 text-sm text-muted">Point the camera at a participant's QR ticket.</p>
+  return <main className="page-shell max-w-2xl space-y-6 py-10 sm:py-14">
+    <Link to="/organizer" className="inline-flex items-center gap-2 text-sm text-muted hover:text-[#171717]"><ArrowLeft size={16} aria-hidden="true" />Your events</Link>
+    <header><p className="eyebrow">Attendance</p><h1 className="mt-2 text-3xl font-semibold tracking-tight">Check-in</h1><p className="mt-2 text-sm text-muted">Scan a ticket or enter its code to mark a registration as checked in.</p></header>
 
-      <div className="mt-6 overflow-hidden rounded-2xl border border-border bg-surface">
-        <div id="showup-qr-reader" className="w-full" />
-        {!scannerReady && !cameraError && (
-          <p className="p-4 text-center text-xs text-muted">Starting camera...</p>
-        )}
-        {cameraError && <p className="p-4 text-center text-xs text-warning">{cameraError}</p>}
-      </div>
-
-      {feedback && (
-        <div
-          className={`mt-4 flex items-center gap-2 rounded-xl border px-4 py-3 text-sm ${
-            feedback.kind === "success"
-              ? "border-success/30 bg-success/10 text-success"
-              : "border-danger/30 bg-danger/10 text-danger"
-          }`}
-        >
-          {feedback.kind === "success" ? (
-            <CheckCircle2 className="h-4 w-4 shrink-0" />
-          ) : (
-            <XCircle className="h-4 w-4 shrink-0" />
-          )}
-          {feedback.message}
+    {loading ? <p role="status" className="panel p-5 text-sm text-muted">Loading event…</p> : loadError ? <div role="alert" className="panel p-5 text-sm text-red-700">{loadError}<div className="mt-4 flex gap-2"><button className="btn-secondary" onClick={() => void loadEvent()}>Try again</button><Link className="btn-secondary" to="/organizer">Your events</Link></div></div> : <>
+      <section className="panel space-y-3 p-4 sm:p-5" aria-label="QR ticket scanner">
+        <div><h2 className="font-semibold">{event?.title}</h2><p className="mt-1 text-sm text-muted">Point the camera at a participant’s QR ticket.</p></div>
+        <div className="overflow-hidden rounded-md border border-border bg-[#fafafa]">
+          <div id="showup-qr-reader" className="min-h-16 w-full" />
+          {!scannerReady && !cameraError && <p role="status" className="p-4 text-center text-sm text-muted">Starting camera…</p>}
+          {cameraError && <p role="status" className="p-4 text-center text-sm text-muted">{cameraError}</p>}
         </div>
-      )}
+      </section>
 
-      <form onSubmit={handleManualSubmit} className="mt-6 rounded-2xl border border-border bg-surface p-4">
-        <p className="flex items-center gap-1.5 text-xs font-medium text-cream/70">
-          <KeyRound className="h-3.5 w-3.5" /> No camera? Type the ticket number instead
-        </p>
-        <div className="mt-2 flex gap-2">
-          <input
-            value={manualId}
-            onChange={(e) => setManualId(e.target.value)}
-            placeholder="e.g. 42 or SHOWUP-REG-42"
-            className="flex-1 rounded-lg border border-border bg-ink px-3 py-2 text-sm focus:border-coral focus:outline-none"
-          />
-          <button type="submit" className="rounded-lg bg-coral px-4 py-2 text-sm font-semibold text-ink">
-            Check in
-          </button>
-        </div>
+      {feedback && <div role={feedback.kind === "error" ? "alert" : "status"} aria-live="polite" className={`flex items-center gap-2 rounded-md border p-3 text-sm ${feedback.kind === "success" ? "border-blue-200 bg-blue-50 text-blue-800" : "border-red-200 bg-red-50 text-red-800"}`}>
+        {feedback.kind === "success" ? <CheckCircle2 size={17} aria-hidden="true" /> : <XCircle size={17} aria-hidden="true" />}{feedback.message}
+      </div>}
+
+      <form onSubmit={(e) => void handleManualSubmit(e)} className="panel space-y-3 p-4 sm:p-5">
+        <label htmlFor="ticket-code" className="flex items-center gap-2 text-sm font-medium"><KeyRound size={16} aria-hidden="true" />Enter ticket code manually</label>
+        <div className="flex flex-col gap-2 sm:flex-row"><input id="ticket-code" value={manualId} onChange={(e) => setManualId(e.target.value)} placeholder="e.g. 42 or SHOWUP-REG-42" className="field min-w-0 flex-1" /><button type="submit" disabled={processing || !manualId.trim()} className="btn-primary">{processing ? "Checking…" : "Check in"}</button></div>
       </form>
-    </div>
-  );
+    </>}
+  </main>;
 };
