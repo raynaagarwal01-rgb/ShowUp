@@ -24,17 +24,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // On page load, turn a saved token back into the signed-in user.
     const restoreSession = async () => {
-      if (!getToken()) {
-        if (!cancelled) setUser(null);
+      const token = getToken();
+      if (!token) {
+        if (!cancelled && getToken() === token) setUser(null);
         return;
       }
       try {
         const { user: me } = await getMe();
-        if (!cancelled) setUser(me);
+        if (!cancelled && getToken() === token) setUser(me);
       } catch (e) {
         // An expired token is discarded; a network blip keeps it for next time.
-        if (e instanceof ApiError && e.status === 401) setToken(null);
-        if (!cancelled) setUser(null);
+        if (!cancelled && getToken() === token) {
+          if (e instanceof ApiError && e.status === 401) setToken(null);
+          setUser(null);
+        }
       }
     };
 
@@ -67,8 +70,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUp = async (input: SignupInput) => {
     const passwordBytes = new TextEncoder().encode(input.password).length;
-    if (passwordBytes < 6 || passwordBytes > 72) {
-      return { error: "Password must be between 6 and 72 bytes.", user: null };
+    if (input.password.length < 6 || passwordBytes > 72) {
+      return { error: "At least 6 characters; up to 72 bytes.", user: null };
     }
     try {
       const session = await signup(input);
@@ -81,9 +84,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signOut = async () => {
-    await logout();
-    setToken(null);
-    setUser(null);
+    const token = getToken();
+    try {
+      await logout();
+    } catch (e) {
+      if (!(e instanceof ApiError && e.status === 401 && getToken() === token)) throw e;
+    }
+    if (getToken() === token) {
+      setToken(null);
+      setUser(null);
+    }
   };
 
   return (

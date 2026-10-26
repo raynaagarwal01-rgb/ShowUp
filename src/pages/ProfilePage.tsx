@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Building2, CalendarDays, Hash, Mail } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
@@ -11,30 +11,45 @@ export const ProfilePage: React.FC = () => {
   const { user } = useAuth();
   const [registrations, setRegistrations] = useState<MyRegistration[]>([]);
   const [hostedEvents, setHostedEvents] = useState<EventRecord[]>([]);
+  const [activityUserId, setActivityUserId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const activityRequest = useRef(0);
 
   const loadActivity = useCallback(async () => {
     if (!user) return;
+    const requestId = ++activityRequest.current;
     setLoading(true);
     setError(null);
     try {
       if (user.role === "organizer") {
-        setHostedEvents((await listEvents()).filter((event) => event.organizer_id === user.id));
+        const events = (await listEvents()).filter((event) => event.organizer_id === user.id);
+        if (requestId === activityRequest.current) {
+          setHostedEvents(events);
+          setActivityUserId(user.id);
+        }
       } else {
-        setRegistrations(await listMyRegistrations());
+        const registrations = await listMyRegistrations();
+        if (requestId === activityRequest.current) {
+          setRegistrations(registrations);
+          setActivityUserId(user.id);
+        }
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load your events.");
+      if (requestId === activityRequest.current) setError(e instanceof Error ? e.message : "Could not load your events.");
     } finally {
-      setLoading(false);
+      if (requestId === activityRequest.current) setLoading(false);
     }
   }, [user]);
 
-  useEffect(() => { void loadActivity(); }, [loadActivity]);
+  useEffect(() => {
+    const request = activityRequest;
+    void loadActivity();
+    return () => { request.current++; };
+  }, [loadActivity]);
   if (!user) return null;
 
-  const events = user.role === "organizer"
+  const events = activityUserId !== user.id ? [] : user.role === "organizer"
     ? hostedEvents.map((event) => ({ key: event.id, event, attended: false }))
     : registrations.map((registration) => ({ key: registration.id, event: registration.event, attended: !!registration.checked_in_at }));
 

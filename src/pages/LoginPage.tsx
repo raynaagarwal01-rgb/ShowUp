@@ -2,35 +2,27 @@ import React, { useState } from "react";
 import { ArrowUpRight, Eye, EyeOff, TicketCheck } from "lucide-react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-
-const safeReturnTo = (value: string | null): string | null => {
-  if (!value) return null;
-  try {
-    const url = new URL(value, window.location.origin);
-    if (url.origin !== window.location.origin) return null;
-    if (["/events", "/dashboard", "/organizer"].some((path) => url.pathname === path || url.pathname.startsWith(`${path}/`))) {
-      return `${url.pathname}${url.search}${url.hash}`;
-    }
-  } catch {
-    return null;
-  }
-  return null;
-};
+import { safeReturnTo } from "../lib/authRedirect";
 
 export const LoginPage: React.FC = () => {
   const { signIn } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const returnTo = safeReturnTo(params.get("redirect"));
+  const returnTo = safeReturnTo(params.get("redirect"), window.location.origin);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (busy) return;
+    if (!e.currentTarget.reportValidity()) return;
+    if (new TextEncoder().encode(password).length > 72) {
+      setError("At least 6 characters; up to 72 bytes.");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -55,9 +47,9 @@ export const LoginPage: React.FC = () => {
         <p className="mt-2 text-sm text-muted">Sign in to pick up where you left off.</p>
         {returnTo && <p className="mt-4 rounded-md border border-border bg-surface px-3 py-2 text-sm text-muted">Sign in to continue to your event.</p>}
 
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+        <form noValidate aria-busy={busy} onSubmit={handleSubmit} className="mt-6 space-y-4">
           <Field label="Email">
-            <input className="field" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@college.edu" />
+            <input className="field" type="email" autoComplete="email" maxLength={255} required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@college.edu" />
           </Field>
           <div className="block space-y-1.5">
             <span id="login-password-label" className="block text-sm font-medium text-ink">Password</span>

@@ -4,26 +4,13 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { Field } from "./LoginPage";
 import type { Role } from "../types";
-
-const safeReturnTo = (value: string | null): string | null => {
-  if (!value) return null;
-  try {
-    const url = new URL(value, window.location.origin);
-    if (url.origin !== window.location.origin) return null;
-    if (["/events", "/dashboard", "/organizer"].some((path) => url.pathname === path || url.pathname.startsWith(`${path}/`))) {
-      return `${url.pathname}${url.search}${url.hash}`;
-    }
-  } catch {
-    return null;
-  }
-  return null;
-};
+import { safeReturnTo } from "../lib/authRedirect";
 
 export const SignupPage: React.FC = () => {
   const { signUp } = useAuth();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const returnTo = safeReturnTo(params.get("redirect"));
+  const returnTo = safeReturnTo(params.get("redirect"), window.location.origin);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -34,12 +21,13 @@ export const SignupPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (busy) return;
+    if (!e.currentTarget.reportValidity()) return;
     const passwordBytes = new TextEncoder().encode(password).length;
-    if (passwordBytes < 6 || passwordBytes > 72) {
-      setError("Use a password between 6 and 72 bytes. Most letters and numbers count as one byte.");
+    if (password.length < 6 || passwordBytes > 72) {
+      setError("At least 6 characters; up to 72 bytes.");
       return;
     }
     setBusy(true);
@@ -72,22 +60,22 @@ export const SignupPage: React.FC = () => {
         <h1 className="mt-2 text-2xl font-semibold tracking-tight text-ink">Create your account.</h1>
         <p className="mt-2 text-sm text-muted">One place for campus events and the people who make them happen.</p>
 
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+        <form noValidate aria-busy={busy} onSubmit={handleSubmit} className="mt-6 space-y-4">
           <Field label={role === "organizer" ? "Club or organizer name" : "Full name"}>
             <input className="field" required maxLength={100} autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Ananya Rao" />
           </Field>
           <Field label="Email">
-            <input className="field" type="email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@college.edu" />
+            <input className="field" type="email" required maxLength={255} autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@college.edu" />
           </Field>
           <div className="block space-y-1.5">
             <span id="signup-password-label" className="block text-sm font-medium text-ink">Password</span>
             <div className="relative">
-              <input className="field pr-12" type={showPassword ? "text" : "password"} aria-labelledby="signup-password-label" required autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} aria-describedby="password-help" />
+              <input className="field pr-12" type={showPassword ? "text" : "password"} aria-labelledby="signup-password-label" required minLength={6} autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} aria-describedby="password-help" />
               <button type="button" onClick={() => setShowPassword((shown) => !shown)} aria-label={showPassword ? "Hide password" : "Show password"} className="absolute inset-y-0 right-2 grid w-10 place-items-center text-muted hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2">
                 {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
               </button>
             </div>
-            <span id="password-help" className="block text-xs text-muted">6–72 bytes. Emoji and some accented characters use more than one byte.</span>
+            <span id="password-help" className="block text-xs text-muted">At least 6 characters; up to 72 bytes.</span>
           </div>
           <fieldset className="space-y-1.5">
             <legend className="text-sm font-medium text-ink">I’m joining as</legend>
