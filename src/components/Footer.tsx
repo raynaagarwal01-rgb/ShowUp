@@ -1,13 +1,13 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import { Logo } from "./Logo";
 
 export const Footer: React.FC = () => (
-  <footer className="border-t border-border/80 py-8">
-    <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-3 px-4 text-center sm:flex-row sm:text-left">
-      <Logo />
-      <p className="text-xs text-muted">
-        One login, one dashboard, every college's events across India — not just a single fest.
-      </p>
+  <footer className="border-t border-[#ebebeb] bg-white py-7">
+    <div className="page-shell flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <Link to="/" aria-label="ShowUp home"><Logo /></Link>
+      <p className="text-sm text-[#666]">Find your people. Find your next event.</p>
+      <Link to="/events" className="text-sm font-medium text-ink underline decoration-[#b8b8b8] underline-offset-4 hover:decoration-ink">Browse events</Link>
     </div>
   </footer>
 );

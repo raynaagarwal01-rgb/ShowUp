@@ -1,14 +1,11 @@
 import React from "react";
-import { ArrowUpRight } from "lucide-react";
+import { TicketCheck } from "lucide-react";
 
 export const Logo: React.FC<{ className?: string }> = ({ className = "" }) => (
-  <span className={`inline-flex items-center gap-2 font-display tracking-tight ${className}`}>
-    <span className="relative grid h-7 w-7 place-items-center rounded-xl bg-gradient-to-tr from-coral to-amber-400 text-ink shadow-sm shadow-coral/30">
-      <ArrowUpRight className="h-4 w-4" strokeWidth={3} />
-      <span className="absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full bg-emerald-400 ring-2 ring-ink animate-pulse" />
+  <span className={`inline-flex items-center gap-2.5 font-display ${className}`}>
+    <span className="grid h-8 w-8 place-items-center rounded-lg bg-ink text-white">
+      <TicketCheck aria-hidden="true" className="h-[18px] w-[18px]" strokeWidth={1.8} />
     </span>
-    <span className="text-xl font-extrabold text-cream">
-      Show<span className="text-coral">Up</span>
-    </span>
+    <span className="text-[19px] font-semibold tracking-[-0.7px] text-ink">ShowUp</span>
   </span>
 );

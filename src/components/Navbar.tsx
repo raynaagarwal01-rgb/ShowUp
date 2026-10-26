@@ -1,141 +1,63 @@
 import React, { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
-import { LayoutDashboard, LogOut, Menu, X } from "lucide-react";
+import { LogOut, Menu, X } from "lucide-react";
 import { Logo } from "./Logo";
 import { useAuth } from "../context/AuthContext";
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
-  `text-sm font-medium transition-colors ${
-    isActive ? "text-coral" : "text-cream/70 hover:text-cream"
+  `flex min-h-11 items-center rounded-full px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-offset-2 ${
+    isActive ? "text-ink" : "text-[#666] hover:text-ink"
   }`;
 
 export const Navbar: React.FC = () => {
   const { user, signOut } = useAuth();
   const [open, setOpen] = useState(false);
 
-  // Forget the token, then reload on the home page (a full page load, so the
-  // current page's sign-in guard can't redirect to /login first).
   const handleSignOut = () => {
     signOut();
     window.location.assign("/");
   };
 
+  const links = (
+    <>
+      <NavLink to="/events" className={navLinkClass} onClick={() => setOpen(false)}>Events</NavLink>
+      {user?.role === "organizer" && <NavLink to="/organizer" className={navLinkClass} onClick={() => setOpen(false)}>Organizer studio</NavLink>}
+      {user?.role === "student" && <NavLink to="/dashboard" className={navLinkClass} onClick={() => setOpen(false)}>My events</NavLink>}
+      {user && <NavLink to="/profile" className={navLinkClass} onClick={() => setOpen(false)}>Profile</NavLink>}
+    </>
+  );
+
   return (
-    <header className="sticky top-0 z-40 border-b border-border/80 bg-ink/90 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
-        <Link to="/" onClick={() => setOpen(false)}>
-          <Logo />
-        </Link>
-
-        <nav className="hidden items-center gap-6 md:flex">
-          <NavLink to="/events" className={navLinkClass}>
-            Events
-          </NavLink>
-          {user?.role === "organizer" ? (
-            <NavLink to="/organizer" className={navLinkClass}>
-              Organizer Studio
-            </NavLink>
-          ) : null}
-          {user ? (
-            <>
-              {user.role === "student" && (
-                <NavLink to="/dashboard" className={navLinkClass}>
-                  My Events
-                </NavLink>
-              )}
-              <NavLink to="/profile" className={navLinkClass}>
-                Profile
-              </NavLink>
-            </>
-          ) : null}
-        </nav>
-
+    <header className="sticky top-0 z-40 border-b border-[#ebebeb] bg-white/90 backdrop-blur-md">
+      <div className="page-shell flex min-h-16 items-center justify-between">
+        <Link to="/" aria-label="ShowUp home" onClick={() => setOpen(false)}><Logo /></Link>
+        <nav aria-label="Main navigation" className="hidden items-center gap-1 md:flex">{links}</nav>
         <div className="hidden items-center gap-3 md:flex">
           {user ? (
             <>
-              <span className="text-sm text-muted">
-                Hi, {user.name.split(" ")[0]}
-                {user.college && <span className="text-cream/40"> · {user.college}</span>}
-              </span>
-              <button
-                onClick={handleSignOut}
-                className="flex items-center gap-1.5 rounded-full border border-border px-3.5 py-1.5 text-sm text-cream/80 transition-colors hover:border-coral/60 hover:text-coral"
-              >
-                <LogOut className="h-3.5 w-3.5" />
-                Sign out
+              <span className="max-w-48 truncate text-sm text-[#666]">Hi, {user.name.split(" ")[0]}</span>
+              <button onClick={handleSignOut} className="inline-flex min-h-10 items-center gap-2 rounded-full border border-[#ebebeb] px-4 text-sm font-medium text-ink transition-colors hover:bg-[#fafafa]">
+                <LogOut aria-hidden="true" className="h-4 w-4" /> Sign out
               </button>
             </>
           ) : (
             <>
-              <Link
-                to="/login"
-                className="text-sm font-medium text-cream/80 hover:text-cream"
-              >
-                Sign in
-              </Link>
-              <Link
-                to="/signup"
-                className="rounded-full bg-coral px-4 py-1.5 text-sm font-semibold text-ink transition-transform hover:scale-[1.03]"
-              >
-                Get started
-              </Link>
+              <Link to="/login" className="rounded-full px-3 py-2 text-sm font-medium text-ink hover:bg-[#fafafa]">Sign in</Link>
+              <Link to="/signup" className="btn-primary min-h-10 px-4 text-sm">Get started</Link>
             </>
           )}
         </div>
-
-        <button className="md:hidden" onClick={() => setOpen((o) => !o)} aria-label="Toggle menu">
-          {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+        <button type="button" className="grid h-11 w-11 place-items-center rounded-full border border-[#ebebeb] text-ink md:hidden" aria-label={open ? "Close navigation" : "Open navigation"} aria-expanded={open} aria-controls="mobile-navigation" onClick={() => setOpen((value) => !value)}>
+          {open ? <X aria-hidden="true" className="h-5 w-5" /> : <Menu aria-hidden="true" className="h-5 w-5" />}
         </button>
       </div>
-
-      {open && (
-        <div className="border-t border-border bg-ink px-4 pb-4 md:hidden">
-          <div className="flex flex-col gap-3 pt-3">
-            <NavLink to="/events" className={navLinkClass} onClick={() => setOpen(false)}>
-              Events
-            </NavLink>
-            {user?.role === "organizer" ? (
-              <NavLink to="/organizer" className={navLinkClass} onClick={() => setOpen(false)}>
-                Organizer Studio
-              </NavLink>
-            ) : null}
-            {user ? (
-              <>
-                {user.role === "student" && (
-                  <NavLink to="/dashboard" className={navLinkClass} onClick={() => setOpen(false)}>
-                    <span className="flex items-center gap-1.5">
-                      <LayoutDashboard className="h-4 w-4" /> My Events
-                    </span>
-                  </NavLink>
-                )}
-                <NavLink to="/profile" className={navLinkClass} onClick={() => setOpen(false)}>
-                  My Profile
-                </NavLink>
-              </>
-            ) : null}
-            <div className="mt-2 flex gap-3 border-t border-border pt-3">
-              {user ? (
-                <button onClick={handleSignOut} className="text-sm text-cream/80">
-                  Sign out
-                </button>
-              ) : (
-                <>
-                  <Link to="/login" className="text-sm text-cream/80" onClick={() => setOpen(false)}>
-                    Sign in
-                  </Link>
-                  <Link
-                    to="/signup"
-                    className="rounded-full bg-coral px-4 py-1.5 text-sm font-semibold text-ink"
-                    onClick={() => setOpen(false)}
-                  >
-                    Get started
-                  </Link>
-                </>
-              )}
-            </div>
+      {open && <nav id="mobile-navigation" aria-label="Mobile navigation" className="border-t border-[#ebebeb] bg-white px-4 py-3 md:hidden">
+        <div className="mx-auto flex max-w-[1200px] flex-col items-stretch gap-1">{links}
+          <div className="mt-2 flex items-center gap-3 border-t border-[#ebebeb] pt-3">
+            {user ? <button onClick={handleSignOut} className="min-h-11 px-3 text-sm font-medium">Sign out</button> : <><Link to="/login" onClick={() => setOpen(false)} className="min-h-11 px-3 py-3 text-sm font-medium">Sign in</Link><Link to="/signup" onClick={() => setOpen(false)} className="btn-primary min-h-11 px-4 text-sm">Get started</Link></>}
           </div>
         </div>
-      )}
+      </nav>}
     </header>
   );
 };
