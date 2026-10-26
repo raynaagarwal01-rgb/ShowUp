@@ -11,11 +11,6 @@ import { registrationsRouter } from "./routes/registrations.js";
 import { teamsRouter } from "./routes/teams.js";
 import { communityRouter } from "./routes/community.js";
 
-if (!process.env.JWT_SECRET) {
-  console.error("JWT_SECRET is not set. Copy .env.example to .env and set JWT_SECRET to a long random string.");
-  process.exit(1);
-}
-
 const app = express();
 app.use(express.json({ limit: "100kb" }));
 
@@ -42,7 +37,9 @@ app.use((err, _req, res, _next) => {
   if (err instanceof HttpError) return res.status(err.status).json({ error: err.message });
   if (err.type === "entity.parse.failed") return res.status(400).json({ error: "Invalid JSON in request." });
   if (err.code === "ER_DUP_ENTRY") return res.status(409).json({ error: "That already exists." });
-  if (["ECONNREFUSED", "ER_ACCESS_DENIED_ERROR", "ER_BAD_DB_ERROR", "ER_NO_SUCH_TABLE"].includes(err.code)) {
+  if (["ECONNREFUSED", "ER_ACCESS_DENIED_ERROR", "ER_BAD_DB_ERROR", "ER_NO_SUCH_TABLE"].includes(err.code) ||
+      err.code?.startsWith("ER_") || err.code?.startsWith("ECONN") || err.code?.startsWith("ETIMEDOUT") ||
+      err.code?.startsWith("PROTOCOL_")) {
     console.error(`[db] ${err.code}: ${err.message}`);
     return res.status(503).json({ error: "The database is unavailable. Check .env and run `npm run db:init`." });
   }
