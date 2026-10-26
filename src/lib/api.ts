@@ -94,6 +94,7 @@ export const signup = (input: SignupInput) => post<{ token: string; user: User }
 export const login = (email: string, password: string) =>
   post<{ token: string; user: User }>("/auth/login", { email, password });
 export const getMe = () => get<{ user: User }>("/auth/me");
+export const logout = () => post<{ ok: true }>("/auth/logout");
 
 // --- Events -------------------------------------------------------------------------
 

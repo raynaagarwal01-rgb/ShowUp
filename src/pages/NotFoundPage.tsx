@@ -2,11 +2,12 @@ import React from "react";
 import { Link } from "react-router-dom";
 
 export const NotFoundPage: React.FC = () => (
-  <div className="mx-auto flex min-h-[70vh] max-w-md flex-col items-center justify-center px-4 text-center">
-    <p className="font-display text-6xl font-extrabold text-coral">404</p>
-    <p className="mt-3 text-cream/80">This page wandered off campus.</p>
-    <Link to="/" className="mt-5 rounded-full bg-coral px-5 py-2.5 text-sm font-semibold text-ink">
-      Back home
-    </Link>
-  </div>
+  <main className="page-shell flex min-h-[70vh] items-center justify-center px-4 py-12">
+    <section className="max-w-md text-center">
+      <p className="eyebrow">404 · WRONG TURN</p>
+      <h1 className="mt-3 text-3xl font-semibold tracking-tight text-ink">This page isn’t on the schedule.</h1>
+      <p className="mt-3 text-sm text-muted">The link may have moved. You can find your next event from here.</p>
+      <Link to="/events" className="btn-primary mt-6 inline-flex">Explore events</Link>
+    </section>
+  </main>
 );

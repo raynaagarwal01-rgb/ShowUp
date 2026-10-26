@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { ApiError, getMe, getToken, login, setToken, signup, TOKEN_KEY, type SignupInput } from "../lib/api";
+import { ApiError, getMe, getToken, login, logout, setToken, signup, TOKEN_KEY, type SignupInput } from "../lib/api";
 import type { User } from "../types";
 
 interface AuthContextType {
@@ -7,8 +7,7 @@ interface AuthContextType {
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null; user: User | null }>;
   signUp: (input: SignupInput) => Promise<{ error: string | null; user: User | null }>;
-  /** Logging out just forgets the token — JWTs are not stored on the server. */
-  signOut: () => void;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -67,7 +66,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signUp = async (input: SignupInput) => {
-    if (input.password.length < 6) return { error: "Password must be at least 6 characters.", user: null };
+    const passwordBytes = new TextEncoder().encode(input.password).length;
+    if (passwordBytes < 6 || passwordBytes > 72) {
+      return { error: "Password must be between 6 and 72 bytes.", user: null };
+    }
     try {
       const session = await signup(input);
       setToken(session.token);
@@ -78,7 +80,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signOut = () => {
+  const signOut = async () => {
+    await logout();
     setToken(null);
     setUser(null);
   };
