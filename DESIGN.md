@@ -238,6 +238,7 @@ components:
     typography: "{typography.body-md}"
     rounded: "{rounded.md}"
     padding: "{spacing.md}"
+
   code-editor-mockup:
     backgroundColor: "{colors.primary}"
     textColor: "{colors.on-primary}"
@@ -739,10 +740,10 @@ The brand uses STACKED shadows — multiple small offsets layered to fake natura
 
 The source guide above is retained as requested. Its values are adapted to a student events product; implementation-specific tokens below are canonical in `src/index.css`, with this document recording their intent and class-level mapping. Runtime CSS is hand-authored and does not generate from this markdown.
 
-- Canvas `#ffffff`, soft canvas `#fafafa`, ink `#171717`, body `#4d4d4d`, muted `#888888`, hairline `#ebebeb`.
+- Canvas `#ffffff`, soft canvas `#fafafa`, ink `#171717`, body `#4d4d4d`, operational muted text `#737373`, decorative mute `#888888`, hairline `#ebebeb`, stronger field border `#a1a1a1`.
 - Geist and Geist Mono load from Google Fonts with system sans and monospace fallbacks. Display uses weight 600 and tight tracking; mono is reserved for short labels.
-- `.page-shell` caps content at 1200px; `.panel` is white with a hairline and quiet stacked shadow; `.field` is a 44px light input; `.btn-primary` and `.btn-secondary` are accessible 48px pill actions.
-- `bg-ink` is retained as a legacy canvas alias, `text-cream` as legacy ink, `bg-surface` as white, `bg-surface-2` as soft canvas, and `bg-coral` as the black primary. The paired legacy `bg-coral text-ink` receives white text for contrast. New surfaces should use the named shared classes and CSS variables above.
+- `.page-shell` caps content at 1200px; `.panel` is white with a hairline and quiet stacked shadow; `.field` is a 44px light input with a stronger border; application buttons use 6px corners and public marketing buttons remain pill-shaped.
+- `bg-ink` and `text-cream` map to ink, `bg-surface` to white, `bg-surface-2` to soft canvas, and `bg-coral` to the black primary. The app shell sets its own white canvas; `#737373` is used for readable muted text and `#888888` remains decorative.
 - The only atmospheric gradient belongs to the public landing hero. The ticket card and orbit lines are the ShowUp signature; other screens stay quiet and task-focused.
 - The public landing is brand-forward. Authenticated account, event, registration, and organizer routes use the same tokens with denser task layouts. Teams, community, and campus-map flows are outside the planned product scope.
 - Motion is limited to short hover transitions and respects `prefers-reduced-motion`. Focus is visible, scrollbars remain operable, and cards do not rely on shadows alone for boundaries.

@@ -1,5 +1,6 @@
-import { Routes, Route } from "react-router-dom";
-import { AuthProvider } from "./context/AuthContext";
+import { lazy, Suspense } from "react";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { AuthProvider, useAuth } from "./context/AuthContext";
 import { Navbar } from "./components/Navbar";
 import { Footer } from "./components/Footer";
 import { ProtectedRoute, OrganizerRoute } from "./components/ProtectedRoute";
@@ -9,104 +10,48 @@ import { EventDetailPage } from "./pages/EventDetailPage";
 import { LoginPage } from "./pages/LoginPage";
 import { SignupPage } from "./pages/SignupPage";
 import { DashboardPage } from "./pages/DashboardPage";
-import { CampusMapPage } from "./pages/CampusMapPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { OrganizerDashboardPage } from "./pages/organizer/OrganizerDashboardPage";
 import { CreateEventPage } from "./pages/organizer/CreateEventPage";
 import { EventRegistrantsPage } from "./pages/organizer/EventRegistrantsPage";
-import { CheckInPage } from "./pages/organizer/CheckInPage";
+
+const CheckInPage = lazy(() => import("./pages/organizer/CheckInPage").then(({ CheckInPage }) => ({ default: CheckInPage })));
+
+function StudentDashboardRoute() {
+  const { user } = useAuth();
+  return user?.role === "organizer" ? <Navigate to="/organizer" replace /> : <DashboardPage />;
+}
+
+function AppShell() {
+  const { pathname } = useLocation();
+  return (
+    <div className="flex min-h-screen flex-col bg-white text-ink">
+      <Navbar />
+      <main className={`flex-1 ${pathname === "/" ? "" : "application-shell"}`}>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+          <Route path="/events" element={<EventsPage />} />
+          <Route path="/events/:id" element={<EventDetailPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignupPage />} />
+          <Route path="/dashboard" element={<ProtectedRoute><StudentDashboardRoute /></ProtectedRoute>} />
+          <Route path="/organizer" element={<OrganizerRoute><OrganizerDashboardPage /></OrganizerRoute>} />
+          <Route path="/organizer/new" element={<OrganizerRoute><CreateEventPage /></OrganizerRoute>} />
+          <Route path="/organizer/events/:id/edit" element={<OrganizerRoute><CreateEventPage /></OrganizerRoute>} />
+          <Route path="/organizer/events/:id" element={<OrganizerRoute><EventRegistrantsPage /></OrganizerRoute>} />
+          <Route path="/organizer/events/:id/checkin" element={<OrganizerRoute><Suspense fallback={<div className="page-shell py-12 text-sm text-[#737373]">Loading check-in…</div>}><CheckInPage /></Suspense></OrganizerRoute>} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </main>
+      <Footer />
+    </div>
+  );
+}
 
 function App() {
-  return (
-    <AuthProvider>
-      <div className="flex min-h-screen flex-col bg-ink text-cream">
-        <Navbar />
-        <main className="flex-1">
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/campus-map" element={<CampusMapPage />} />
-            <Route
-              path="/profile"
-              element={
-                <ProtectedRoute>
-                  <ProfilePage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/events"
-              element={
-                <ProtectedRoute>
-                  <EventsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/events/:id"
-              element={
-                <ProtectedRoute>
-                  <EventDetailPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/signup" element={<SignupPage />} />
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <DashboardPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/organizer"
-              element={
-                <OrganizerRoute>
-                  <OrganizerDashboardPage />
-                </OrganizerRoute>
-              }
-            />
-            <Route
-              path="/organizer/new"
-              element={
-                <OrganizerRoute>
-                  <CreateEventPage />
-                </OrganizerRoute>
-              }
-            />
-            <Route
-              path="/organizer/events/:id/edit"
-              element={
-                <OrganizerRoute>
-                  <CreateEventPage />
-                </OrganizerRoute>
-              }
-            />
-            <Route
-              path="/organizer/events/:id"
-              element={
-                <OrganizerRoute>
-                  <EventRegistrantsPage />
-                </OrganizerRoute>
-              }
-            />
-            <Route
-              path="/organizer/events/:id/checkin"
-              element={
-                <OrganizerRoute>
-                  <CheckInPage />
-                </OrganizerRoute>
-              }
-            />
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-        </main>
-        <Footer />
-      </div>
-    </AuthProvider>
-  );
+  return <AuthProvider><AppShell /></AuthProvider>;
 }
 
 export default App;
