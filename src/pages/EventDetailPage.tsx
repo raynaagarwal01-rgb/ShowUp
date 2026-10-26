@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { CalendarDays, CheckCircle2, Clock3, MapPin, Users } from "lucide-react";
 import { getEvent, listMyRegistrations, registerSolo } from "../lib/api";
@@ -16,8 +16,13 @@ export const EventDetailPage: React.FC = () => {
   const [registration, setRegistration] = useState<MyRegistration | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("");
+  const [busyEventId, setBusyEventId] = useState<number | null>(null);
+  const [registrationNotice, setRegistrationNotice] = useState<{ eventId: number; text: string } | null>(null);
+  const busy = busyEventId === event?.id;
+  const message = registrationNotice && registrationNotice.eventId === event?.id ? registrationNotice.text : "";
+  const routeId = useRef(id);
+
+  useLayoutEffect(() => { routeId.current = id; }, [id]);
 
   const load = useCallback(async (active?: () => boolean) => {
     if (!id || authLoading) return;
@@ -44,19 +49,24 @@ export const EventDetailPage: React.FC = () => {
     let current = true;
     void load(() => current);
     return () => { current = false; };
-  }, [load]);
+  }, [id, load]);
 
   const register = async () => {
-    if (!event) return;
+    if (!event || busy) return;
     if (!user) { navigate(`/login?redirect=${encodeURIComponent(`/events/${event.id}`)}`); return; }
-    setBusy(true); setMessage(""); setError("");
+    const eventId = event.id;
+    setBusyEventId(eventId); setRegistrationNotice(null); setError("");
     try {
-      await registerSolo(event.id);
-      await load();
-      setMessage("You’re registered. Your ticket is ready below.");
+      const result = await registerSolo(eventId);
+      if (routeId.current !== id) return;
+      setRegistration({ ...result, event, team: null });
+      setEvent((current) => current?.id === eventId ? { ...current, registered_count: (current.registered_count ?? 0) + 1 } : current);
+      setRegistrationNotice({ eventId, text: "You’re registered. Your ticket is ready below." });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Registration failed. Please try again.");
-    } finally { setBusy(false); }
+      if (routeId.current === id) setError(e instanceof Error ? e.message : "Registration failed. Please try again.");
+    } finally {
+      if (routeId.current === id) setBusyEventId(null);
+    }
   };
 
   if (loading || authLoading) return <main className="page-shell py-16" aria-live="polite">Loading event…</main>;

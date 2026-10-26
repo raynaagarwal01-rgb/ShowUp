@@ -24,6 +24,6 @@ export const EventCard: React.FC<{ event: EventRecord }> = ({ event }) => {
       <p className="flex items-center gap-2"><Users aria-hidden="true" className="h-4 w-4 shrink-0 text-muted" />{confirmed} / {event.capacity} registered</p>
       <p className="flex items-center gap-2"><CalendarDays aria-hidden="true" className="h-4 w-4 shrink-0 text-muted" />{event.registration_deadline ? `Register by ${formatEventDate(event.registration_deadline)}` : "Registration deadline not set"}</p>
     </div>
-    <div className="mt-auto flex items-center justify-between border-t border-border pt-4 mt-5"><span className="text-sm font-semibold">{formatFee(event.fee)}</span><Link className="text-sm font-medium underline underline-offset-4" to={`/events/${event.id}`}>View event</Link></div>
+    <div className="mt-auto flex items-center justify-between border-t border-border pt-4"><span className="text-sm font-semibold">{formatFee(event.fee)}</span><Link className="text-sm font-medium underline underline-offset-4" to={`/events/${event.id}`}>View event</Link></div>
   </article>;
 };

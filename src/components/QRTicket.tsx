@@ -9,13 +9,15 @@ export const QRTicket: React.FC<{ value: string; size?: number }> = ({ value, si
     let active = true;
     setFailed(false);
     if (!canvasRef.current) return;
-    QRCode.toCanvas(canvasRef.current, value, {
+    canvasRef.current.getContext("2d")?.clearRect(0, 0, size, size);
+    const canvas = document.createElement("canvas");
+    QRCode.toCanvas(canvas, value, {
       width: size,
       margin: 1,
       color: { dark: "#171717", light: "#ffffff" },
-    }).catch(() => {
-      if (active) setFailed(true);
-    });
+    }).then(() => {
+      if (active && canvasRef.current) canvasRef.current.getContext("2d")?.drawImage(canvas, 0, 0);
+    }).catch(() => { if (active) setFailed(true); });
     return () => { active = false; };
   }, [value, size]);
 
