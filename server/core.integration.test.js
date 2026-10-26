@@ -127,6 +127,10 @@ test("three-table MySQL API integration", { skip: !enabled && "Set SHOWUP_TEST_D
     assert.equal((await request("/events", {
       method: "POST", token: organizer1, headers: { "content-type": "application/json" }, body: "{",
     })).status, 400);
+    assert.equal((await request("/events", {
+      method: "POST", token: organizer1, headers: { "content-type": "application/json" }, body: `{"large":"${"a".repeat(102400)}"}`,
+    })).status, 413);
+    assert.equal((await post("/events", eventInput({ event_date: "+010000-06-10T10:00:00.000Z" }), organizer1)).status, 400);
     assert.equal((await post("/events", eventInput({ registration_deadline: "2035-06-11T10:00:00.000Z" }), organizer1)).status, 400);
     const created = await post("/events", eventInput(), organizer1);
     assert.equal(created.status, 201);
@@ -149,7 +153,7 @@ test("three-table MySQL API integration", { skip: !enabled && "Set SHOWUP_TEST_D
     assert.equal(participants.status, 200);
     assert.deepEqual(Object.keys(participants.body[0]).sort(), ["checked_in_at", "college", "email", "id", "name", "reg_no", "registered_at", "status", "user_id"].sort());
     assert.equal((await put(`/events/${eventId}`, eventInput({ capacity: 0 }), organizer1)).status, 400);
-    const updated = await put(`/events/${eventId}`, eventInput({ capacity: 2, title: "Updated Event" }), organizer1);
+    const updated = await put(`/events/${eventId}`, eventInput({ capacity: 1, title: "Updated Event" }), organizer1);
     assert.equal(updated.status, 200);
     assert.equal(updated.body.title, "Updated Event");
     assert.equal((await put(`/events/${eventId}`, eventInput({ capacity: 0 }), organizer1)).status, 400);
@@ -204,6 +208,12 @@ test("three-table MySQL API integration", { skip: !enabled && "Set SHOWUP_TEST_D
     assert.equal((await post(`/registrations/${reregis.body.id}/check-in`, { event_id: eventId }, organizer2)).status, 404);
     assert.equal((await post(`/registrations/${reregis.body.id}/check-in`, { event_id: eventId }, organizer1)).status, 200);
     assert.equal((await post(`/registrations/${reregis.body.id}/check-in`, { event_id: eventId }, organizer1)).status, 409);
+    assert.equal((await request(`/registrations/${reregis.body.id}`, { method: "DELETE", token: student1 })).status, 409);
+    assert.equal((await request(`/registrations/${reregis.body.id}`, { method: "DELETE", token: organizer1 })).status, 409);
+    const [[checkedIn]] = await db.query("SELECT status, checked_in_at FROM registrations WHERE id = ?", [reregis.body.id]);
+    assert.equal(checkedIn.status, "confirmed");
+    assert.ok(checkedIn.checked_in_at);
+    assert.equal((await post(`/events/${eventId}/register`, {}, student2)).status, 409, "a checked-in registration must keep its seat");
 
     const removable = await post("/events", eventInput({ title: "Delete Event" }), organizer1);
     assert.equal((await request(`/events/${removable.body.id}`, { method: "DELETE", token: organizer2 })).status, 403);

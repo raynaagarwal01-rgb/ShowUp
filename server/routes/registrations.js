@@ -121,6 +121,7 @@ registrationsRouter.delete("/registrations/:id", requireAuth, async (req, res) =
     const isOrganizer = req.user.role === "organizer" && reg.organizer_id === req.user.id;
     if (!isStudent && !isOrganizer) throw new HttpError(403, "You can only cancel your own registration.");
     if (reg.status === "cancelled") return;
+    if (reg.checked_in_at) throw new HttpError(409, "Checked-in registrations can't be cancelled.");
     await conn.query("UPDATE registrations SET status = 'cancelled' WHERE id = ?", [id]);
   });
   res.json({ ok: true });

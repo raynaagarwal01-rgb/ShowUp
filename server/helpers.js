@@ -34,7 +34,9 @@ export function requireInt(value, label, min, max = 1_000_000) {
 
 export function requireDate(value, label) {
   const date = new Date(value);
-  if (!value || Number.isNaN(date.getTime())) throw new HttpError(400, `${label} is not a valid date.`);
+  if (!value || Number.isNaN(date.getTime()) || date.getUTCFullYear() < 1000 || date.getUTCFullYear() > 9999) {
+    throw new HttpError(400, `${label} is not a valid date.`);
+  }
   return date;
 }
 

@@ -32,10 +32,11 @@ if (fs.existsSync(path.join(distDir, "index.html"))) {
 app.use((err, _req, res, _next) => {
   if (err instanceof HttpError) return res.status(err.status).json({ error: err.message });
   if (err.type === "entity.parse.failed") return res.status(400).json({ error: "Invalid JSON in request." });
+  if (err.expose && Number.isInteger(err.status) && err.status >= 400 && err.status <= 499) {
+    return res.status(err.status).json({ error: err.message });
+  }
   if (err.code === "ER_DUP_ENTRY") return res.status(409).json({ error: "That already exists." });
-  if (["ECONNREFUSED", "ER_ACCESS_DENIED_ERROR", "ER_BAD_DB_ERROR", "ER_NO_SUCH_TABLE"].includes(err.code) ||
-      err.code?.startsWith("ER_") || err.code?.startsWith("ECONN") || err.code?.startsWith("ETIMEDOUT") ||
-      err.code?.startsWith("PROTOCOL_")) {
+  if (["ECONNREFUSED", "ER_ACCESS_DENIED_ERROR", "ER_BAD_DB_ERROR", "ER_NO_SUCH_TABLE"].includes(err.code)) {
     console.error(`[db] ${err.code}: ${err.message}`);
     return res.status(503).json({ error: "The database is unavailable. Check .env and run `npm run db:init`." });
   }

@@ -89,10 +89,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       await logout();
     } catch (e) {
       if (!(e instanceof ApiError && e.status === 401 && getToken() === token)) throw e;
-    }
-    if (getToken() === token) {
-      setToken(null);
-      setUser(null);
+    } finally {
+      if (getToken() === token) {
+        setToken(null);
+        setUser(null);
+      }
     }
   };
 

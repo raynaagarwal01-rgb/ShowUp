@@ -104,7 +104,7 @@ export const DashboardPage: React.FC = () => {
               </div>
               <div className="flex flex-wrap gap-2">
                 {r.status === "confirmed" && <button type="button" onClick={() => setOpenTicket(openTicket === r.id ? null : r.id)} className="btn-secondary min-h-10 px-3 text-sm">{openTicket === r.id ? "Hide ticket" : "Show ticket"}</button>}
-                {r.status === "confirmed" && <button type="button" onClick={() => { setCancelError(null); setCancelTarget(r); }} className="btn-secondary min-h-10 px-3 text-sm text-red-700">Cancel registration</button>}
+                {r.status === "confirmed" && !r.checked_in_at && <button type="button" onClick={() => { setCancelError(null); setCancelTarget(r); }} className="btn-secondary min-h-10 px-3 text-sm text-red-700">Cancel registration</button>}
               </div>
             </div>
             {r.status === "confirmed" && openTicket === r.id && <div className="mt-5 flex flex-col items-center gap-3 rounded-lg border border-border bg-[#fafafa] p-5 text-center">
