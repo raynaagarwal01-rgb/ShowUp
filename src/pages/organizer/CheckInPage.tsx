@@ -22,43 +22,66 @@ export const CheckInPage: React.FC = () => {
   const [scannerReady, setScannerReady] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const busyRef = useRef(false);
+  const requestId = useRef(0);
+  const feedbackTimer = useRef<number | null>(null);
 
   const loadEvent = useCallback(async () => {
-    if (!id) return;
-    setLoading(true);
+    const request = ++requestId.current;
+    setScannerReady(false);
+    setCameraError(null);
+    setEvent(null);
     setLoadError(null);
+    setFeedback(null);
+    busyRef.current = false;
+    setProcessing(false);
+    if (feedbackTimer.current !== null) window.clearTimeout(feedbackTimer.current);
+    feedbackTimer.current = null;
+    if (!id || !Number.isSafeInteger(Number(id)) || Number(id) <= 0) {
+      setLoading(false); setEvent(null); setLoadError("Invalid event ID."); return;
+    }
+    setLoading(true);
     try {
       const loaded = await getEvent(id);
+      if (request !== requestId.current) return;
       if (!loaded) throw new Error("Event not found.");
       if (loaded.organizer_id !== userId) throw new Error("You can only check in attendees for your own events.");
       setEvent(loaded);
     } catch (err) {
+      if (request !== requestId.current) return;
       setEvent(null);
       setLoadError(err instanceof Error ? err.message : "Couldn't load this event.");
     } finally {
-      setLoading(false);
+      if (request === requestId.current) setLoading(false);
     }
   }, [id, userId]);
 
-  useEffect(() => { void loadEvent(); }, [loadEvent]);
+  useEffect(() => {
+    const request = requestId;
+    const timer = feedbackTimer;
+    void loadEvent();
+    return () => { request.current++; if (timer.current !== null) window.clearTimeout(timer.current); };
+  }, [loadEvent]);
 
   const handleResult = useCallback(async (scanned: string): Promise<boolean> => {
     if (!id || busyRef.current) return false;
+    const request = requestId.current;
     busyRef.current = true;
     setProcessing(true);
     try {
       const registrationId = parseTicketCode(scanned);
       if (!registrationId) throw new Error("That isn't a ShowUp ticket.");
       const { name } = await checkIn(registrationId, Number(id));
+      if (request !== requestId.current) return false;
       setFeedback({ kind: "success", message: `${name} checked in.` });
       return true;
     } catch (err) {
-      setFeedback({ kind: "error", message: err instanceof Error ? err.message : "Couldn't read that ticket." });
+      if (request === requestId.current) setFeedback({ kind: "error", message: err instanceof Error ? err.message : "Couldn't read that ticket." });
       return false;
     } finally {
-      window.setTimeout(() => {
+      if (request === requestId.current) feedbackTimer.current = window.setTimeout(() => {
         busyRef.current = false;
         setProcessing(false);
+        feedbackTimer.current = null;
       }, 900);
     }
   }, [id]);
@@ -97,6 +120,7 @@ export const CheckInPage: React.FC = () => {
 
   const handleManualSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (!e.currentTarget.reportValidity()) return;
     if (await handleResult(manualId.trim())) setManualId("");
   };
 
@@ -118,9 +142,9 @@ export const CheckInPage: React.FC = () => {
         {feedback.kind === "success" ? <CheckCircle2 size={17} aria-hidden="true" /> : <XCircle size={17} aria-hidden="true" />}{feedback.message}
       </div>}
 
-      <form onSubmit={(e) => void handleManualSubmit(e)} className="panel space-y-3 p-4 sm:p-5">
+      <form noValidate onSubmit={(e) => void handleManualSubmit(e)} className="panel space-y-3 p-4 sm:p-5">
         <label htmlFor="ticket-code" className="flex items-center gap-2 text-sm font-medium"><KeyRound size={16} aria-hidden="true" />Enter ticket code manually</label>
-        <div className="flex flex-col gap-2 sm:flex-row"><input id="ticket-code" value={manualId} onChange={(e) => setManualId(e.target.value)} placeholder="e.g. 42 or SHOWUP-REG-42" className="field min-w-0 flex-1" /><button type="submit" disabled={processing || !manualId.trim()} className="btn-primary">{processing ? "Checking…" : "Check in"}</button></div>
+        <div className="flex flex-col gap-2 sm:flex-row"><input id="ticket-code" required value={manualId} onChange={(e) => { setManualId(e.target.value); if (feedback?.kind === "error") setFeedback(null); }} placeholder="e.g. 42 or SHOWUP-REG-42" className="field min-w-0 flex-1" /><button type="submit" disabled={processing || !manualId.trim()} className="btn-primary">{processing ? "Checking…" : "Check in"}</button></div>
       </form>
     </>}
   </main>;

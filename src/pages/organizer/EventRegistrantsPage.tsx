@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Download, QrCode, Search, Trash2 } from "lucide-react";
 import { deleteEvent, getEvent, listParticipants } from "../../lib/api";
@@ -30,12 +30,14 @@ function exportCsv(eventTitle: string, participants: Participant[]) {
 export const EventRegistrantsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const eventId = Number(id);
+  const invalidEventId = !Number.isSafeInteger(eventId) || eventId <= 0;
   const { user } = useAuth();
   const userId = user?.id;
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get("q") ?? "";
-  const requestedPage = Math.max(1, Number(searchParams.get("page")) || 1);
+  const rawPage = Number(searchParams.get("page"));
+  const requestedPage = Number.isFinite(rawPage) && rawPage > 0 ? Math.max(1, Math.floor(rawPage)) : 1;
   const [event, setEvent] = useState<EventRecord | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,12 +45,18 @@ export const EventRegistrantsPage: React.FC = () => {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const requestId = useRef(0);
 
   const load = useCallback(async () => {
+    const request = ++requestId.current;
     setLoading(true);
     setError(null);
+    setEvent(null);
+    setParticipants([]);
+    if (invalidEventId) { setLoading(false); setError("Invalid event ID."); return; }
     try {
       const [loadedEvent, rows] = await Promise.all([getEvent(eventId), listParticipants(eventId)]);
+      if (request !== requestId.current) return;
       if (!loadedEvent || loadedEvent.organizer_id !== userId) {
         setEvent(null);
         setError(loadedEvent ? "You can only view events you created." : "Event not found.");
@@ -57,13 +65,14 @@ export const EventRegistrantsPage: React.FC = () => {
         setParticipants(rows);
       }
     } catch (err) {
+      if (request !== requestId.current) return;
       setError(err instanceof Error ? err.message : "Couldn't load registrations.");
     } finally {
-      setLoading(false);
+      if (request === requestId.current) setLoading(false);
     }
-  }, [eventId, userId]);
+  }, [eventId, invalidEventId, userId]);
 
-  useEffect(() => { void load(); /* shortcut: participants load once per event; add API paging if event sizes outgrow a browser-sized list. */ }, [load]);
+  useEffect(() => { const request = requestId; void load(); return () => { request.current++; }; }, [load]);
 
   const filtered = useMemo(() => {
     const term = query.trim().toLocaleLowerCase();
@@ -130,6 +139,7 @@ export const EventRegistrantsPage: React.FC = () => {
       </div>
       <div className="panel overflow-x-auto">
         <table className="w-full min-w-[680px] text-left text-sm">
+          <caption className="sr-only">Registrations for {event.title}</caption>
           <thead className="border-b border-border bg-[#fafafa] text-xs text-muted"><tr>{["Name", "Email", "College / reg no.", "Status", "Check-in"].map((title) => <th key={title} scope="col" className="px-4 py-3 font-medium">{title}</th>)}</tr></thead>
           <tbody className="divide-y divide-border">
             {visible.length ? visible.map((person) => <tr key={person.id}>
@@ -141,10 +151,10 @@ export const EventRegistrantsPage: React.FC = () => {
           </tbody>
         </table>
       </div>
-      <div className="flex items-center justify-between text-sm text-muted">
-        <span>Page {page} of {pages}</span>
+      <nav aria-label="Registration pages" className="flex items-center justify-between text-sm text-muted">
+        <span>Showing {filtered.length ? (page - 1) * PAGE_SIZE + 1 : 0}–{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}</span>
         <div className="flex gap-2"><button className="btn-secondary" disabled={page <= 1} onClick={() => changePage(page - 1)}>Previous</button><button className="btn-secondary" disabled={page >= pages} onClick={() => changePage(page + 1)}>Next</button></div>
-      </div>
+      </nav>
     </section>
     <ConfirmDialog open={confirmDelete} onOpenChange={setConfirmDelete} title="Delete this event?" description={<>“{event.title}” and its registrations will be permanently deleted. This can't be undone.</>} confirmLabel={deleting ? "Deleting…" : "Delete event"} busy={deleting} error={deleteError} onConfirm={handleDelete} />
   </main>;

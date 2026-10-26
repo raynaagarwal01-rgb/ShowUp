@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { CalendarDays, Check, ClipboardList, Plus, QrCode, Trash2, Users } from "lucide-react";
 import { deleteEvent, listEvents } from "../../lib/api";
@@ -17,22 +17,26 @@ export const OrganizerDashboardPage: React.FC = () => {
   const [notice, setNotice] = useState<string | null>(location.state?.notice ?? null);
   const [eventToDelete, setEventToDelete] = useState<EventRecord | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const requestId = useRef(0);
 
   const loadEvents = useCallback(async () => {
     if (!user) return;
+    const request = ++requestId.current;
     setLoading(true);
     setError(null);
     try {
       const all = await listEvents();
+      if (request !== requestId.current) return;
       setEvents(all.filter((event) => event.organizer_id === user.id));
     } catch (err) {
+      if (request !== requestId.current) return;
       setError(err instanceof Error ? err.message : "Couldn't load your events.");
     } finally {
-      setLoading(false);
+      if (request === requestId.current) setLoading(false);
     }
   }, [user]);
 
-  useEffect(() => { void loadEvents(); }, [loadEvents]);
+  useEffect(() => { const request = requestId; void loadEvents(); return () => { request.current++; }; }, [loadEvents]);
   useEffect(() => {
     if (location.state?.notice) navigate(location.pathname, { replace: true, state: null });
   }, [location.pathname, location.state, navigate]);

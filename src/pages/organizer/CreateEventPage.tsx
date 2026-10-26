@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Trash2 } from "lucide-react";
 import { createEvent, deleteEvent, getEvent, updateEvent } from "../../lib/api";
@@ -23,7 +23,8 @@ export const CreateEventPage: React.FC = () => {
   const { user } = useAuth();
   const userId = user?.id;
   const { id } = useParams<{ id: string }>();
-  const eventId = id ? Number(id) : null;
+  const eventId = id === undefined ? null : Number(id);
+  const invalidEventId = eventId !== null && (!Number.isSafeInteger(eventId) || eventId <= 0);
   const navigate = useNavigate();
   const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(!!eventId);
@@ -33,13 +34,17 @@ export const CreateEventPage: React.FC = () => {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const requestId = useRef(0);
 
   const loadEvent = useCallback(async () => {
-    if (!eventId) return;
+    const request = ++requestId.current;
+    if (eventId === null) { setForm(emptyForm); setLoading(false); setLoadError(null); return; }
+    if (invalidEventId) { setLoading(false); setLoadError("Invalid event ID."); return; }
     setLoading(true);
     setLoadError(null);
     try {
       const event = await getEvent(eventId);
+      if (request !== requestId.current) return;
       if (!event) return setLoadError("Event not found.");
       if (event.organizer_id !== userId) return setLoadError("You can only edit events you created.");
       setForm({
@@ -49,19 +54,21 @@ export const CreateEventPage: React.FC = () => {
         capacity: event.capacity, fee: event.fee,
       });
     } catch (err) {
+      if (request !== requestId.current) return;
       setLoadError(err instanceof Error ? err.message : "Couldn't load this event.");
     } finally {
-      setLoading(false);
+      if (request === requestId.current) setLoading(false);
     }
-  }, [eventId, userId]);
+  }, [eventId, invalidEventId, userId]);
 
-  useEffect(() => { void loadEvent(); }, [loadEvent]);
+  useEffect(() => { const request = requestId; void loadEvent(); return () => { request.current++; }; }, [loadEvent]);
 
   const set = <K extends keyof typeof emptyForm>(key: K, value: (typeof emptyForm)[K]) =>
     setForm((current) => ({ ...current, [key]: value }));
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (saving || !event.currentTarget.reportValidity()) return;
     setError(null);
     if (new Date(form.registration_deadline) > new Date(form.event_date)) {
       setError("The registration deadline must be before the event starts.");
@@ -109,9 +116,9 @@ export const CreateEventPage: React.FC = () => {
     </header>
 
     {loading ? <p role="status" className="panel p-6 text-sm text-muted">Loading event…</p> : loadError ? <div role="alert" className="panel p-5 text-sm text-red-700">{loadError}<div className="mt-3 flex gap-3"><button className="underline" onClick={() => void loadEvent()}>Try again</button><Link className="underline" to="/organizer">Return to your events</Link></div></div> : <>
-      <form onSubmit={handleSubmit} className="panel space-y-5 p-5 sm:p-7">
+      <form noValidate onSubmit={handleSubmit} className="panel space-y-5 p-5 sm:p-7">
         <label className="block space-y-1.5 text-sm font-medium">Event title<input required maxLength={200} value={form.title} onChange={(e) => set("title", e.target.value)} className={fieldClass} /></label>
-        <label className="block space-y-1.5 text-sm font-medium">Description<textarea required rows={5} maxLength={5000} value={form.description} onChange={(e) => set("description", e.target.value)} className={`${fieldClass} min-h-32 resize-y py-2.5`} /></label>
+        <label className="block space-y-1.5 text-sm font-medium">Description<textarea required rows={5} maxLength={5000} value={form.description} onChange={(e) => set("description", e.target.value)} className={`${fieldClass} min-h-32 resize-none py-2.5`} /></label>
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block space-y-1.5 text-sm font-medium">Category<select value={form.category} onChange={(e) => set("category", e.target.value as EventCategory)} className={fieldClass}>{CATEGORIES.map((category) => <option key={category}>{category}</option>)}</select></label>
           <label className="block space-y-1.5 text-sm font-medium">Venue<input required maxLength={200} value={form.venue} onChange={(e) => set("venue", e.target.value)} placeholder="Building, room, or online" className={fieldClass} /></label>
@@ -121,8 +128,8 @@ export const CreateEventPage: React.FC = () => {
           <label className="block space-y-1.5 text-sm font-medium">Registration deadline<input required type="datetime-local" value={form.registration_deadline} onChange={(e) => set("registration_deadline", e.target.value)} className={fieldClass} /></label>
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="block space-y-1.5 text-sm font-medium">Capacity<input required type="number" min={1} value={form.capacity} onChange={(e) => set("capacity", Number(e.target.value))} className={fieldClass} /></label>
-          <label className="block space-y-1.5 text-sm font-medium">Fee (₹)<input required type="number" min={0} value={form.fee} onChange={(e) => set("fee", Number(e.target.value))} className={fieldClass} /><span className="block text-xs font-normal text-muted">Enter 0 for a free event.</span></label>
+          <label className="block space-y-1.5 text-sm font-medium">Capacity<input required type="number" min={1} max={100000} step={1} value={form.capacity} onChange={(e) => set("capacity", Number(e.target.value))} className={fieldClass} /></label>
+          <label className="block space-y-1.5 text-sm font-medium">Fee (₹)<input required type="number" min={0} max={100000} step={1} value={form.fee} onChange={(e) => set("fee", Number(e.target.value))} className={fieldClass} /><span className="block text-xs font-normal text-muted">Enter 0 for a free event.</span></label>
         </div>
         {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
         <div className="flex flex-col-reverse gap-2 border-t border-border pt-5 sm:flex-row sm:justify-between">
