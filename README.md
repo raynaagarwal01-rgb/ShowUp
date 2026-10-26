@@ -1,9 +1,9 @@
 # ShowUp
 
-A college event registration and check-in platform built as a clean, educational MySQL project guide.
+A college event registration and check-in platform built as a three-table MySQL database project.
 
 ## Prerequisites & Setup
-- **Prerequisites:** Node.js 22.12+ and MySQL 8.
+- **Prerequisites:** Node.js 22.18+ (or 24+) and MySQL 8.
 - **Install dependencies:** `npm ci`
 - **Configure environment:** Copy `.env.example` to `.env` and configure `DB_*` database credentials (`DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`).
 - **Initialize database:** `npm run db:init` (creates tables if not exists).
@@ -30,11 +30,11 @@ The database relies on raw `mysql2` parameterized queries with `?` placeholders 
 - **Students / Public:** Browse public events, register for events, view "My Events", and display QR tickets (`SHOWUP-REG-<id>`).
 - **Organizers:** CRUD event management, view attendee lists, export attendee CSVs, and perform check-ins manually or via QR scanner.
 - **Retired Features:** Teams, community (announcements, questions, winners), campus maps, and certificates are retired.
-- **Database Migrations:** Fresh installs run `npm run db:init` (3 final tables). Existing databases run `npm run db:upgrade` to add session columns additively without deleting records or retired tables. Never run a destructive reset as a normal upgrade path (`npm run db:reset` is intentionally destructive for local development only; never run it yourself).
-- **Demo Accounts:** `codecell@showup.local` (organizer) and `ananya@showup.local` (student). Refer to the `sql/seed.sql` header for the actual demo password (do not invent credentials).
+- **Database Migrations:** Fresh installs run `npm run db:init` (3 final tables). Existing databases run `npm run db:upgrade` to add session columns additively without deleting records or retired tables. Never run a destructive reset as a normal upgrade path (`npm run db:reset` is intentionally destructive for local development only).
+- **Demo Accounts:** `codecell@showup.local` (organizer) and `ananya@showup.local` (student). Refer to the `sql/seed.sql` header for the actual demo password.
 
 ## Verification & Checks
 - **Build & Lint:** `npm run build` and `npm run lint`.
-- **Tests:** `npm test` runs auth unit tests plus optional integration tests.
-- **Explicit Integration Command:** `SHOWUP_TEST_DATABASE=showup_test_checks node --test server/core.integration.test.js` (requires `DB_*` in `.env`, runs against a separate guarded test database) plus `node --test src/lib/authRedirect.test.js` (in final codebase). Integration tests remain disabled unless an explicit test database is provided. Note: do not claim all checks currently pass.
+- **Tests:** `npm test` runs auth, redirect and ticket-code unit tests plus optional MySQL integration tests.
+- **Explicit Integration Command:** `SHOWUP_TEST_DATABASE=showup_test_checks node --test server/core.integration.test.js` (requires `DB_*` in `.env`, runs against a separate guarded test database) plus `node --test src/lib/authRedirect.test.js`. Integration tests remain disabled unless an explicit test database is provided.
 - **SQL Scripts:** `sql/schema.sql` (table definitions), `sql/auth-upgrade.sql` (additive migration), `sql/seed.sql` (demo data), and `sql/examples.sql` (read-only learner queries).

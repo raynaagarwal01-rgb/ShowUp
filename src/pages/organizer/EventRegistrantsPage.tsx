@@ -11,8 +11,9 @@ const PAGE_SIZE = 20;
 
 function exportCsv(eventTitle: string, participants: Participant[]) {
   const escape = (value: unknown) => {
-    const text = String(value ?? "");
-    return `"${(/^[\s=+\-@]/.test(text) ? `'${text}` : text).replace(/"/g, '""')}"`;
+    let text = String(value ?? "");
+    if (/^[\s=+\-@]/.test(text)) text = "'" + text;
+    return '"' + text.replaceAll('"', '""') + '"';
   };
   const rows = [
     ["Ticket", "Name", "Email", "College", "Registration number", "Status", "Check-in"],

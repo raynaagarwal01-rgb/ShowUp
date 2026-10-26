@@ -34,8 +34,8 @@ export const LandingPage: React.FC = () => {
 
           <div className="panel mt-14 w-full max-w-[820px] overflow-hidden text-left">
             <div className="flex items-center justify-between border-b border-[#ebebeb] px-5 py-3 sm:px-7">
-              <span className="landing-kicker text-[#777]">THE SHOWUP FLOW</span>
-              <span className="text-xs text-[#777]">From discovery to the door</span>
+              <span className="landing-kicker text-[#737373]">THE SHOWUP FLOW</span>
+              <span className="text-xs text-[#737373]">From discovery to the door</span>
             </div>
             <div className="ticket-orbit">
               <div aria-hidden="true" className="absolute left-[13%] top-[26%] h-2 w-2 rounded-full bg-[#00b8a9]" />
@@ -43,12 +43,12 @@ export const LandingPage: React.FC = () => {
               <div aria-hidden="true" className="absolute bottom-[18%] left-[25%] h-1.5 w-1.5 rounded-full bg-[#f0a51b]" />
               <div className="ticket-chip">
                 <span className="grid h-10 w-10 place-items-center rounded-lg bg-[#fafafa] text-ink"><Ticket aria-hidden="true" className="h-5 w-5" strokeWidth={1.7} /></span>
-                <span><span className="block text-sm font-medium text-ink">Your event ticket</span><span className="mt-1 block text-xs text-[#777]">Registered · ready when you are</span></span>
+                <span><span className="block text-sm font-medium text-ink">Your event ticket</span><span className="mt-1 block text-xs text-[#737373]">Registered · ready when you are</span></span>
                 <QrCode aria-hidden="true" className="ml-2 h-7 w-7 text-ink" strokeWidth={1.5} />
               </div>
             </div>
             <div className="grid grid-cols-3 border-t border-[#ebebeb] text-center">
-              {["Explore", "Register", "Show up"].map((step, index) => <div key={step} className={`px-2 py-3 text-xs sm:text-sm ${index ? "border-l border-[#ebebeb]" : ""}`}><span className="mr-2 font-mono text-[#999]">0{index + 1}</span><span className="font-medium text-ink">{step}</span></div>)}
+              {["Explore", "Register", "Show up"].map((step, index) => <div key={step} className={`px-2 py-3 text-xs sm:text-sm ${index ? "border-l border-[#ebebeb]" : ""}`}><span className="mr-2 font-mono text-[#737373]">0{index + 1}</span><span className="font-medium text-ink">{step}</span></div>)}
             </div>
           </div>
         </div>
@@ -57,14 +57,14 @@ export const LandingPage: React.FC = () => {
       <section className="bg-[#fafafa] py-16 sm:py-24">
         <div className="page-shell">
           <div className="max-w-[560px]">
-            <p className="landing-kicker text-[#777]">A BETTER WAY TO TAKE PART</p>
+            <p className="landing-kicker text-[#737373]">A BETTER WAY TO TAKE PART</p>
             <h2 className="mt-4 text-3xl font-semibold leading-tight tracking-[-.05em] text-ink sm:text-4xl">Make more room for the good stuff.</h2>
             <p className="mt-4 text-base leading-7 text-[#555]">Less time hunting for details. More time finding the events and people you came for.</p>
           </div>
           <div className="mt-10 grid gap-4 md:grid-cols-3">
             {STEPS.map(({ icon: Icon, title, body }, index) => (
               <article key={title} className="panel min-h-48 p-6 sm:p-7">
-                <div className="flex items-center justify-between"><Icon aria-hidden="true" className="h-5 w-5 text-ink" strokeWidth={1.7} /><span className="landing-kicker text-[#999]">0{index + 1}</span></div>
+                <div className="flex items-center justify-between"><Icon aria-hidden="true" className="h-5 w-5 text-ink" strokeWidth={1.7} /><span className="landing-kicker text-[#737373]">0{index + 1}</span></div>
                 <h3 className="mt-8 text-lg font-semibold tracking-[-.04em] text-ink">{title}</h3>
                 <p className="mt-2 text-sm leading-6 text-[#555]">{body}</p>
               </article>
@@ -76,7 +76,7 @@ export const LandingPage: React.FC = () => {
       <section className="page-shell py-16 sm:py-24">
         <div className="flex flex-col gap-7 rounded-2xl border border-[#ebebeb] bg-white p-7 sm:flex-row sm:items-center sm:justify-between sm:p-10">
           <div className="max-w-[600px]">
-            <p className="landing-kicker text-[#777]">FOR STUDENTS & ORGANIZERS</p>
+            <p className="landing-kicker text-[#737373]">FOR STUDENTS & ORGANIZERS</p>
             <h2 className="mt-3 text-2xl font-semibold tracking-[-.05em] text-ink sm:text-3xl">Your next campus moment starts here.</h2>
             <p className="mt-3 text-sm leading-6 text-[#555]">Explore what’s happening or set up an organizer account to share an event with your campus.</p>
           </div>
