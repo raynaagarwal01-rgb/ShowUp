@@ -109,10 +109,11 @@ registrationsRouter.delete("/registrations/:id", requireAuth, async (req, res) =
     const [[initial]] = await conn.query("SELECT event_id FROM registrations WHERE id = ?", [id]);
     if (!initial) throw new HttpError(404, "Registration not found.");
     await conn.query("SELECT id FROM events WHERE id = ? FOR UPDATE", [initial.event_id]);
+    // Use a current read because the initial lookup established a REPEATABLE READ snapshot.
     const [[reg]] = await conn.query(
       `SELECT r.*, e.organizer_id
          FROM registrations r JOIN events e ON e.id = r.event_id
-        WHERE r.id = ?`,
+        WHERE r.id = ? FOR UPDATE`,
       [id],
     );
     if (!reg) throw new HttpError(404, "Registration not found.");

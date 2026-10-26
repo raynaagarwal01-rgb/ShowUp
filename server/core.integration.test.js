@@ -5,7 +5,10 @@ import { createHash } from "node:crypto";
 import { randomUUID } from "node:crypto";
 import { once } from "node:events";
 import { test } from "node:test";
+import dotenv from "dotenv";
 import mysql from "mysql2/promise";
+
+dotenv.config({ quiet: true });
 
 const database = process.env.SHOWUP_TEST_DATABASE;
 const enabled = /^showup_test_[a-z0-9_]+$/.test(database || "");
@@ -171,6 +174,29 @@ test("three-table MySQL API integration", { skip: !enabled && "Set SHOWUP_TEST_D
     assert.equal((await request(`/registrations/${registration.body.id}`, { method: "DELETE", token: student2 })).status, 403);
     assert.equal((await request(`/registrations/${registration.body.id}`, { method: "DELETE", token: student1 })).status, 200);
     assert.equal((await request(`/registrations/${registration.body.id}`, { method: "DELETE", token: student1 })).status, 200);
+    await db.beginTransaction();
+    let cancellation;
+    try {
+      await db.query("SELECT id FROM events WHERE id = ? FOR UPDATE", [eventId]);
+      cancellation = request(`/registrations/${registration.body.id}`, { method: "DELETE", token: student1 });
+      let waiting = false;
+      let processes;
+      for (let attempt = 0; attempt < 100; attempt++) {
+        [processes] = await db.query("SHOW FULL PROCESSLIST");
+        waiting = processes.some(({ Command, Info }) => Command === "Query" && Info?.includes("SELECT id FROM events WHERE id =") && Info?.endsWith("FOR UPDATE"));
+        if (waiting) break;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      assert.ok(waiting, "cancellation should wait on the event lock before the registration is reactivated");
+      await db.query("UPDATE registrations SET status = 'confirmed' WHERE id = ?", [registration.body.id]);
+      await db.commit();
+    } catch (error) {
+      await db.rollback();
+      throw error;
+    }
+    assert.equal((await cancellation).status, 200);
+    const [[{ status }]] = await db.query("SELECT status FROM registrations WHERE id = ?", [registration.body.id]);
+    assert.equal(status, "cancelled", "cancellation must use the reactivated status after acquiring the event lock");
     const reregis = await post(`/events/${eventId}/register`, {}, student1);
     assert.equal(reregis.status, 201);
     assert.equal(reregis.body.id, registration.body.id);
