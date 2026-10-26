@@ -740,7 +740,7 @@ The brand uses STACKED shadows — multiple small offsets layered to fake natura
 
 The source guide above is retained as requested. Its values are adapted to a student events product; implementation-specific tokens below are canonical in `src/index.css`, with this document recording their intent and class-level mapping. Runtime CSS is hand-authored and does not generate from this markdown.
 
-- Canvas `#ffffff`, soft canvas `#fafafa`, ink `#171717`, body `#4d4d4d`, operational muted text `#737373`, decorative mute `#888888`, hairline `#ebebeb`, stronger field border `#a1a1a1`.
+- Canvas `#ffffff`, soft canvas `#fafafa`, ink `#171717`, body `#4d4d4d`, operational muted text `#737373`, decorative mute `#888888`, hairline `#ebebeb`, and control border `#888888` (3.54:1 against white for accessible field boundaries).
 - Geist and Geist Mono load from Google Fonts with system sans and monospace fallbacks. Display uses weight 600 and tight tracking; mono is reserved for short labels.
 - `.page-shell` caps content at 1200px; `.panel` is white with a hairline and quiet stacked shadow; `.field` is a 44px light input with a stronger border; application buttons use 6px corners and public marketing buttons remain pill-shaped.
 - `bg-ink` and `text-cream` map to ink, `bg-surface` to white, `bg-surface-2` to soft canvas, and `bg-coral` to the black primary. The app shell sets its own white canvas; `#737373` is used for readable muted text and `#888888` remains decorative.

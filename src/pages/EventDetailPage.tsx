@@ -95,7 +95,7 @@ export const EventDetailPage: React.FC = () => {
         <p className="text-2xl font-semibold">{formatFee(event.fee)}{event.fee > 0 && <span className="ml-1 text-sm font-normal text-muted">per person</span>}</p>
         <div className="mt-5 space-y-3 border-y border-border py-4 text-sm">
           <p className="flex items-center gap-2"><Users className="h-4 w-4 text-muted" />{spotsLeft} of {event.capacity} spots left</p>
-          <p className="flex items-center gap-2"><Clock3 className="h-4 w-4 text-muted" />Registration {closed ? "closed" : `closes ${timeUntil(event.registration_deadline)}`}</p>
+          <p className="flex items-center gap-2"><Clock3 className="h-4 w-4 text-muted" />{closed ? "Registration closed" : `Registration: ${timeUntil(event.registration_deadline)}`}</p>
           <p className="text-xs text-muted">Deadline: {formatEventDate(event.registration_deadline)}</p>
         </div>
         <div className="pt-4" aria-live="polite">

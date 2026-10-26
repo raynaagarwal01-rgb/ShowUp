@@ -30,6 +30,7 @@
   --body: #4d4d4d;
   --mute: #737373;
   --hairline: #ebebeb;
+  --control-border: #888888;
   --focus: #0070f3;
 }
 
@@ -51,7 +52,7 @@ h1, h2, h3, h4 { font-family: var(--font-display); }
 @layer components {
   .page-shell { width: min(100% - 2rem, 1200px); margin-inline: auto; }
   .panel { border: 1px solid var(--hairline); border-radius: 12px; background: #fff; box-shadow: inset 0 0 0 1px rgb(0 0 0 / 2%), 0 1px 1px rgb(0 0 0 / 3%), 0 2px 4px rgb(0 0 0 / 3%); }
-  .field { min-height: 44px; width: 100%; border: 1px solid #a1a1a1; border-radius: 6px; background: #fff; padding: 0 12px; color: var(--ink); font: inherit; }
+  .field { min-height: 44px; width: 100%; border: 1px solid var(--control-border); border-radius: 6px; background: #fff; padding: 0 12px; color: var(--ink); font: inherit; }
   .field::placeholder { color: var(--mute); }
   .btn-primary, .btn-secondary { display: inline-flex; min-height: 48px; align-items: center; justify-content: center; gap: 8px; border-radius: 999px; padding: 0 20px; font-size: 15px; font-weight: 500; letter-spacing: -.02em; transition: background-color .16s ease, color .16s ease, border-color .16s ease; }
   .btn-primary { background: var(--ink); color: #fff; }
@@ -62,7 +63,7 @@ h1, h2, h3, h4 { font-family: var(--font-display); }
 }
 
 .application-shell .btn-primary, .application-shell .btn-secondary { border-radius: 6px; }
-.application-shell :is(input, select, textarea) { border-color: #a1a1a1; background-color: #fff; color: var(--ink); }
+.application-shell :is(input, select, textarea) { border-color: var(--control-border); background-color: #fff; color: var(--ink); }
 .application-shell :is(input, select, textarea)::placeholder { color: #737373; }
 
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
