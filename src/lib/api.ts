@@ -2,16 +2,11 @@
 // never talks to MySQL — it only sends HTTP requests here, and the server runs
 // the SQL. The only thing kept in the browser is the login token.
 import type {
-  Announcement,
   EventInput,
-  EventQuestion,
   EventRecord,
-  EventWinner,
   MyRegistration,
   Participant,
   Registration,
-  Team,
-  TeamDetails,
   User,
 } from "../types";
 
@@ -121,27 +116,3 @@ export const cancelRegistration = (id: number) => del<{ ok: true }>(`/registrati
 export const listParticipants = (eventId: number) => get<Participant[]>(`/events/${eventId}/registrations`);
 export const checkIn = (registrationId: number, eventId: number) =>
   post<{ ok: true; name: string }>(`/registrations/${registrationId}/check-in`, { event_id: eventId });
-
-// --- Teams --------------------------------------------------------------------------
-
-export const createTeam = (eventId: number, name: string) =>
-  post<{ team: Team; registration: Registration }>(`/events/${eventId}/teams`, { name });
-export const joinTeam = (joinCode: string) =>
-  post<{ team: Team; registration: Registration }>("/teams/join", { join_code: joinCode });
-export const getTeam = (teamId: number) => get<TeamDetails>(`/teams/${teamId}`);
-
-// --- Announcements, questions, winners ------------------------------------------------
-
-export const listAnnouncements = (eventId: number) => get<Announcement[]>(`/events/${eventId}/announcements`);
-export const createAnnouncement = (eventId: number, title: string, content: string) =>
-  post<Announcement>(`/events/${eventId}/announcements`, { title, content });
-
-export const listQuestions = (eventId: number) => get<EventQuestion[]>(`/events/${eventId}/questions`);
-export const askQuestion = (eventId: number, question: string) =>
-  post<EventQuestion>(`/events/${eventId}/questions`, { question });
-export const answerQuestion = (questionId: number, answer: string) =>
-  put<{ ok: true }>(`/questions/${questionId}/answer`, { answer });
-
-export const listWinners = (eventId: number) => get<EventWinner[]>(`/events/${eventId}/winners`);
-export const addWinner = (eventId: number, winner: { position: number; winner_name: string; prize: string }) =>
-  post<EventWinner>(`/events/${eventId}/winners`, winner);

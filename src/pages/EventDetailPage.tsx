@@ -59,7 +59,7 @@ export const EventDetailPage: React.FC = () => {
     try {
       const result = await registerSolo(eventId);
       if (routeId.current !== id) return;
-      setRegistration({ ...result, event, team: null });
+      setRegistration({ ...result, event });
       setEvent((current) => current?.id === eventId ? { ...current, registered_count: (current.registered_count ?? 0) + 1 } : current);
       setRegistrationNotice({ eventId, text: "You’re registered. Your ticket is ready below." });
     } catch (e) {

@@ -80,9 +80,6 @@ export const CreateEventPage: React.FC = () => {
         ...form,
         event_date: new Date(form.event_date).toISOString(),
         registration_deadline: new Date(form.registration_deadline).toISOString(),
-        // API types still require these fields; solo registrations are the current UI model.
-        team_min: 1,
-        team_max: 1,
       };
       await (eventId ? updateEvent(eventId, payload) : createEvent(payload));
       navigate("/organizer", { state: { notice: eventId ? "Changes saved." : "Event created." } });

@@ -28,23 +28,23 @@ function AppShell() {
   return (
     <div className="flex min-h-screen flex-col bg-white text-ink">
       <Navbar />
-      <main className={`flex-1 ${pathname === "/" ? "" : "application-shell"}`}>
+      <div className={`flex-1 ${pathname === "/" ? "" : "application-shell"}`}>
         <Routes>
-          <Route path="/" element={<LandingPage />} />
+          <Route path="/" element={<main><LandingPage /></main>} />
           <Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
           <Route path="/events" element={<EventsPage />} />
           <Route path="/events/:id" element={<EventDetailPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/signup" element={<SignupPage />} />
-          <Route path="/dashboard" element={<ProtectedRoute><StudentDashboardRoute /></ProtectedRoute>} />
+          <Route path="/dashboard" element={<ProtectedRoute><main><StudentDashboardRoute /></main></ProtectedRoute>} />
           <Route path="/organizer" element={<OrganizerRoute><OrganizerDashboardPage /></OrganizerRoute>} />
           <Route path="/organizer/new" element={<OrganizerRoute><CreateEventPage /></OrganizerRoute>} />
           <Route path="/organizer/events/:id/edit" element={<OrganizerRoute><CreateEventPage /></OrganizerRoute>} />
           <Route path="/organizer/events/:id" element={<OrganizerRoute><EventRegistrantsPage /></OrganizerRoute>} />
-          <Route path="/organizer/events/:id/checkin" element={<OrganizerRoute><Suspense fallback={<div className="page-shell py-12 text-sm text-[#737373]">Loading check-in…</div>}><CheckInPage /></Suspense></OrganizerRoute>} />
+          <Route path="/organizer/events/:id/checkin" element={<OrganizerRoute><Suspense fallback={<main className="page-shell py-12 text-sm text-[#737373]" role="status">Loading check-in…</main>}><CheckInPage /></Suspense></OrganizerRoute>} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
-      </main>
+      </div>
       <Footer />
     </div>
   );
