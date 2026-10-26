@@ -3,7 +3,7 @@ import React from "react";
 type Tone = "success" | "warning" | "danger" | "muted" | "coral";
 
 const toneClasses: Record<Tone, string> = {
-  success: "bg-green-50 text-green-800 border-green-200",
+  success: "bg-blue-50 text-blue-800 border-blue-200",
   warning: "bg-amber-50 text-amber-900 border-amber-300",
   danger: "bg-red-50 text-red-800 border-red-200",
   muted: "bg-surface-2 text-body border-border",
