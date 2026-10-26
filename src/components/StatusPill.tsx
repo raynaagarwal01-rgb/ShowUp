@@ -3,11 +3,11 @@ import React from "react";
 type Tone = "success" | "warning" | "danger" | "muted" | "coral";
 
 const toneClasses: Record<Tone, string> = {
-  success: "bg-success/15 text-success border-success/30",
-  warning: "bg-warning/15 text-warning border-warning/30",
-  danger: "bg-danger/15 text-danger border-danger/30",
-  muted: "bg-white/5 text-muted border-border",
-  coral: "bg-coral/15 text-coral-light border-coral/30",
+  success: "bg-green-50 text-green-800 border-green-200",
+  warning: "bg-amber-50 text-amber-900 border-amber-300",
+  danger: "bg-red-50 text-red-800 border-red-200",
+  muted: "bg-surface-2 text-body border-border",
+  coral: "bg-neutral-100 text-ink border-neutral-300",
 };
 
 export const StatusPill: React.FC<{ label: string; tone: Tone; className?: string }> = ({
@@ -16,7 +16,7 @@ export const StatusPill: React.FC<{ label: string; tone: Tone; className?: strin
   className = "",
 }) => (
   <span
-    className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${toneClasses[tone]} ${className}`}
+    className={`inline-flex items-center rounded-md border px-2.5 py-1 text-[11px] font-semibold tracking-wide ${toneClasses[tone]} ${className}`}
   >
     {label}
   </span>
