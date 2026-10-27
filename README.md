@@ -14,6 +14,7 @@ A college event registration and check-in platform built as a three-table MySQL 
 ## Vercel Deployment
 - Import the repository with the project root as the Root Directory. The Vite project builds with `npm run build` to `dist`; `vercel.json` routes `/api/*` to the root Node function in `api/` before the SPA rewrite.
 - Set the server-only `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, and `DB_NAME` environment variables in Vercel. They must point to a reachable hosted MySQL database; `localhost` is not the Vercel database.
+- For Aiven, also set server-only `DB_SSL_CA` to the project's CA certificate PEM; TLS verifies the certificate and hostname. Literal `\n` line breaks and multiline PEM are supported. Leave it unset for local MySQL.
 - Initialize a new database once, or upgrade an existing database without deleting records, using `npm run db:init` or `npm run db:upgrade` from an environment with database access. Never use `npm run db:reset` for a hosted database.
 - Keep database credentials server-side. Never prefix them with `VITE_`.
 

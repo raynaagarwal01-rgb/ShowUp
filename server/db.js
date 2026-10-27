@@ -11,6 +11,13 @@ export const dbConfig = {
   user: process.env.DB_USER || "root",
   password: process.env.DB_PASSWORD || "",
   database: process.env.DB_NAME || "showup",
+  ...(process.env.DB_SSL_CA && {
+    ssl: {
+      ca: process.env.DB_SSL_CA.replace(/\\n/g, "\n"),
+      rejectUnauthorized: true,
+      verifyIdentity: true,
+    },
+  }),
 };
 
 export const pool = mysql.createPool({
