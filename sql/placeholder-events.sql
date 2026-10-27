@@ -45,5 +45,7 @@ JOIN users AS organizer
  AND organizer.password_hash = '!'
 WHERE NOT EXISTS (
   SELECT 1 FROM events AS existing
-  WHERE existing.organizer_id = organizer.id AND existing.title = sample.title
+  -- Keep assigned sample events when an organizer takes over their management.
+  WHERE existing.title = sample.title
+    AND existing.description LIKE '%Placeholder event for demonstration only.%'
 );
