@@ -16,7 +16,7 @@ SELECT organizer.id, sample.title, sample.description, sample.category, sample.v
        TIMESTAMP(DATE_ADD(UTC_DATE(), INTERVAL sample.deadline_days DAY), '23:59:00'),
        sample.capacity, sample.fee
 FROM (
-  SELECT 'CodeSprint' AS title, 'Build and demo a useful campus software prototype with a small team. Placeholder event for demonstration only.' AS description,
+  SELECT 'CodeSprint' AS title, 'Build and demo a useful campus software prototype in a focused one-day session. Placeholder event for demonstration only.' AS description,
          'Hackathon' AS category, 'Technology Tower, Innovation Lab' AS venue, 6 AS event_days, 4 AS deadline_days, '09:00:00' AS start_time, 80 AS capacity, 0 AS fee
   UNION ALL SELECT 'Robotics Buildathon', 'Prototype a small robot, then share your design and build process. Placeholder event for demonstration only.',
          'Hackathon', 'Central Workshop, Robotics Lab', 24, 21, '10:00:00', 60, 150
@@ -24,7 +24,7 @@ FROM (
          'Workshop', 'SJT Computer Lab 3', 8, 6, '14:00:00', 40, 50
   UNION ALL SELECT 'Design to React', 'Turn a simple interface mockup into a responsive React page. Placeholder event for demonstration only.',
          'Workshop', 'Technology Tower, Studio 2', 16, 13, '13:00:00', 50, 100
-  UNION ALL SELECT 'Campus Quiz Bowl', 'Team up for a lighthearted quiz across science, arts, and campus life. Placeholder event for demonstration only.',
+  UNION ALL SELECT 'Campus Quiz Bowl', 'Test your knowledge in a lighthearted quiz across science, arts, and campus life. Placeholder event for demonstration only.',
          'Competition', 'Anna Auditorium, Seminar Room A', 10, 8, '15:00:00', 120, 0
   UNION ALL SELECT 'Photography Walk', 'Explore campus photo spots and submit one image for a friendly student showcase. Placeholder event for demonstration only.',
          'Competition', 'Main Quad, Student Activity Center', 20, 17, '16:00:00', 70, 50
