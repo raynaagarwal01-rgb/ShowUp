@@ -11,6 +11,12 @@ A college event registration and check-in platform built as a three-table MySQL 
 - **Development:** `npm run dev` (starts client on port 5173 and API on port 3001).
 - **Production:** `npm run build` then `npm start` (serves production build on port 3001).
 
+## Vercel Deployment
+- Import the repository with the project root as the Root Directory. The Vite project builds with `npm run build` to `dist`; `vercel.json` routes `/api/*` to the root Node function in `api/` before the SPA rewrite.
+- Set the server-only `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, and `DB_NAME` environment variables in Vercel. They must point to a reachable hosted MySQL database; `localhost` is not the Vercel database.
+- Initialize a new database once, or upgrade an existing database without deleting records, using `npm run db:init` or `npm run db:upgrade` from an environment with database access. Never use `npm run db:reset` for a hosted database.
+- Keep database credentials server-side. Never prefix them with `VITE_`.
+
 ## Database Schema (3 Tables)
 The database relies on raw `mysql2` parameterized queries with `?` placeholders (no ORM, no third-party auth, no JWT):
 1. **`users`**: `id` (PK), `name`, `email` (UNIQUE), `password_hash` (bcrypt), `role` (`student` or `organizer`), `college`, `reg_no`, `created_at`, plus nullable `session_token_hash` (`CHAR(64)`) and `session_expires_at` (`DATETIME`).
