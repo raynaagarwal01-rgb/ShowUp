@@ -22,7 +22,8 @@ export const dbConfig = {
 
 export const pool = mysql.createPool({
   ...dbConfig,
-  connectionLimit: 10,
+  // Each Vercel instance has its own pool; leave room on the free database.
+  connectionLimit: process.env.VERCEL === "1" ? 3 : 10,
   // Store and read every date as UTC so the browser can show it in local time.
   timezone: "Z",
 });
